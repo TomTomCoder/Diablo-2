@@ -412,6 +412,9 @@ func (mr *MapRenderer) renderFloor(tile d2ds1.Tile, target d2interface.Surface) 
 	target.PushTranslation(mr.viewport.GetTranslationScreen())
 	defer target.Pop()
 
+	target.PushFilter(d2enum.FilterLinear)
+	defer target.Pop()
+
 	target.Render(img)
 }
 
@@ -426,6 +429,9 @@ func (mr *MapRenderer) renderWall(tile d2ds1.Tile, viewport *Viewport, target d2
 	defer viewport.PopTranslation()
 
 	target.PushTranslation(viewport.GetTranslationScreen())
+	defer target.Pop()
+
+	target.PushFilter(d2enum.FilterLinear)
 	defer target.Pop()
 
 	target.Render(img)
@@ -444,6 +450,9 @@ func (mr *MapRenderer) renderShadow(tile d2ds1.Tile, target d2interface.Surface)
 	defer target.Pop()
 
 	target.PushColor(color.RGBA{R: 255, G: 255, B: 255, A: 160}) //nolint:gomnd // Not a magic number...
+	defer target.Pop()
+
+	target.PushFilter(d2enum.FilterLinear)
 	defer target.Pop()
 
 	target.Render(img)
