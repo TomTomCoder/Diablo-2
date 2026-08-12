@@ -1018,13 +1018,13 @@ func (g *GameControls) commandLearnSkillID(term d2interface.Terminal) func(args 
 
 		skill, err := g.heroSkillByID(id)
 		if err != nil {
-			term.Errorf(err.Error())
+			term.Errorf("%s", err.Error())
 			return nil
 		}
 
 		g.hero.Skills[skill.ID] = skill
 		g.hud.skillSelectMenu.RegenerateImageCache()
-		g.Infof("Learned skill: " + skill.Skill)
+		g.Infof("Learned skill: %s", skill.Skill)
 
 		return nil
 	}

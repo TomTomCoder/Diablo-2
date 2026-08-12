@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  build-test-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+
+      # ebiten needs these to build on Linux (X11/OpenGL/ALSA), see build.sh
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxcursor-dev libxrandr-dev libxinerama-dev \
+            libxi-dev libgl1-mesa-dev libasound2-dev
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      # .golangci.yml predates golangci-lint v2's config schema; pin v1 rather
+      # than migrating the config (see docs/migration-guide when that's worth doing).
+      #
+      # ponytail: the config was apparently never actually wired into CI before
+      # this workflow — running it surfaces hundreds of pre-existing style
+      # violations (mostly `wsl` cuddle-statement rules) across the codebase.
+      # Fixing those is a separate, large, unrelated cleanup; only-new-issues
+      # keeps CI green today and enforces the config on new/changed code only.
+      - name: Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.2
+          only-new-issues: true

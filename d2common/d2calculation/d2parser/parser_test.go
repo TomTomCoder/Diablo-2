@@ -2,7 +2,6 @@ package d2parser
 
 import (
 	"math"
-	"math/rand"
 	"testing"
 )
 
@@ -265,22 +264,21 @@ func TestBuiltinFunctions(t *testing.T) {
 }
 
 func TestRandFunction(t *testing.T) {
+	// Note: this used to assert that seeding the global math/rand source
+	// with rand.Seed(1) made two batches of Eval() calls reproduce the same
+	// sequence. Since Go 1.24, rand.Seed() is a documented no-op once the
+	// module's go.mod targets go 1.24+ (the top-level source auto-seeds and
+	// can no longer be pinned that way), so we instead assert the actual
+	// contract of rand(v1,v2): every result is one of the two bounds.
 	parser := New()
 	c := parser.Parse("rand(1,5)")
 
-	rand.Seed(1)
+	const samples = 20
 
-	res1 := []int{c.Eval(), c.Eval(), c.Eval(), c.Eval(), c.Eval()}
-
-	rand.Seed(1)
-
-	res2 := []int{c.Eval(), c.Eval(), c.Eval(), c.Eval(), c.Eval()}
-
-	for i := 0; i < len(res1); i++ {
-		t.Logf("%d, %d", res1[i], res2[i])
-
-		if res1[i] != res2[i] {
-			t.Error("Results not equal.")
+	for i := 0; i < samples; i++ {
+		res := c.Eval()
+		if res != 1 && res != 5 {
+			t.Errorf("rand(1,5) returned %d, want 1 or 5", res)
 		}
 	}
 }
