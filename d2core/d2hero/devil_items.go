@@ -9,6 +9,12 @@ package d2hero
 // numbering -- see that constant's comment).
 const ItemBatonApprenti = "dvl_baton_apprenti"
 
+// ItemBatonInitie is Devil's own item code for "Bâton de l'Initié", the
+// Cube de Nexus upgrade of Bâton de l'Apprenti (devil_game_design_reference.md
+// §8: "Le Cube de Nexus permet de transformer et améliorer les objets").
+// See devil_crafting.go.
+const ItemBatonInitie = "dvl_baton_initie"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -35,6 +41,12 @@ var DevilItems = map[string]*DevilItemDef{
 		Name:              "Bâton de l'Apprenti",
 		EnergyBonus:       5,
 		FireDamagePercent: 10,
+	},
+	ItemBatonInitie: {
+		Code:              ItemBatonInitie,
+		Name:              "Bâton de l'Initié",
+		EnergyBonus:       8,  // better than Bâton de l'Apprenti's 5 -- it's an upgrade
+		FireDamagePercent: 15, // better than Bâton de l'Apprenti's 10
 	},
 }
 
