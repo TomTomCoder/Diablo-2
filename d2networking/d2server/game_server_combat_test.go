@@ -142,7 +142,7 @@ func TestCanCastNowGatesOnMana(t *testing.T) {
 	// enough, and no time has passed for regen to help.
 	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 2, MaxMana: 10}})
 
-	if server.canCastNow("p", skillTraitDeFeu) {
+	if server.canCastNow("p", d2hero.SkillTraitDeFeu) {
 		t.Error("expected the cast to be blocked by insufficient mana")
 	}
 }
@@ -151,7 +151,7 @@ func TestCanCastNowDeductsMana(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Mana: 10, MaxMana: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
 
-	if !server.canCastNow("p", skillTraitDeFeu) {
+	if !server.canCastNow("p", d2hero.SkillTraitDeFeu) {
 		t.Fatal("expected the cast to succeed with enough mana")
 	}
 
@@ -168,7 +168,7 @@ func TestCanCastNowRegeneratesManaOverTime(t *testing.T) {
 	server.clock = func() time.Time { return now }
 
 	// Spend down to 0 mana with the first cast (cost 3, had exactly 3).
-	if !server.canCastNow("p", skillTraitDeFeu) {
+	if !server.canCastNow("p", d2hero.SkillTraitDeFeu) {
 		t.Fatal("expected the first cast to succeed")
 	}
 
@@ -180,14 +180,14 @@ func TestCanCastNowRegeneratesManaOverTime(t *testing.T) {
 	// we're also still on cooldown, so this should fail regardless.
 	server.clock = func() time.Time { return now.Add(baseCastCooldown) }
 
-	if server.canCastNow("p", skillTraitDeFeu) {
+	if server.canCastNow("p", d2hero.SkillTraitDeFeu) {
 		t.Error("expected the second cast to still be blocked (not enough mana regenerated yet)")
 	}
 
 	// After 3 more seconds at 1 mana/s (0 Energy), there's enough again.
 	server.clock = func() time.Time { return now.Add(baseCastCooldown + 3*time.Second) }
 
-	if !server.canCastNow("p", skillTraitDeFeu) {
+	if !server.canCastNow("p", d2hero.SkillTraitDeFeu) {
 		t.Error("expected the cast to succeed once enough mana regenerated")
 	}
 }
@@ -209,14 +209,14 @@ func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
 
 	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 0}})
 
-	if got := server.resolveAttackDamage("p", skillTraitDeFeu); got != traitDeFeuBase {
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != traitDeFeuBase {
 		t.Errorf("expected Trait de feu base damage %d, got %d", traitDeFeuBase, got)
 	}
 
 	// and it still scales with Energy on top of its own base
 	server = serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 100}})
 
-	if got := server.resolveAttackDamage("p", skillTraitDeFeu); got != traitDeFeuBase*2 {
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != traitDeFeuBase*2 {
 		t.Errorf("expected Trait de feu at 100 Energy to be %d, got %d", traitDeFeuBase*2, got)
 	}
 }

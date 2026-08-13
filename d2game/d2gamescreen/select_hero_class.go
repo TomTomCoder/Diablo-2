@@ -504,6 +504,11 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 		return
 	}
 
+	// ponytail: everyone starts with Trait de feu until Devil's own
+	// character creation/skill selection exists (ROADMAP.md Phase 2).
+	playerState.Skills[d2hero.SkillTraitDeFeu] = d2hero.NewTraitDeFeuSkill()
+	playerState.LeftSkill = d2hero.SkillTraitDeFeu
+
 	err = v.Save(playerState)
 	if err != nil {
 		v.Errorf("failed to save game state!, err: %v", err.Error())

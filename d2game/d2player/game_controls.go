@@ -454,7 +454,9 @@ func (g *GameControls) OnMouseButtonRepeat(event d2interface.MouseEvent) bool {
 		g.lastLeftBtnActionTime = now
 
 		if event.KeyMod() == d2enum.KeyModShift {
-			g.inputListener.OnPlayerCast(g.hero.LeftSkill.ID, px, py)
+			if id, ok := castSkillID(g.hero.LeftSkill); ok {
+				g.inputListener.OnPlayerCast(id, px, py)
+			}
 		} else {
 			g.inputListener.OnPlayerMove(px, py)
 		}
@@ -481,7 +483,9 @@ func (g *GameControls) OnMouseButtonRepeat(event d2interface.MouseEvent) bool {
 	if isRight && shouldDoRight && inRect && !g.hero.IsCasting() {
 		g.lastRightBtnActionTime = now
 
-		g.inputListener.OnPlayerCast(g.hero.RightSkill.ID, px, py)
+		if id, ok := castSkillID(g.hero.RightSkill); ok {
+			g.inputListener.OnPlayerCast(id, px, py)
+		}
 
 		return true
 	}
@@ -546,7 +550,9 @@ func (g *GameControls) OnMouseButtonDown(event d2interface.MouseEvent) bool {
 		g.lastLeftBtnActionTime = d2util.Now()
 
 		if event.KeyMod() == d2enum.KeyModShift {
-			g.inputListener.OnPlayerCast(g.hero.LeftSkill.ID, px, py)
+			if id, ok := castSkillID(g.hero.LeftSkill); ok {
+				g.inputListener.OnPlayerCast(id, px, py)
+			}
 		} else {
 			g.inputListener.OnPlayerMove(px, py)
 		}
@@ -557,7 +563,9 @@ func (g *GameControls) OnMouseButtonDown(event d2interface.MouseEvent) bool {
 	if event.Button() == d2enum.MouseButtonRight && !g.isInActiveMenusRect(mx, my) && !g.hero.IsCasting() {
 		g.lastRightBtnActionTime = d2util.Now()
 
-		g.inputListener.OnPlayerCast(g.hero.RightSkill.ID, px, py)
+		if id, ok := castSkillID(g.hero.RightSkill); ok {
+			g.inputListener.OnPlayerCast(id, px, py)
+		}
 
 		return true
 	}
@@ -1042,6 +1050,18 @@ func (g *GameControls) heroSkillByID(id int) (*d2hero.HeroSkill, error) {
 	}
 
 	return skill, nil
+}
+
+// castSkillID returns skill.ID and true, or (0, false) if no skill is
+// assigned. Guards OnPlayerCast callers against a nil LeftSkill/RightSkill
+// -- e.g. before Devil's own skill selection assigns one (ROADMAP.md
+// Phase 2), a fresh RightSkill is nil by default.
+func castSkillID(skill *d2hero.HeroSkill) (id int, ok bool) {
+	if skill == nil {
+		return 0, false
+	}
+
+	return skill.ID, true
 }
 
 func (g *GameControls) commandLearnSkills(term d2interface.Terminal) func(args []string) error {

@@ -450,6 +450,10 @@ func (h *HUD) renderPanel(x, y int, target d2interface.Surface) error {
 }
 
 func (h *HUD) renderLeftSkill(x, y int, target d2interface.Surface) {
+	if h.hero.LeftSkill == nil {
+		return
+	}
+
 	newSkillResourcePath := h.getSkillResourceByClass(h.hero.LeftSkill.Charclass)
 	if newSkillResourcePath != h.leftSkillResource.SkillResourcePath {
 		h.leftSkillResource.SkillResourcePath = newSkillResourcePath
@@ -466,6 +470,10 @@ func (h *HUD) renderLeftSkill(x, y int, target d2interface.Surface) {
 }
 
 func (h *HUD) renderRightSkill(x, _ int, target d2interface.Surface) {
+	if h.hero.RightSkill == nil {
+		return
+	}
+
 	_, height := target.GetSize()
 
 	newSkillResourcePath := h.getSkillResourceByClass(h.hero.RightSkill.Charclass)

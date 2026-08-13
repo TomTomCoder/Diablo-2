@@ -45,22 +45,14 @@ const meleeHitRadiusSubtiles = 3
 // skill isn't in skillBaseSortDamage (or no connection/stats resolved).
 const baseSortDamage = 4
 
-// skillTraitDeFeu is Devil's own skill ID for "Trait de feu" (Élémentalisme,
-// devil_game_design_reference.md §7) -- the first skill given real combat
-// data instead of the flat baseSortDamage placeholder.
-//
-// ponytail: deliberately numbered well above any Diablo 2 skills.txt ID
-// range (D2's own skill IDs are loaded at runtime from the player's MPQ
-// files and top out in the low hundreds) so a real skill cast from the
-// original game's data can never collide with a Devil-specific ID here.
-// Devil's own skill data model (30 skills/3 trees, ROADMAP.md Phase 2)
-// will replace this constant with a proper data table.
-const skillTraitDeFeu = 1000
-
 // skillBaseSortDamage holds base_sort damage for skills that have their own
 // combat data. Everything else falls back to baseSortDamage.
+//
+// d2hero.SkillTraitDeFeu is Devil's own skill ID for "Trait de feu" --
+// shared with character creation (select_hero_class.go) so both sides
+// agree on the same ID.
 var skillBaseSortDamage = map[int]int{
-	skillTraitDeFeu: 6,
+	d2hero.SkillTraitDeFeu: 6,
 }
 
 // baseSortDamageFor returns the given skill's base_sort damage, or the flat
@@ -108,7 +100,7 @@ const defaultManaCost = 2
 // ponytail: same placeholder status as skillBaseSortDamage -- real values
 // arrive with Devil's actual skill data model (ROADMAP.md Phase 2).
 var skillManaCost = map[int]int{
-	skillTraitDeFeu: 3,
+	d2hero.SkillTraitDeFeu: 3,
 }
 
 // manaCostFor returns the given skill's mana cost, or the flat fallback if
