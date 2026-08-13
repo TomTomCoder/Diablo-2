@@ -42,22 +42,16 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 - ✅ **Corrigé** : `resolveAttackDamage` (`d2networking/d2server/game_server.go`) utilisait les dégâts d'une arme physique équipée — ne correspondait pas au design (pas de Strength, pas d'arme de corps-à-corps non magique). Réécrit avec la vraie formule : `Dégâts = base_sort × (1 + Energy / 100)`, où `Energy` vient de `HeroState.Stats` et `base_sort` est un placeholder à plat (`baseSortDamage`) en attendant de vraies données de compétence (Phase 2). Commit `e5cc5d82`.
 
 - ✅ **Trait de feu** a maintenant son propre `base_sort` (6, contre le placeholder à plat de 4) via une petite table `skillBaseSortDamage` indexée par un ID de compétence propre à Devil — délibérément numéroté loin de la plage des vrais ID de skills.txt de D2 (chargés à l'exécution depuis les MPQ du joueur, jamais présents dans ce dépôt) pour ne jamais entrer en collision. Commit `498d1fc0`.
+- ✅ **Cooldown de cast lié à la Dexterity** : `canCastNow`/`castCooldownFor` — 800ms à 0 Dexterity, réduit progressivement, plancher à 200ms. Ferme un vrai trou (rien n'empêchait de spammer des `CastSkill` avant ça) et donne un premier effet réel à la Dexterity. Échelle continue en attendant les vrais paliers ("breakpoints") du design, qui demandent des données d'animation qui n'existent pas encore. Commit `d2474efc`.
 
-**⚠️ Limite connue :** ce mécanisme n'est pas encore atteignable en jeu — la création de personnage et l'UI de compétences assignent toujours les compétences d'origine de Diablo 2 (chargées depuis les MPQ), pas les compétences propres à Devil. La Phase 2 (arbre Élémentalisme complet) doit remplacer cette assignation.
+**⚠️ Limite connue :** *Trait de feu* n'est pas encore atteignable en jeu — la création de personnage et l'UI de compétences assignent toujours les compétences d'origine de Diablo 2 (chargées depuis les MPQ), pas les compétences propres à Devil. Rendre ça castable proprement demande soit de fausses données de compétence + rendu HUD sans crash (icônes/tooltips actuels n'ont aucune vérification nulle), soit la vraie UI de sélection de compétences — dans les deux cas, c'est le travail de la Phase 2, pas un correctif ponctuel.
 
 **Reste à faire :**
 - **Modificateurs d'équipement** : le bâton/orbe équipé (ex. `+10% dégâts Feu` du Bâton de l'Apprenti, `devil_mage_character_design.md` §5) doit s'appliquer comme *modificateur* sur la formule, pas comme source de dégâts de base.
-- **Stats dérivées** : `HeroStatsState` a Energy/Vitality/Dexterity bruts mais pas encore de vitesse d'incantation (Dexterity, avec breakpoints) ni de régénération de mana calculées.
-- **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif.
-- **Bouclier de mana** : mécanique défensive du design (§6) — absorbe les dégâts via la réserve de mana.
-
-**Reste à faire, dans l'ordre :**
-
-1. **Attributs dérivés** : `d2hero.HeroStatsState` a Strength/Energy/Dexterity/Vitality bruts mais aucun calcul de stats de combat dérivées. Ajouter au moins : dégâts magiques (via Energy), vitesse d'incantation (via Dexterity, avec breakpoints comme en D2), régénération de mana.
-2. **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif même en Apocalypse (contrairement à D2 où les résistances négatives punitives existent — décision de design explicite à respecter).
-3. **Un sort réel** : brancher *Trait de feu* (premier sort d'Élémentalisme) sur `resolveMeleeHit`/`resolveAttackDamage` à la place du placeholder actuel — valide la formule Energy sur un cas concret avant d'ouvrir les 29 autres compétences.
-4. **Bouclier de mana** : mécanique défensive citée dans le design (§6) — absorbe les dégâts via la réserve de mana. Bon candidat pour valider le pipeline de sorts défensifs après un sort offensif.
-5. **Sauvegarde** : format JSON maison pour commencer (pas la compatibilité `.d2s`, hors sujet puisque les stats/formats de personnage ne sont plus ceux de D2).
+- **Régénération de mana** : dernière stat dérivée du design (§6) qui manque encore (dégâts magiques via Energy fait, vitesse d'incantation via Dexterity faite).
+- **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif même en Apocalypse (contrairement à D2 où les résistances négatives punitives existent — décision de design explicite à respecter). Rien à mitiger encore : aucun monstre n'attaque le joueur (pas d'IA, voir Phase 4).
+- **Bouclier de mana** : mécanique défensive du design (§6) — absorbe les dégâts via la réserve de mana. Même dépendance : peu utile à tester avant que les monstres attaquent.
+- **Sauvegarde** : format JSON maison pour commencer (pas la compatibilité `.d2s`, hors sujet puisque les stats/formats de personnage ne sont plus ceux de D2).
 
 **Simplifications volontaires qui restent acceptables pour l'instant** (documentées en commentaire `ponytail:` dans le code) : ciblage par proximité au lieu de clic-sur-cible, pas de jet de précision, une seule cible par sort (pas de zone d'effet même pour les sorts qui devraient en avoir un).
 
