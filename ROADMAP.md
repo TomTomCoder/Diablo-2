@@ -34,15 +34,19 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 - ✅ CI GitHub Actions : build + vet + test + `golangci-lint` (v1.64.2, `only-new-issues` pour ne pas bloquer sur les centaines de violations `wsl` préexistantes).
 - ✅ Test de fumée (`d2core/d2asset/d2asset_smoke_test.go`).
 
-## Phase 1 — Combat et attributs du Mage 🚧⚠️
-*Démarré, mais dans la mauvaise direction sur un point — à corriger avant de continuer.*
+## Phase 1 — Combat et attributs du Mage 🚧
+*Démarré. Commits locaux `0c9f823`, `1ebdbd3`, `e5cc5d82`.*
 
-**Fait (commits locaux `0c9f823`, `1ebdbd3`) :** une tranche verticale de combat de bout en bout — un monstre tuable a des PV, un cast de compétence proche de lui déclenche une résolution de dégâts côté serveur, le client reçoit et applique la mise à jour (PV ou suppression à la mort), et les dégâts viennent de l'arme équipée par le joueur.
+**Fait :**
+- Une tranche verticale de combat de bout en bout — un monstre tuable a des PV, un cast de compétence proche de lui déclenche une résolution de dégâts côté serveur, le client reçoit et applique la mise à jour (PV ou suppression à la mort). Commits `0c9f823`, `1ebdbd3`.
+- ✅ **Corrigé** : `resolveAttackDamage` (`d2networking/d2server/game_server.go`) utilisait les dégâts d'une arme physique équipée — ne correspondait pas au design (pas de Strength, pas d'arme de corps-à-corps non magique). Réécrit avec la vraie formule : `Dégâts = base_sort × (1 + Energy / 100)`, où `Energy` vient de `HeroState.Stats` et `base_sort` est un placeholder à plat (`baseSortDamage`) en attendant de vraies données de compétence (Phase 2). Commit `e5cc5d82`.
 
-**⚠️ À corriger :** ce dernier point ne correspond plus au design. Devil n'a **pas d'attribut Strength ni de défense physique** — "aucune arme de corps-à-corps non magique" (`devil_game_design_reference.md`, §5 et §8). `resolveAttackDamage` (`d2networking/d2server/game_server.go`) doit être repris pour :
-- Remplacer le lookup `MinDamage`/`MaxDamage` d'une arme physique par la formule magique du design : `Dégâts = base_sort × (1 + Energy / 100)`, où `base_sort` vient de la compétence lancée (pas de l'objet équipé) et `Energy` du personnage (`HeroStatsState`, à étendre — aujourd'hui il n'y a pas de calcul de stats dérivées, voir Phase 1 précédente).
-- Le bâton/orbe équipé reste pertinent comme **modificateur** (ex. `+10% dégâts Feu` du Bâton de l'Apprenti, `devil_mage_character_design.md` §5), pas comme source de dégâts de base.
-- Le fallback "à mains nues" (1-2) reste correct comme filet de sécurité si aucun sort n'est identifié.
+**Reste à faire :**
+- **`base_sort` par compétence** : aujourd'hui une seule constante pour tous les sorts — à remplacer par un lookup par `SkillID` une fois les données de compétences de la Phase 2 en place.
+- **Modificateurs d'équipement** : le bâton/orbe équipé (ex. `+10% dégâts Feu` du Bâton de l'Apprenti, `devil_mage_character_design.md` §5) doit s'appliquer comme *modificateur* sur la formule, pas comme source de dégâts de base.
+- **Stats dérivées** : `HeroStatsState` a Energy/Vitality/Dexterity bruts mais pas encore de vitesse d'incantation (Dexterity, avec breakpoints) ni de régénération de mana calculées.
+- **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif.
+- **Bouclier de mana** : mécanique défensive du design (§6) — absorbe les dégâts via la réserve de mana.
 
 **Reste à faire, dans l'ordre :**
 
@@ -133,4 +137,4 @@ Construit la première tranche de contenu jouable racontée, sur la Région I (T
 
 ## Prochaine étape
 
-Corriger `resolveAttackDamage` pour utiliser la formule magique (Energy) au lieu de l'arme physique, puis brancher *Trait de feu* comme premier sort réel — dans cet ordre, avant d'ouvrir davantage de compétences ou de contenu.
+Brancher *Trait de feu* comme premier sort réel (données de compétence + `base_sort` propre), pour valider la formule Energy sur un cas concret avant d'ouvrir davantage de compétences ou de contenu.
