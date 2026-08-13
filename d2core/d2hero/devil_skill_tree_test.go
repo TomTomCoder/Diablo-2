@@ -126,6 +126,23 @@ func TestSkillTelekinesieIsArcaneWithNoDamage(t *testing.T) {
 	}
 }
 
+func TestSkillRalentissementSharesTierWithNovaDeGivre(t *testing.T) {
+	slow, nova := DevilSkills[SkillRalentissement], DevilSkills[SkillNovaDeGivre]
+
+	if slow.RequiredLevel != nova.RequiredLevel {
+		t.Errorf("expected Ralentissement and Nova de givre to share tier 2's RequiredLevel, got %d vs %d",
+			slow.RequiredLevel, nova.RequiredLevel)
+	}
+
+	if slow.Tree != TreeArcane {
+		t.Error("expected Ralentissement to belong to Arcane")
+	}
+
+	if slow.BaseSortDamage != 0 {
+		t.Errorf("expected Ralentissement to deal no direct base_sort damage, got %d", slow.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

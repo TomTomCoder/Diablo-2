@@ -416,6 +416,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillRalentissement {
+		g.resolveRalentissementHit(target)
+		return
+	}
+
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
 	if nearest == nil {
 		return
@@ -617,6 +622,30 @@ func (g *GameServer) resolveTelekinesieHit(sourceEntityID string, target d2vecto
 
 	for _, npc := range g.killableNPCsWithin(target, telekinesieRadiusSubtiles) {
 		npc.Knockback(casterPos, telekinesieKnockbackDistance)
+	}
+}
+
+// ralentissementRadiusSubtiles/ralentissementSlowDuration: Ralentissement
+// slows every killable NPC within this many subtiles of the cast's targeted
+// position, for this long. The slow amount itself
+// (npcSlowedSpeedMultiplier, applied by ChasePlayer) already matches the
+// design's "réduit la vitesse des entités de 50%" -- same mechanic Éclat de
+// glace uses on a single target, just over an area here.
+const (
+	ralentissementRadiusSubtiles = 4
+	ralentissementSlowDuration   = 3 * time.Second
+)
+
+// resolveRalentissementHit applies a slow (d2mapentity.NPC.ApplySlow) to
+// every killable NPC within ralentissementRadiusSubtiles of target. Deals no
+// damage, so it doesn't go through applyResolvedDamage/broadcast an NPCHit --
+// same documented client-sync gap as Éclat de glace's own slow (no packet
+// carries SlowedUntil to clients yet).
+func (g *GameServer) resolveRalentissementHit(target d2vector.Position) {
+	until := g.clock().Add(ralentissementSlowDuration)
+
+	for _, npc := range g.killableNPCsWithin(target, ralentissementRadiusSubtiles) {
+		npc.ApplySlow(until)
 	}
 }
 

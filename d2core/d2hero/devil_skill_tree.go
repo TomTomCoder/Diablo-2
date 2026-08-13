@@ -86,6 +86,14 @@ const SkillChampStatique = SkillTempeteStatique + 1
 // interaction system, which doesn't exist yet (ROADMAP.md Phase 5).
 const SkillTelekinesie = SkillChampStatique + 1
 
+// SkillRalentissement is Devil's own skill ID for "Ralentissement" (Arcane,
+// devil_game_design_reference.md §7): "Zone qui réduit la vitesse des
+// entités de 50%". Deals no damage (BaseSortDamage 0) -- its whole value is
+// the slow, applied to every killable NPC in the targeted area via the same
+// d2mapentity.NPC.ApplySlow used by Éclat de glace. See
+// resolveRalentissementHit in game_server.go.
+const SkillRalentissement = SkillTelekinesie + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -155,6 +163,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 1,
 		ManaCost:      5, // cheap utility/control spell -- no direct damage
+	},
+	SkillRalentissement: {
+		ID:            SkillRalentissement,
+		Name:          "Ralentissement",
+		Tree:          TreeArcane,
+		RequiredLevel: 6, // tier 2, per the design's level table
+		ManaCost:      7,
 	},
 }
 
