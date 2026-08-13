@@ -359,9 +359,17 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 		return baseSort
 	}
 
-	energy := state.Stats.Energy
+	damage := baseSort + (baseSort*state.Stats.Energy)/100
 
-	return baseSort + (baseSort*energy)/100
+	// ponytail: always applies the equipped weapon's Fire modifier,
+	// regardless of the cast skill's actual element -- there's no per-skill
+	// element data yet (d2hero.DevilSkillDef has no element field either).
+	// See ROADMAP.md Phase 2/5.
+	if firePercent := d2hero.ItemFireDamagePercent(state.Equipment.RightHand.GetItemCode()); firePercent > 0 {
+		damage += (damage * firePercent) / 100
+	}
+
+	return damage
 }
 
 var (

@@ -516,6 +516,15 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	}
 
 	playerState.Equipment = v.InventoryItemFactory.DefaultHeroItems[v.selectedHero]
+
+	// ponytail: overrides whatever D2 weapon DefaultHeroItems assigned --
+	// Devil's own starting gear isn't modeled beyond this one weapon yet
+	// (ROADMAP.md Phase 5).
+	playerState.Equipment.RightHand = &d2inventory.InventoryItemWeapon{
+		ItemCode: d2hero.ItemBatonApprenti,
+		ItemName: d2hero.DevilItems[d2hero.ItemBatonApprenti].Name,
+	}
+
 	v.navigator.ToCreateGame(playerState.FilePath, v.connectionType, v.connectionHost)
 }
 

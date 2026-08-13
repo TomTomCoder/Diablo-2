@@ -6,6 +6,7 @@ import (
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2netpacket"
 )
@@ -287,5 +288,30 @@ func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
 
 	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != traitDeFeuBase*2 {
 		t.Errorf("expected Trait de feu at 100 Energy to be %d, got %d", traitDeFeuBase*2, got)
+	}
+}
+
+func TestResolveAttackDamageWeaponFireModifier(t *testing.T) {
+	const traitDeFeuBase = 6 // no Energy scaling in this test (Energy: 0)
+
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Energy: 0},
+		Equipment: d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+		},
+	})
+
+	want := traitDeFeuBase + (traitDeFeuBase*10)/100 // Bâton de l'Apprenti: +10% dégâts Feu
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != want {
+		t.Errorf("expected the equipped staff's Fire modifier applied (%d), got %d", want, got)
+	}
+}
+
+func TestResolveAttackDamageNoWeaponNoModifier(t *testing.T) {
+	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 0}})
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != 6 {
+		t.Errorf("expected no modifier with nothing equipped, got %d", got)
 	}
 }
