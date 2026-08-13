@@ -37,3 +37,21 @@ func TestItemAllAttributesBonus(t *testing.T) {
 		t.Errorf("expected Bâton de l'Apprenti to have no all-attributes bonus, got %d", got)
 	}
 }
+
+func TestItemHealthAndManaBonus(t *testing.T) {
+	if got := ItemHealthBonus(ItemRobeDuNovice); got != 15 {
+		t.Errorf("expected Robe du Novice's +15 Vie, got %d", got)
+	}
+
+	if got := ItemManaBonus(ItemRobeDuNovice); got != 5 {
+		t.Errorf("expected Robe du Novice's +5 Mana, got %d", got)
+	}
+
+	if got := ItemHealthBonus("unknown-item-code"); got != 0 {
+		t.Errorf("expected 0 Health bonus for an unknown item code, got %d", got)
+	}
+
+	if got := ItemManaBonus("unknown-item-code"); got != 0 {
+		t.Errorf("expected 0 Mana bonus for an unknown item code, got %d", got)
+	}
+}

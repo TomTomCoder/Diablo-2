@@ -518,9 +518,9 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	playerState.Equipment = v.InventoryItemFactory.DefaultHeroItems[v.selectedHero]
 
 	// ponytail: overrides whatever D2 weapon DefaultHeroItems assigned --
-	// Devil's own starting gear isn't modeled beyond these three yet
-	// (ROADMAP.md Phase 5: no Robe du Novice/Ceinture de Cuir Runique
-	// equivalent -- Torso exists but nothing to put there yet).
+	// Devil's own starting gear isn't modeled beyond these four yet
+	// (ROADMAP.md Phase 5: no Ceinture de Cuir Runique equivalent -- no
+	// potion belt system exists at all yet).
 	playerState.Equipment.RightHand = &d2inventory.InventoryItemWeapon{
 		ItemCode: d2hero.ItemBatonApprenti,
 		ItemName: d2hero.DevilItems[d2hero.ItemBatonApprenti].Name,
@@ -533,6 +533,21 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 		ItemCode: d2hero.ItemAnneauDuDebut,
 		ItemName: d2hero.DevilItems[d2hero.ItemAnneauDuDebut].Name,
 	}
+	playerState.Equipment.Torso = &d2inventory.InventoryItemArmor{
+		ItemCode: d2hero.ItemRobeDuNovice,
+		ItemName: d2hero.DevilItems[d2hero.ItemRobeDuNovice].Name,
+	}
+
+	// Robe du Novice's "+15 Vie, +5 Mana" -- baked into Max*/current at
+	// creation, same as MaxHealth/MaxMana themselves (CreateHeroStatsState
+	// computes them once and nothing re-derives them live). See
+	// DevilItemDef.HealthBonus/ManaBonus's own doc comment for why.
+	healthBonus := d2hero.ItemHealthBonus(d2hero.ItemRobeDuNovice)
+	manaBonus := d2hero.ItemManaBonus(d2hero.ItemRobeDuNovice)
+	playerState.Stats.MaxHealth += healthBonus
+	playerState.Stats.Health += healthBonus
+	playerState.Stats.MaxMana += manaBonus
+	playerState.Stats.Mana += manaBonus
 
 	v.navigator.ToCreateGame(playerState.FilePath, v.connectionType, v.connectionHost)
 }

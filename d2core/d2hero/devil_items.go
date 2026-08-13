@@ -26,6 +26,12 @@ const ItemPendentifArcane = "dvl_pendentif_arcane"
 // CharacterEquipment.Ring slot.
 const ItemAnneauDuDebut = "dvl_anneau_du_debut"
 
+// ItemRobeDuNovice is Devil's own item code for "Robe du Novice"
+// (devil_mage_character_design.md §5: "+15 Vie, +5 Mana"), one of the
+// Mage's 5 starting items. Equips in the existing Torso slot
+// (*d2inventory.InventoryItemArmor).
+const ItemRobeDuNovice = "dvl_robe_du_novice"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -43,6 +49,19 @@ type DevilItemDef struct {
 	// character creation and never re-derived, so an equipped item's bonus
 	// to either has no live effect yet. See ROADMAP.md Phase 5.
 	AllAttributesBonus int
+
+	// HealthBonus/ManaBonus add flat points to MaxHealth/MaxMana --
+	// e.g. Robe du Novice's "+15 Vie, +5 Mana". Unlike EnergyBonus (read
+	// fresh on every attack via effectiveEnergy), these are applied once,
+	// at the moment an item is equipped at character creation
+	// (select_hero_class.go) -- MaxHealth/MaxMana are themselves only ever
+	// computed once at creation in this codebase (CreateHeroStatsState),
+	// never live-recomputed, so baking the bonus in the same way is
+	// consistent rather than a new inconsistency. Known simplification: if
+	// the item were later swapped (e.g. via crafting), the bonus wouldn't
+	// be removed/reapplied -- there's no unequip/swap flow yet to handle.
+	HealthBonus int
+	ManaBonus   int
 
 	// FireDamagePercent is a damage *modifier* (e.g. "+10% dégâts Feu"),
 	// applied on top of a cast's base_sort/Energy damage -- not a source of
@@ -78,6 +97,12 @@ var DevilItems = map[string]*DevilItemDef{
 		Name:               "Anneau du Début",
 		AllAttributesBonus: 2,
 	},
+	ItemRobeDuNovice: {
+		Code:        ItemRobeDuNovice,
+		Name:        "Robe du Novice",
+		HealthBonus: 15,
+		ManaBonus:   5,
+	},
 }
 
 // ItemFireDamagePercent returns itemCode's Fire damage modifier percent
@@ -105,6 +130,26 @@ func ItemEnergyBonus(itemCode string) int {
 func ItemAllAttributesBonus(itemCode string) int {
 	if def, ok := DevilItems[itemCode]; ok {
 		return def.AllAttributesBonus
+	}
+
+	return 0
+}
+
+// ItemHealthBonus returns itemCode's MaxHealth bonus (0 if it's not in
+// DevilItems or grants no such bonus).
+func ItemHealthBonus(itemCode string) int {
+	if def, ok := DevilItems[itemCode]; ok {
+		return def.HealthBonus
+	}
+
+	return 0
+}
+
+// ItemManaBonus returns itemCode's MaxMana bonus (0 if it's not in
+// DevilItems or grants no such bonus).
+func ItemManaBonus(itemCode string) int {
+	if def, ok := DevilItems[itemCode]; ok {
+		return def.ManaBonus
 	}
 
 	return 0
