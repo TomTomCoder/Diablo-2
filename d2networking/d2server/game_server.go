@@ -136,6 +136,29 @@ func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 	return true
 }
 
+// broadcastPlayerMana tells clients about sourceEntityID's current Mana.
+// Correction (août 2026): canCastNow regenerates and/or spends Mana
+// entirely server-side -- regen even happens on a cast that ultimately
+// fails for lack of mana -- and neither was ever broadcast, so a client's
+// own mana orb would never move no matter how many spells were cast.
+// Called by resolveMeleeHit after every cast attempt, success or failure.
+// Reuses PotionUsedPacket (see restoreManaOnKill's own reasoning for doing
+// the same) rather than adding a new packet type for the same shape.
+func (g *GameServer) broadcastPlayerMana(sourceEntityID string) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	usedPacket, err := d2netpacket.CreatePotionUsedPacket(sourceEntityID, state.Stats.Mana)
+	if err != nil {
+		g.Errorf("CreatePotionUsedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(usedPacket)
+}
+
 // playerStateOf returns sourceEntityID's HeroState, or nil if they aren't a
 // connected player.
 func (g *GameServer) playerStateOf(sourceEntityID string) *d2hero.HeroState {
@@ -827,7 +850,10 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if !g.canCastNow(castPacket.SourceEntityID, castPacket.SkillID) {
+	canCast := g.canCastNow(castPacket.SourceEntityID, castPacket.SkillID)
+	g.broadcastPlayerMana(castPacket.SourceEntityID)
+
+	if !canCast {
 		return
 	}
 

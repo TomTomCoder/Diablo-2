@@ -172,6 +172,39 @@ func TestCanCastNowDeductsMana(t *testing.T) {
 	}
 }
 
+// TestBroadcastPlayerManaSendsCurrentMana is a regression test:
+// canCastNow spends and regenerates Mana entirely server-side (even on a
+// cast that ultimately fails for lack of mana), but nothing ever broadcast
+// the result -- a client's own mana orb would never move no matter how
+// many spells were cast.
+func TestBroadcastPlayerManaSendsCurrentMana(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Mana: 7, MaxMana: 10}
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: stats}}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	server.broadcastPlayerMana("p")
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	used, err := d2netpacket.UnmarshalPotionUsed(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PotionUsedPacket: %v", err)
+	}
+
+	if used.Mana != 7 {
+		t.Errorf("expected the broadcast to carry the current Mana (7), got %d", used.Mana)
+	}
+}
+
+func TestBroadcastPlayerManaUnknownPlayerNoop(t *testing.T) {
+	server := &GameServer{connections: map[string]ClientConnection{}}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.broadcastPlayerMana("nobody")
+}
+
 func TestCanCastNowRegeneratesManaOverTime(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Energy: 0, Mana: 3, MaxMana: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
