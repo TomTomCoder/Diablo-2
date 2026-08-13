@@ -93,41 +93,112 @@ func TestCastCooldownForScalesWithDexterity(t *testing.T) {
 	}
 }
 
+// plentyOfMana is enough mana for these cooldown-focused tests to never be
+// blocked by manaCostFor -- that's covered separately in the mana tests.
+var plentyOfMana = &d2hero.HeroStatsState{Mana: 1000, MaxMana: 1000}
+
 func TestCanCastNowGatesOnCooldown(t *testing.T) {
-	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Dexterity: 0}})
+	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{
+		Dexterity: 0, Mana: plentyOfMana.Mana, MaxMana: plentyOfMana.MaxMana,
+	}})
 
 	now := time.Now()
 	server.clock = func() time.Time { return now }
 
-	if !server.canCastNow("p") {
+	if !server.canCastNow("p", unknownSkillID) {
 		t.Fatal("first cast should always be allowed")
 	}
 
-	if server.canCastNow("p") {
+	if server.canCastNow("p", unknownSkillID) {
 		t.Error("second cast at the same instant should be gated by cooldown")
 	}
 
 	server.clock = func() time.Time { return now.Add(baseCastCooldown) }
 
-	if !server.canCastNow("p") {
+	if !server.canCastNow("p", unknownSkillID) {
 		t.Error("cast after the cooldown elapsed should be allowed")
 	}
 }
 
 func TestCanCastNowIsPerCaster(t *testing.T) {
 	server := serverWithConnection(nil)
-	server.connections["a"] = &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
-	server.connections["b"] = &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+	server.connections["a"] = &fakeClientConnection{state: &d2hero.HeroState{Stats: plentyOfMana}}
+	server.connections["b"] = &fakeClientConnection{state: &d2hero.HeroState{Stats: plentyOfMana}}
 
 	now := time.Now()
 	server.clock = func() time.Time { return now }
 
-	if !server.canCastNow("a") {
+	if !server.canCastNow("a", unknownSkillID) {
 		t.Fatal("a's first cast should be allowed")
 	}
 
-	if !server.canCastNow("b") {
+	if !server.canCastNow("b", unknownSkillID) {
 		t.Error("b should have their own independent cooldown from a")
+	}
+}
+
+func TestCanCastNowGatesOnMana(t *testing.T) {
+	// Trait de feu costs 3 mana (skillManaCost); starting with only 2 isn't
+	// enough, and no time has passed for regen to help.
+	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 2, MaxMana: 10}})
+
+	if server.canCastNow("p", skillTraitDeFeu) {
+		t.Error("expected the cast to be blocked by insufficient mana")
+	}
+}
+
+func TestCanCastNowDeductsMana(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Mana: 10, MaxMana: 10}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	if !server.canCastNow("p", skillTraitDeFeu) {
+		t.Fatal("expected the cast to succeed with enough mana")
+	}
+
+	if stats.Mana != 7 {
+		t.Errorf("expected mana to drop by the skill's cost (3), got %d", stats.Mana)
+	}
+}
+
+func TestCanCastNowRegeneratesManaOverTime(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Energy: 0, Mana: 3, MaxMana: 10}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	// Spend down to 0 mana with the first cast (cost 3, had exactly 3).
+	if !server.canCastNow("p", skillTraitDeFeu) {
+		t.Fatal("expected the first cast to succeed")
+	}
+
+	if stats.Mana != 0 {
+		t.Fatalf("expected 0 mana after spending exactly what was available, got %d", stats.Mana)
+	}
+
+	// Not enough time has passed to regen 3 mana at 0 Energy (1/s) -- and
+	// we're also still on cooldown, so this should fail regardless.
+	server.clock = func() time.Time { return now.Add(baseCastCooldown) }
+
+	if server.canCastNow("p", skillTraitDeFeu) {
+		t.Error("expected the second cast to still be blocked (not enough mana regenerated yet)")
+	}
+
+	// After 3 more seconds at 1 mana/s (0 Energy), there's enough again.
+	server.clock = func() time.Time { return now.Add(baseCastCooldown + 3*time.Second) }
+
+	if !server.canCastNow("p", skillTraitDeFeu) {
+		t.Error("expected the cast to succeed once enough mana regenerated")
+	}
+}
+
+func TestManaRegenPerSecondScalesWithEnergy(t *testing.T) {
+	if got := manaRegenPerSecond(0); got != baseManaRegenPerSecond {
+		t.Errorf("at 0 Energy, expected base regen %v, got %v", baseManaRegenPerSecond, got)
+	}
+
+	if got := manaRegenPerSecond(50); got <= baseManaRegenPerSecond {
+		t.Errorf("higher Energy should regen faster than the base rate, got %v", got)
 	}
 }
 

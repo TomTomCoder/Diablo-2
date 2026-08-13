@@ -98,21 +98,78 @@ func castCooldownFor(dexterity int) time.Duration {
 	return cooldown
 }
 
-// canCastNow reports whether sourceEntityID may deal damage with a cast
-// right now, and records this moment as their last successful cast if so.
-// A caster still on cooldown gets no hit resolution at all -- same as if
-// they'd cast at nothing (see resolveMeleeHit); the cast's visual effect
-// still plays for everyone since that's relayed independently of this gate.
-func (g *GameServer) canCastNow(sourceEntityID string) bool {
+// defaultManaCost is the fallback mana cost used when the cast skill isn't
+// in skillManaCost.
+const defaultManaCost = 2
+
+// skillManaCost holds mana costs for skills that have their own combat
+// data. Everything else falls back to defaultManaCost.
+//
+// ponytail: same placeholder status as skillBaseSortDamage -- real values
+// arrive with Devil's actual skill data model (ROADMAP.md Phase 2).
+var skillManaCost = map[int]int{
+	skillTraitDeFeu: 3,
+}
+
+// manaCostFor returns the given skill's mana cost, or the flat fallback if
+// it isn't in skillManaCost.
+func manaCostFor(skillID int) int {
+	if cost, ok := skillManaCost[skillID]; ok {
+		return cost
+	}
+
+	return defaultManaCost
+}
+
+// baseManaRegenPerSecond is how much mana regenerates per second at 0
+// Energy; manaRegenPerSecond scales it up from there.
+const baseManaRegenPerSecond = 1.0
+
+// manaRegenPerSecond returns how much mana regenerates per second for the
+// given Energy, per "Régénération de mana ... boostée par l'Energy"
+// (devil_game_design_reference.md §6).
+//
+// ponytail: the design doc states the relationship (higher Energy -> faster
+// regen) but not a formula -- this is an untuned placeholder, not a real
+// balance value.
+func manaRegenPerSecond(energy int) float64 {
+	return baseManaRegenPerSecond + float64(energy)/50
+}
+
+// canCastNow reports whether sourceEntityID may deal damage with a cast of
+// skillID right now: they must be off cooldown (castCooldownFor) and, if
+// they're a resolved player, have enough mana (manaCostFor) after applying
+// regen (manaRegenPerSecond) since their last cast. Mana is deducted and
+// this moment recorded as their last cast if both checks pass.
+//
+// A caster still on cooldown or short on mana gets no hit resolution at
+// all -- same as if they'd cast at nothing (see resolveMeleeHit); the
+// cast's visual effect still plays for everyone since that's relayed
+// independently of this gate.
+func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 	now := g.clock()
 
 	g.Lock()
 	defer g.Unlock()
 
-	if last, ok := g.lastCastAt[sourceEntityID]; ok {
-		if now.Sub(last) < castCooldownFor(g.dexterityOf(sourceEntityID)) {
+	last, hasCastBefore := g.lastCastAt[sourceEntityID]
+
+	if hasCastBefore && now.Sub(last) < castCooldownFor(g.dexterityOf(sourceEntityID)) {
+		return false
+	}
+
+	if state := g.playerStateOf(sourceEntityID); state != nil && state.Stats != nil {
+		if hasCastBefore {
+			regen := int(manaRegenPerSecond(state.Stats.Energy) * now.Sub(last).Seconds())
+			state.Stats.Mana = min(state.Stats.Mana+regen, state.Stats.MaxMana)
+		}
+
+		cost := manaCostFor(skillID)
+		if state.Stats.Mana < cost {
 			return false
 		}
+
+		state.Stats.Mana -= cost
 	}
 
 	g.lastCastAt[sourceEntityID] = now
@@ -120,15 +177,21 @@ func (g *GameServer) canCastNow(sourceEntityID string) bool {
 	return true
 }
 
+// playerStateOf returns sourceEntityID's HeroState, or nil if they aren't a
+// connected player.
+func (g *GameServer) playerStateOf(sourceEntityID string) *d2hero.HeroState {
+	connection, ok := g.connections[sourceEntityID]
+	if !ok {
+		return nil
+	}
+
+	return connection.GetPlayerState()
+}
+
 // dexterityOf returns sourceEntityID's Dexterity, or 0 if it isn't a
 // connected player or has no stats resolved.
 func (g *GameServer) dexterityOf(sourceEntityID string) int {
-	connection, ok := g.connections[sourceEntityID]
-	if !ok {
-		return 0
-	}
-
-	state := connection.GetPlayerState()
+	state := g.playerStateOf(sourceEntityID)
 	if state == nil || state.Stats == nil {
 		return 0
 	}
@@ -151,7 +214,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if !g.canCastNow(castPacket.SourceEntityID) {
+	if !g.canCastNow(castPacket.SourceEntityID, castPacket.SkillID) {
 		return
 	}
 
@@ -210,12 +273,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int {
 	baseSort := baseSortDamageFor(skillID)
 
-	connection, ok := g.connections[sourceEntityID]
-	if !ok {
-		return baseSort
-	}
-
-	state := connection.GetPlayerState()
+	state := g.playerStateOf(sourceEntityID)
 	if state == nil || state.Stats == nil {
 		return baseSort
 	}
