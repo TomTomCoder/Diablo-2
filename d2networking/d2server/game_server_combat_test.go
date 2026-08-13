@@ -2,6 +2,7 @@ package d2server
 
 import (
 	"testing"
+	"time"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
@@ -23,7 +24,11 @@ func (f *fakeClientConnection) GetPlayerState() *d2hero.HeroState               
 func (f *fakeClientConnection) SetPlayerState(state *d2hero.HeroState)           { f.state = state }
 
 func serverWithConnection(state *d2hero.HeroState) *GameServer {
-	server := &GameServer{connections: make(map[string]ClientConnection)}
+	server := &GameServer{
+		connections: make(map[string]ClientConnection),
+		lastCastAt:  make(map[string]time.Time),
+		clock:       time.Now,
+	}
 	if state != nil {
 		server.connections["p"] = &fakeClientConnection{state: state}
 	}
@@ -68,6 +73,61 @@ func TestResolveAttackDamageEnergyScaling(t *testing.T) {
 		if got := server.resolveAttackDamage("p", unknownSkillID); got != c.expected {
 			t.Errorf("energy=%d: expected %d, got %d", c.energy, c.expected, got)
 		}
+	}
+}
+
+func TestCastCooldownForScalesWithDexterity(t *testing.T) {
+	cases := []struct {
+		dexterity int
+		want      time.Duration
+	}{
+		{dexterity: 0, want: baseCastCooldown},
+		{dexterity: 25, want: baseCastCooldown / 2},
+		{dexterity: 1000, want: minCastCooldown}, // floors, never reaches zero
+	}
+
+	for _, c := range cases {
+		if got := castCooldownFor(c.dexterity); got != c.want {
+			t.Errorf("dexterity=%d: expected %v, got %v", c.dexterity, c.want, got)
+		}
+	}
+}
+
+func TestCanCastNowGatesOnCooldown(t *testing.T) {
+	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Dexterity: 0}})
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	if !server.canCastNow("p") {
+		t.Fatal("first cast should always be allowed")
+	}
+
+	if server.canCastNow("p") {
+		t.Error("second cast at the same instant should be gated by cooldown")
+	}
+
+	server.clock = func() time.Time { return now.Add(baseCastCooldown) }
+
+	if !server.canCastNow("p") {
+		t.Error("cast after the cooldown elapsed should be allowed")
+	}
+}
+
+func TestCanCastNowIsPerCaster(t *testing.T) {
+	server := serverWithConnection(nil)
+	server.connections["a"] = &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+	server.connections["b"] = &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	if !server.canCastNow("a") {
+		t.Fatal("a's first cast should be allowed")
+	}
+
+	if !server.canCastNow("b") {
+		t.Error("b should have their own independent cooldown from a")
 	}
 }
 

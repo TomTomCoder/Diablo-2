@@ -73,6 +73,69 @@ func baseSortDamageFor(skillID int) int {
 	return baseSortDamage
 }
 
+// baseCastCooldown is the time between casts at 0 Dexterity.
+const baseCastCooldown = 800 * time.Millisecond
+
+// minCastCooldown is the floor cooldown can never go below, however high
+// Dexterity gets.
+const minCastCooldown = 200 * time.Millisecond
+
+// castCooldownFor returns the time a caster with the given Dexterity must
+// wait between casts, per "Dexterity ... réduit le temps de récupération
+// après un impact" (devil_game_design_reference.md §6).
+//
+// ponytail: continuous scaling instead of the design's discrete
+// "breakpoints d'incantation" -- those are frame-count thresholds tied to
+// real cast animation data, which doesn't exist yet (ROADMAP.md Phase 2).
+// This is a placeholder with the same shape (higher Dexterity -> faster
+// casts, floored so it never reaches zero), not the real formula.
+func castCooldownFor(dexterity int) time.Duration {
+	cooldown := baseCastCooldown / time.Duration(1+dexterity/25)
+	if cooldown < minCastCooldown {
+		return minCastCooldown
+	}
+
+	return cooldown
+}
+
+// canCastNow reports whether sourceEntityID may deal damage with a cast
+// right now, and records this moment as their last successful cast if so.
+// A caster still on cooldown gets no hit resolution at all -- same as if
+// they'd cast at nothing (see resolveMeleeHit); the cast's visual effect
+// still plays for everyone since that's relayed independently of this gate.
+func (g *GameServer) canCastNow(sourceEntityID string) bool {
+	now := g.clock()
+
+	g.Lock()
+	defer g.Unlock()
+
+	if last, ok := g.lastCastAt[sourceEntityID]; ok {
+		if now.Sub(last) < castCooldownFor(g.dexterityOf(sourceEntityID)) {
+			return false
+		}
+	}
+
+	g.lastCastAt[sourceEntityID] = now
+
+	return true
+}
+
+// dexterityOf returns sourceEntityID's Dexterity, or 0 if it isn't a
+// connected player or has no stats resolved.
+func (g *GameServer) dexterityOf(sourceEntityID string) int {
+	connection, ok := g.connections[sourceEntityID]
+	if !ok {
+		return 0
+	}
+
+	state := connection.GetPlayerState()
+	if state == nil || state.Stats == nil {
+		return 0
+	}
+
+	return state.Stats.Dexterity
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -85,6 +148,10 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	castPacket, err := d2netpacket.UnmarshalCast(packet.PacketData)
 	if err != nil {
 		g.Errorf("resolveMeleeHit: %v", err)
+		return
+	}
+
+	if !g.canCastNow(castPacket.SourceEntityID) {
 		return
 	}
 
@@ -179,6 +246,8 @@ type GameServer struct {
 	maxConnections    int
 	packetManagerChan chan ReceivedPacket
 	heroStateFactory  *d2hero.HeroStateFactory
+	lastCastAt        map[string]time.Time
+	clock             func() time.Time // overridden in tests; defaults to time.Now
 
 	*d2util.Logger
 }
@@ -223,6 +292,8 @@ func NewGameServer(asset *d2asset.AssetManager,
 		scriptEngine:      d2script.CreateScriptEngine(),
 		seed:              time.Now().UnixNano(),
 		heroStateFactory:  heroStateFactory,
+		lastCastAt:        make(map[string]time.Time),
+		clock:             time.Now,
 	}
 
 	gameServer.Logger = d2util.NewLogger()
