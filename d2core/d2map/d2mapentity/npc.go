@@ -38,6 +38,13 @@ type NPC struct {
 	// expires. Zero value means not amplified. See
 	// ApplyAmplification/IsAmplified.
 	AmplifiedUntil time.Time
+
+	// ImmobilizedUntil is when this NPC's full immobilization (Prison de
+	// glace, "Immobilise un groupe d'entités") expires. Zero value means
+	// not immobilized. Unlike ApplySlow's partial speed reduction, an
+	// immobilized NPC's ChasePlayer speed is forced to zero. See
+	// ApplyImmobilize/IsImmobilized.
+	ImmobilizedUntil time.Time
 }
 
 const (
