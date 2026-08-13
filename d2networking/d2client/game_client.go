@@ -150,6 +150,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleNPCHitPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.NPCMoved:
+		if err := g.handleNPCMovedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.PlayerDamaged:
 		if err := g.handlePlayerDamagedPacket(packet); err != nil {
 			return err
@@ -340,6 +344,29 @@ func (g *GameClient) handleNPCHitPacket(packet d2netpacket.NetPacket) error {
 	if hit.Died {
 		g.MapEngine.RemoveEntity(npc)
 	}
+
+	return nil
+}
+
+// handleNPCMovedPacket applies a server-authoritative instant displacement
+// (Télékinésie's Knockback, Vortex's Pull) to the local copy of the NPC.
+func (g *GameClient) handleNPCMovedPacket(packet d2netpacket.NetPacket) error {
+	moved, err := d2netpacket.UnmarshalNPCMoved(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	entity, found := g.MapEngine.Entities()[moved.EntityID]
+	if !found {
+		return nil
+	}
+
+	npc, ok := entity.(*d2mapentity.NPC)
+	if !ok {
+		return nil
+	}
+
+	npc.Position.Set(moved.X, moved.Y)
 
 	return nil
 }

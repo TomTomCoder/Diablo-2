@@ -7,23 +7,30 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2netpacket"
 )
 
 // fakeClientConnection is a minimal ClientConnection test double: only
-// GetPlayerState is exercised by resolveAttackDamage.
+// GetPlayerState is exercised by resolveAttackDamage. sent records every
+// packet handed to SendPacketToClient, for tests that need to inspect what
+// was broadcast (e.g. TestBroadcastNPCMovedSendsCurrentPosition).
 type fakeClientConnection struct {
 	state *d2hero.HeroState
+	sent  []d2netpacket.NetPacket
 }
 
 func (f *fakeClientConnection) GetUniqueID() string { return "" }
 func (f *fakeClientConnection) GetConnectionType() d2clientconnectiontype.ClientConnectionType {
 	return d2clientconnectiontype.LANClient
 }
-func (f *fakeClientConnection) SendPacketToClient(_ d2netpacket.NetPacket) error { return nil }
-func (f *fakeClientConnection) GetPlayerState() *d2hero.HeroState                { return f.state }
-func (f *fakeClientConnection) SetPlayerState(state *d2hero.HeroState)           { f.state = state }
+func (f *fakeClientConnection) SendPacketToClient(p d2netpacket.NetPacket) error {
+	f.sent = append(f.sent, p)
+	return nil
+}
+func (f *fakeClientConnection) GetPlayerState() *d2hero.HeroState      { return f.state }
+func (f *fakeClientConnection) SetPlayerState(state *d2hero.HeroState) { f.state = state }
 
 func serverWithConnection(state *d2hero.HeroState) *GameServer {
 	server := &GameServer{
@@ -348,6 +355,35 @@ func TestResolveChampStatiqueHitNoMapEnginesDoesNotPanic(t *testing.T) {
 
 	// must not panic when there's no map engine to scan.
 	server.resolveChampStatiqueHit("p", d2hero.SkillChampStatique)
+}
+
+// TestBroadcastNPCMovedSendsCurrentPosition is a regression test: Knockback
+// (Télékinésie) and Pull (Vortex) used to mutate an NPC's position with no
+// way for clients to find out, so the entity would silently stay put on
+// their side. Constructs an NPC directly (Position is a promoted exported
+// field, unlike the private monstat-backed fields other tests need a real
+// factory for) since broadcastNPCMoved only ever reads ID()/GetPosition().
+func TestBroadcastNPCMovedSendsCurrentPosition(t *testing.T) {
+	conn := &fakeClientConnection{}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	npc := &d2mapentity.NPC{}
+	npc.Position.Set(3, 4)
+
+	server.broadcastNPCMoved(npc)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	moved, err := d2netpacket.UnmarshalNPCMoved(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal NPCMovedPacket: %v", err)
+	}
+
+	if moved.X != 3 || moved.Y != 4 {
+		t.Errorf("expected position (3, 4), got (%v, %v)", moved.X, moved.Y)
+	}
 }
 
 func TestResolveTelekinesieHitUnknownPlayerNoop(t *testing.T) {

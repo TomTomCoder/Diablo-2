@@ -1250,15 +1250,28 @@ func (g *GameServer) resolveEveilDuNexusHit(sourceEntityID string) {
 	state.Stats.Heal(state.Stats.MaxHealth * eveilDuNexusHealPercent / 100)
 }
 
+// broadcastNPCMoved tells clients about npc's current position -- used
+// after a server-authoritative instant displacement (Knockback/Pull) that
+// would otherwise be invisible to them, since neither mutates HP (the only
+// other thing NPCHit already broadcasts).
+func (g *GameServer) broadcastNPCMoved(npc *d2mapentity.NPC) {
+	pos := npc.GetPosition()
+
+	movedPacket, err := d2netpacket.CreateNPCMovedPacket(npc.ID(), pos.X(), pos.Y())
+	if err != nil {
+		g.Errorf("CreateNPCMovedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(movedPacket)
+}
+
 // resolveTelekinesieHit knocks every killable NPC within telekinesieRadiusSubtiles
 // of target away from sourceEntityID's own position, via d2mapentity.NPC.Knockback.
 // A no-op (besides the position scan) if sourceEntityID isn't a resolved
 // connected player.
 //
-// ponytail: no NPCMoved/position-broadcast packet exists yet, so this is
-// server-authoritative only -- clients won't see the knocked-back NPC move
-// until such a packet is added (same shape as NPCHit, but for position
-// instead of HP). Deals no damage: only the knockback half of "Repousse les
+// ponytail: deals no damage: only the knockback half of "Repousse les
 // entités, interaction avec les objets à distance" is modeled -- the object-
 // interaction half needs Phase 5's item system.
 func (g *GameServer) resolveTelekinesieHit(sourceEntityID string, target d2vector.Position) {
@@ -1271,6 +1284,7 @@ func (g *GameServer) resolveTelekinesieHit(sourceEntityID string, target d2vecto
 
 	for _, npc := range g.killableNPCsWithin(target, telekinesieRadiusSubtiles) {
 		npc.Knockback(casterPos, telekinesieKnockbackDistance)
+		g.broadcastNPCMoved(npc)
 	}
 }
 
@@ -1331,11 +1345,11 @@ const (
 
 // resolveVortexHit pulls (d2mapentity.NPC.Pull) every killable NPC within
 // vortexRadiusSubtiles of target that many subtiles closer to it. Deals no
-// damage, and (like Télékinésie's own position change) doesn't broadcast a
-// position update yet -- no NPCMoved packet exists.
+// damage.
 func (g *GameServer) resolveVortexHit(target d2vector.Position) {
 	for _, npc := range g.killableNPCsWithin(target, vortexRadiusSubtiles) {
 		npc.Pull(target, vortexPullDistance)
+		g.broadcastNPCMoved(npc)
 	}
 }
 

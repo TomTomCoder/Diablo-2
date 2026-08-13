@@ -50,6 +50,7 @@ const (
 	AttributePointSpent                                    // Sent by the server, a player spent a point on an attribute
 	RespecSingleAttributePointRequest                      // Sent by the client, requests refunding one point from a given attribute (Glyphe d'oubli)
 	SingleAttributePointRespeced                           // Sent by the server, one attribute point was refunded
+	NPCMoved                                               // Sent by the server, an NPC was instantly displaced (Télékinésie/Vortex)
 
 	UnknownPacketType = 666
 )
@@ -88,6 +89,7 @@ func (n NetPacketType) String() string {
 		AttributePointSpent:               "AttributePointSpent",
 		RespecSingleAttributePointRequest: "RespecSingleAttributePointRequest",
 		SingleAttributePointRespeced:      "SingleAttributePointRespeced",
+		NPCMoved:                          "NPCMoved",
 	}
 
 	return strings[n]
