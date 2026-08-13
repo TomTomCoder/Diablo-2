@@ -111,7 +111,7 @@ func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 
 	if state := g.playerStateOf(sourceEntityID); state != nil && state.Stats != nil {
 		if hasCastBefore {
-			regen := int(manaRegenPerSecond(state.Stats.Energy) * now.Sub(last).Seconds())
+			regen := int(manaRegenPerSecond(effectiveEnergy(state)) * now.Sub(last).Seconds())
 			state.Stats.Mana = min(state.Stats.Mana+regen, state.Stats.MaxMana)
 		}
 
@@ -148,6 +148,19 @@ func (g *GameServer) dexterityOf(sourceEntityID string) int {
 	}
 
 	return state.Stats.Dexterity
+}
+
+// effectiveEnergy returns state's own Energy plus its equipped RightHand
+// weapon's Energy bonus (d2hero.ItemEnergyBonus) -- e.g. Bâton de
+// l'Apprenti's "+5 Energy" (devil_mage_character_design.md §5), which
+// previously had no effect on gameplay: resolveAttackDamage and
+// manaRegenPerSecond both read state.Stats.Energy directly, ignoring it.
+//
+// ponytail: only checks RightHand -- Devil has no other equipment slots
+// that could carry an Energy bonus yet (no amulet/ring slots exist on
+// d2inventory.CharacterEquipment). See ROADMAP.md Phase 5.
+func effectiveEnergy(state *d2hero.HeroState) int {
+	return state.Stats.Energy + d2hero.ItemEnergyBonus(state.Equipment.RightHand.GetItemCode())
 }
 
 // aiTickInterval is how often the monster AI loop reevaluates.
@@ -1060,7 +1073,7 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 		return baseSort
 	}
 
-	damage := baseSort + (baseSort*state.Stats.Energy)/100
+	damage := baseSort + (baseSort*effectiveEnergy(state))/100
 
 	// ponytail: always applies the equipped weapon's Fire modifier,
 	// regardless of the cast skill's actual element -- there's no per-skill

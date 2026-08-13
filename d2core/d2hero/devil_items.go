@@ -59,3 +59,13 @@ func ItemFireDamagePercent(itemCode string) int {
 
 	return 0
 }
+
+// ItemEnergyBonus returns itemCode's Energy bonus (0 if it's not in
+// DevilItems or grants no such bonus).
+func ItemEnergyBonus(itemCode string) int {
+	if def, ok := DevilItems[itemCode]; ok {
+		return def.EnergyBonus
+	}
+
+	return 0
+}

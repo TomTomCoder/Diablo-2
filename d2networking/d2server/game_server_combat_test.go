@@ -673,6 +673,58 @@ func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
 	}
 }
 
+func TestEffectiveEnergyIncludesEquippedWeaponBonus(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Energy: 20},
+		Equipment: d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+		},
+	}
+
+	if got, want := effectiveEnergy(state), 20+d2hero.ItemEnergyBonus(d2hero.ItemBatonApprenti); got != want {
+		t.Errorf("expected effective Energy %d, got %d", want, got)
+	}
+}
+
+func TestEffectiveEnergyWithNoWeaponIsJustBaseEnergy(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 20}}
+
+	if got := effectiveEnergy(state); got != 20 {
+		t.Errorf("expected effective Energy 20 with nothing equipped, got %d", got)
+	}
+}
+
+// TestResolveAttackDamageIncludesEquippedWeaponEnergyBonus is a regression
+// test: DevilItemDef.EnergyBonus (e.g. Bâton de l'Apprenti's declared
+// "+5 Energy", devil_mage_character_design.md §5) previously had zero
+// effect on gameplay -- resolveAttackDamage read state.Stats.Energy
+// directly, never consulting an equipped item's bonus.
+func TestResolveAttackDamageIncludesEquippedWeaponEnergyBonus(t *testing.T) {
+	const energy = 13 // chosen so the item's Energy bonus visibly changes
+	// the truncated damage total below -- see the sanity check.
+
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Energy: energy},
+		Equipment: d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+		},
+	})
+
+	traitDeFeuBase := d2hero.DevilSkills[d2hero.SkillTraitDeFeu].BaseSortDamage
+	withoutBonus := traitDeFeuBase + (traitDeFeuBase*energy)/100
+	withBonus := traitDeFeuBase + (traitDeFeuBase*(energy+d2hero.ItemEnergyBonus(d2hero.ItemBatonApprenti)))/100
+
+	if withBonus <= withoutBonus {
+		t.Fatal("test setup error: chosen Energy doesn't make the item's bonus visible after integer truncation")
+	}
+
+	want := withBonus + (withBonus*d2hero.ItemFireDamagePercent(d2hero.ItemBatonApprenti))/100
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != want {
+		t.Errorf("expected %d (Energy bonus + Fire modifier both applied), got %d", want, got)
+	}
+}
+
 func TestResolveAttackDamageWeaponFireModifier(t *testing.T) {
 	const traitDeFeuBase = 6 // no Energy scaling in this test (Energy: 0)
 
