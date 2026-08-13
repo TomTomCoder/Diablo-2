@@ -1132,7 +1132,7 @@ func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID st
 		g.awardGold(sourceEntityID)
 		g.awardExperience(sourceEntityID)
 		g.restoreManaOnKill(sourceEntityID)
-	} else if skillID == d2hero.SkillEclatDeGlace {
+	} else if skillID == d2hero.SkillEclatDeGlace && !npc.IsColdImmune() {
 		until := g.clock().Add(eclatDeGlaceSlowDuration)
 		npc.ApplySlow(until)
 		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)

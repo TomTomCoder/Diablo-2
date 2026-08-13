@@ -91,6 +91,29 @@ func TestNPCAttackDamageRange(t *testing.T) {
 	}
 }
 
+func TestNPCIsColdImmune(t *testing.T) {
+	immune := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{ColdSensitivityNormal: 0},
+	}
+	if !immune.IsColdImmune() {
+		t.Error("expected ColdSensitivityNormal=0 to mean cold immune")
+	}
+
+	vulnerable := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{ColdSensitivityNormal: 100},
+	}
+	if vulnerable.IsColdImmune() {
+		t.Error("expected a nonzero ColdSensitivityNormal to not be immune")
+	}
+
+	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
+	if noMonstat.IsColdImmune() {
+		t.Error("expected IsColdImmune false with no monstat record")
+	}
+}
+
 func TestNPCApplyDamage(t *testing.T) {
 	npc := killableNPC(10)
 

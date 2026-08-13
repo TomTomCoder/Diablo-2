@@ -136,6 +136,28 @@ func (v *NPC) AttackDamageRange() (min, max int) {
 	return v.monstatRecord.DamageMinA1Normal, v.monstatRecord.DamageMaxA1Normal
 }
 
+// IsColdImmune reports whether this NPC is immune to cold-elemental slow
+// effects (monstats.txt's ColdSensitivityNormal column, "coldeffect" --
+// d2records.MonStatRecord's own doc comment: "0 = ... unfreezeable"). false
+// (not immune) if it has no monstat record.
+//
+// Narrowly scoped to Éclat de glace specifically (Devil's only
+// Élémentalisme cold-damage skill that applies a slow -- Nova de
+// givre/Orbe glaciale deal cold damage but never slow, and Ralentissement/
+// Prison de glace/Distorsion temporelle are Arcane control effects, not
+// cold-elemental damage, so a monster's cold sensitivity has no bearing on
+// them). See ROADMAP.md for why the scope stops there.
+//
+// ponytail: always Normal-difficulty, same limitation as
+// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
+func (v *NPC) IsColdImmune() bool {
+	if v.monstatRecord == nil {
+		return false
+	}
+
+	return v.monstatRecord.ColdSensitivityNormal == 0
+}
+
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.
 // No-op (and never dies) for NPCs that aren't killable.
 func (v *NPC) ApplyDamage(amount int) (died bool) {
