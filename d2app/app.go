@@ -115,6 +115,8 @@ func Create(gitBranch, gitCommit string) *App {
 		},
 	}
 	app.Infof("OpenDiablo2 - Open source Diablo 2 engine")
+	app.Infof("This program requires your own legally purchased copy of Diablo II " +
+		"and Lord of Destruction. It does not include any Blizzard game data.")
 
 	app.parseArguments()
 

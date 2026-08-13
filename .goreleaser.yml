@@ -1,0 +1,46 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+# ponytail: ebiten needs CGO (Metal/GLFW bindings), and CGO cross-compilation
+# from one host to another OS needs a real cross C toolchain -- verified
+# this fails cleanly from macOS to Linux with the stock toolchain (no cross
+# compiler configured), and Windows would hit the same wall. Scoped to
+# darwin (both archs), which is what's actually been built and run here.
+# Linux/Windows need to build on their own native OS -- the standard fix is
+# a GitHub Actions release workflow with one job per OS (ubuntu-latest,
+# windows-latest, macos-latest), each running `goreleaser build
+# --single-target` for its own platform. Not set up yet -- see
+# ROADMAP.md Phase 8.
+builds:
+  - id: devil
+    binary: devil
+    main: .
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: devil
+    ids: [devil]
+    formats: [tar.gz]
+    wrap_in_directory: true
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  draft: true
