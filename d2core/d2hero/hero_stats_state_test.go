@@ -148,6 +148,36 @@ func TestSpendAttributePointIncreasesAttributeAndSpendsAPoint(t *testing.T) {
 	}
 }
 
+// TestSpendAttributePointGrowsMaxHealthAndMana is a regression test:
+// MaxHealth/MaxMana were previously only ever computed once, in
+// CreateHeroStatsState -- a Vitality/Energy point spent afterward had zero
+// effect on them, even though devil_game_design_reference.md §5 states
+// Vitality "détermine les points de vie" and Energy increases "la réserve
+// de mana".
+func TestSpendAttributePointGrowsMaxHealthAndMana(t *testing.T) {
+	stats := &HeroStatsState{
+		StatsPoints: 2,
+		Vitality:    10, Health: 50, MaxHealth: 50, LifePerVit: 4,
+		Energy: 10, Mana: 30, MaxMana: 30, ManaPerEne: 3,
+	}
+
+	if err := stats.SpendAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("expected SpendAttributePoint(Vitality) to succeed, got %v", err)
+	}
+
+	if stats.MaxHealth != 54 || stats.Health != 54 {
+		t.Errorf("expected MaxHealth=Health=54, got MaxHealth=%d Health=%d", stats.MaxHealth, stats.Health)
+	}
+
+	if err := stats.SpendAttributePoint(AttributeEnergy); err != nil {
+		t.Fatalf("expected SpendAttributePoint(Energy) to succeed, got %v", err)
+	}
+
+	if stats.MaxMana != 33 || stats.Mana != 33 {
+		t.Errorf("expected MaxMana=Mana=33, got MaxMana=%d Mana=%d", stats.MaxMana, stats.Mana)
+	}
+}
+
 func TestSpendAttributePointFailsWithoutPoints(t *testing.T) {
 	stats := &HeroStatsState{StatsPoints: 0}
 
@@ -196,6 +226,45 @@ func TestRefundAttributePointFailsIfNothingSpent(t *testing.T) {
 	}
 }
 
+func TestRefundAttributePointShrinksMaxHealthAndClampsCurrent(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 1, Vitality: 10, Health: 50, MaxHealth: 50, LifePerVit: 4}
+
+	if err := stats.SpendAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint failed: %v", err)
+	}
+	// take some damage so current Health sits well below the new MaxHealth.
+	stats.Health = 10
+
+	if err := stats.RefundAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("expected RefundAttributePoint to succeed, got %v", err)
+	}
+
+	if stats.MaxHealth != 50 {
+		t.Errorf("expected MaxHealth restored to 50, got %d", stats.MaxHealth)
+	}
+
+	if stats.Health != 10 {
+		t.Errorf("expected Health left untouched at 10 (below the new cap), got %d", stats.Health)
+	}
+}
+
+func TestRefundAttributePointClampsCurrentHealthIfAboveNewMax(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 1, Vitality: 10, Health: 50, MaxHealth: 50, LifePerVit: 4}
+
+	if err := stats.SpendAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint failed: %v", err)
+	}
+	// stats.Health is now 54 (full), matching the grown MaxHealth.
+
+	if err := stats.RefundAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("expected RefundAttributePoint to succeed, got %v", err)
+	}
+
+	if stats.Health != 50 {
+		t.Errorf("expected Health clamped down to the restored MaxHealth of 50, got %d", stats.Health)
+	}
+}
+
 func TestRespecAllAttributePointsRefundsEverything(t *testing.T) {
 	stats := &HeroStatsState{StatsPoints: 4, Strength: 10, Energy: 10, Dexterity: 10, Vitality: 10}
 
@@ -216,5 +285,31 @@ func TestRespecAllAttributePointsRefundsEverything(t *testing.T) {
 
 	if stats.StatsPoints != 4 {
 		t.Errorf("expected all 4 points back in StatsPoints, got %d", stats.StatsPoints)
+	}
+}
+
+func TestRespecAllAttributePointsShrinksMaxHealthAndMana(t *testing.T) {
+	stats := &HeroStatsState{
+		StatsPoints: 2,
+		Vitality:    10, Health: 50, MaxHealth: 50, LifePerVit: 4,
+		Energy: 10, Mana: 30, MaxMana: 30, ManaPerEne: 3,
+	}
+
+	if err := stats.SpendAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint(Vitality) failed: %v", err)
+	}
+
+	if err := stats.SpendAttributePoint(AttributeEnergy); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint(Energy) failed: %v", err)
+	}
+
+	stats.RespecAllAttributePoints()
+
+	if stats.MaxHealth != 50 || stats.Health != 50 {
+		t.Errorf("expected MaxHealth=Health=50, got MaxHealth=%d Health=%d", stats.MaxHealth, stats.Health)
+	}
+
+	if stats.MaxMana != 30 || stats.Mana != 30 {
+		t.Errorf("expected MaxMana=Mana=30, got MaxMana=%d Mana=%d", stats.MaxMana, stats.Mana)
 	}
 }

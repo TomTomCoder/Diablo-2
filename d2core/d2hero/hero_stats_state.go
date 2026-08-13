@@ -40,6 +40,18 @@ type HeroStatsState struct {
 	Stamina    float64 `json:"-"` // only MaxStamina is saved, Stamina gets reset on entering world
 	MaxStamina int     `json:"maxStamina"`
 
+	// LifePerVit/ManaPerEne are Diablo 2's own charstats.txt columns
+	// (d2records.CharStatRecord), copied once at creation so
+	// SpendAttributePoint/RefundAttributePoint/RespecAllAttributePoints can
+	// keep MaxHealth/MaxMana in sync with Vitality/Energy after creation --
+	// devil_game_design_reference.md §5: "Vitality: Détermine les points de
+	// vie", "Energy: Augmente ... la réserve de mana". Without these,
+	// MaxHealth/MaxMana would stay frozen at their character-creation value
+	// forever, since CreateHeroStatsState is the only place classStats
+	// itself is ever available.
+	LifePerVit int `json:"lifePerVit"`
+	ManaPerEne int `json:"manaPerEne"`
+
 	// Elemental resistances (devil_game_design_reference.md §6): Feu, Froid,
 	// Foudre, Ombre. Unlike Diablo 2, these can never go negative -- always
 	// clamp assignments through CapResistance.
@@ -87,6 +99,9 @@ func (f *HeroStateFactory) CreateHeroStatsState(heroClass d2enum.Hero, classStat
 		MaxMana:    classStats.InitEne * classStats.ManaPerEne,
 		MaxStamina: classStats.InitStamina,
 		// https://github.com/OpenDiablo2/OpenDiablo2/issues/814
+
+		LifePerVit: classStats.LifePerVit,
+		ManaPerEne: classStats.ManaPerEne,
 	}
 
 	result.Mana = result.MaxMana
@@ -162,12 +177,16 @@ func (s *HeroStatsState) SpendAttributePoint(attr Attribute) error {
 	case AttributeEnergy:
 		s.Energy++
 		s.EnergySpent++
+		s.MaxMana += s.ManaPerEne
+		s.Mana += s.ManaPerEne
 	case AttributeDexterity:
 		s.Dexterity++
 		s.DexteritySpent++
 	case AttributeVitality:
 		s.Vitality++
 		s.VitalitySpent++
+		s.MaxHealth += s.LifePerVit
+		s.Health += s.LifePerVit
 	default:
 		return errors.New("unknown attribute")
 	}
@@ -197,6 +216,8 @@ func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
 
 		s.Energy--
 		s.EnergySpent--
+		s.MaxMana -= s.ManaPerEne
+		s.Mana = min(s.Mana, s.MaxMana)
 	case AttributeDexterity:
 		if s.DexteritySpent <= 0 {
 			return errors.New("no spent points to refund on this attribute")
@@ -211,6 +232,8 @@ func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
 
 		s.Vitality--
 		s.VitalitySpent--
+		s.MaxHealth -= s.LifePerVit
+		s.Health = min(s.Health, s.MaxHealth)
 	default:
 		return errors.New("unknown attribute")
 	}
@@ -232,6 +255,11 @@ func (s *HeroStatsState) RespecAllAttributePoints() (pointsRefunded int) {
 	s.Energy -= s.EnergySpent
 	s.Dexterity -= s.DexteritySpent
 	s.Vitality -= s.VitalitySpent
+
+	s.MaxMana -= s.EnergySpent * s.ManaPerEne
+	s.Mana = min(s.Mana, s.MaxMana)
+	s.MaxHealth -= s.VitalitySpent * s.LifePerVit
+	s.Health = min(s.Health, s.MaxHealth)
 
 	s.StrengthSpent, s.EnergySpent, s.DexteritySpent, s.VitalitySpent = 0, 0, 0, 0
 	s.StatsPoints += pointsRefunded
