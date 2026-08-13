@@ -192,6 +192,22 @@ func TestSkillOrbeGlacialeHasHighestTierAndLowerDamageThanBouleDeFeu(t *testing.
 	}
 }
 
+func TestSkillPrisonDeGlaceHasHigherTierThanTeleportation(t *testing.T) {
+	prison := DevilSkills[SkillPrisonDeGlace]
+
+	if prison.RequiredLevel <= DevilSkills[SkillTeleportation].RequiredLevel {
+		t.Error("expected Prison de glace to require a higher level than the tier-3 Arcane spells")
+	}
+
+	if prison.Tree != TreeArcane {
+		t.Error("expected Prison de glace to belong to Arcane")
+	}
+
+	if prison.BaseSortDamage != 0 {
+		t.Errorf("expected Prison de glace to deal no direct base_sort damage, got %d", prison.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

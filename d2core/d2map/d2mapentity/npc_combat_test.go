@@ -98,6 +98,54 @@ func TestNPCChasePlayerRespectsSlow(t *testing.T) {
 	}
 }
 
+func TestNPCApplyImmobilize(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	if npc.IsImmobilized(now) {
+		t.Fatal("a fresh NPC should not start immobilized")
+	}
+
+	npc.ApplyImmobilize(now.Add(time.Second))
+
+	if !npc.IsImmobilized(now) {
+		t.Error("expected the NPC to be immobilized immediately after ApplyImmobilize")
+	}
+
+	if npc.IsImmobilized(now.Add(2 * time.Second)) {
+		t.Error("expected the immobilization to have expired after its duration elapsed")
+	}
+}
+
+func TestNPCChasePlayerRespectsImmobilize(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+	dest := d2vector.NewPosition(5, 5)
+
+	npc.ApplyImmobilize(now.Add(time.Second))
+	npc.ChasePlayer(dest, now)
+
+	if got := npc.GetSpeed(); got != 0 {
+		t.Errorf("expected an immobilized NPC to have speed 0, got %v", got)
+	}
+}
+
+func TestNPCChasePlayerImmobilizeOverridesSlow(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+	dest := d2vector.NewPosition(5, 5)
+
+	// both effects active: immobilize should win outright (speed 0), not
+	// just apply the slow multiplier on top.
+	npc.ApplySlow(now.Add(time.Second))
+	npc.ApplyImmobilize(now.Add(time.Second))
+	npc.ChasePlayer(dest, now)
+
+	if got := npc.GetSpeed(); got != 0 {
+		t.Errorf("expected immobilize to override slow and force speed 0, got %v", got)
+	}
+}
+
 func TestNPCApplyAmplification(t *testing.T) {
 	npc := killableNPC(10)
 	now := time.Now()

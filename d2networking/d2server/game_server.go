@@ -429,6 +429,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillPrisonDeGlace {
+		g.resolvePrisonDeGlaceHit(target)
+		return
+	}
+
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
 	if nearest == nil {
 		return
@@ -685,6 +690,28 @@ func (g *GameServer) resolveRalentissementHit(target d2vector.Position) {
 
 	for _, npc := range g.killableNPCsWithin(target, ralentissementRadiusSubtiles) {
 		npc.ApplySlow(until)
+	}
+}
+
+// prisonDeGlaceRadiusSubtiles/prisonDeGlaceDuration: Prison de glace
+// immobilizes every killable NPC within this many subtiles of the cast's
+// targeted position, for this long.
+const (
+	prisonDeGlaceRadiusSubtiles = 4
+	prisonDeGlaceDuration       = 3 * time.Second
+)
+
+// resolvePrisonDeGlaceHit applies a full immobilization
+// (d2mapentity.NPC.ApplyImmobilize) to every killable NPC within
+// prisonDeGlaceRadiusSubtiles of target. Deals no damage, so -- same as
+// resolveRalentissementHit -- it doesn't go through
+// applyResolvedDamage/broadcast an NPCHit; no packet carries
+// ImmobilizedUntil to clients yet either.
+func (g *GameServer) resolvePrisonDeGlaceHit(target d2vector.Position) {
+	until := g.clock().Add(prisonDeGlaceDuration)
+
+	for _, npc := range g.killableNPCsWithin(target, prisonDeGlaceRadiusSubtiles) {
+		npc.ApplyImmobilize(until)
 	}
 }
 

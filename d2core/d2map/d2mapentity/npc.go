@@ -103,6 +103,11 @@ const npcChaseSpeed = 6.0
 // rather than routing around them. Fine for open areas; see ROADMAP.md
 // Phase 4 for routing around walls.
 func (v *NPC) ChasePlayer(pos d2vector.Position, now time.Time) {
+	if v.IsImmobilized(now) {
+		v.SetSpeed(0)
+		return
+	}
+
 	speed := npcChaseSpeed
 	if v.IsSlowed(now) {
 		speed *= npcSlowedSpeedMultiplier
@@ -137,6 +142,18 @@ func (v *NPC) ApplyAmplification(until time.Time) {
 // active at now.
 func (v *NPC) IsAmplified(now time.Time) bool {
 	return now.Before(v.AmplifiedUntil)
+}
+
+// ApplyImmobilize marks this NPC as fully immobilized (see IsImmobilized)
+// until the given time.
+func (v *NPC) ApplyImmobilize(until time.Time) {
+	v.ImmobilizedUntil = until
+}
+
+// IsImmobilized reports whether this NPC's immobilization is still active
+// at now.
+func (v *NPC) IsImmobilized(now time.Time) bool {
+	return now.Before(v.ImmobilizedUntil)
 }
 
 // Knockback instantly displaces this NPC distanceSubtiles further away from
