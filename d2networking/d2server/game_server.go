@@ -37,13 +37,17 @@ const (
 	middleOfTileOffset     = 3
 )
 
-// ponytail: flat hit radius and damage range instead of real per-skill reach
-// and weapon/skill damage. Enough to validate the hit-resolution pipeline
-// end to end; replace with actual skill/weapon data once those are wired.
+// ponytail: flat hit radius instead of real per-skill reach, and no attack
+// rating/defense to-hit roll -- a hit within range always lands. Enough to
+// validate the hit-resolution pipeline end to end; see ROADMAP.md Phase 1.
+const meleeHitRadiusSubtiles = 3
+
+// unarmedMinDamage/unarmedMaxDamage are used when the attacker has no
+// weapon equipped (or their weapon/item data can't be resolved), matching
+// the fallback the rest of the client uses for an empty weapon slot.
 const (
-	meleeHitRadiusSubtiles = 3
-	minAttackDamage        = 2
-	maxAttackDamage        = 6
+	unarmedMinDamage = 1
+	unarmedMaxDamage = 2
 )
 
 // resolveMeleeHit checks for a killable NPC near the cast's target position
@@ -83,8 +87,9 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	minDmg, maxDmg := g.resolveAttackDamage(castPacket.SourceEntityID)
 	// nolint:gosec // not concerned with crypto-strong randomness
-	damage := minAttackDamage + rand.Intn(maxAttackDamage-minAttackDamage+1)
+	damage := minDmg + rand.Intn(maxDmg-minDmg+1)
 	died := nearest.ApplyDamage(damage)
 
 	if died {
@@ -98,6 +103,49 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	}
 
 	g.sendPacketToClients(hitPacket)
+}
+
+// resolveAttackDamage returns the min/max damage range for the given
+// attacker's equipped weapon, falling back to unarmed damage if the
+// attacker isn't a connected player, has nothing equipped, or the equipped
+// weapon's item data can't be resolved.
+//
+// ponytail: no attack rating, no skill damage bonuses, no elemental/magic
+// damage, no strength-scaling -- just the weapon's base physical range.
+// See ROADMAP.md Phase 1 for the rest of the combat formula.
+func (g *GameServer) resolveAttackDamage(sourceEntityID string) (minDmg, maxDmg int) {
+	connection, ok := g.connections[sourceEntityID]
+	if !ok {
+		return unarmedMinDamage, unarmedMaxDamage
+	}
+
+	equipment := connection.GetPlayerState().Equipment
+
+	weapon := equipment.RightHand
+	if weapon.GetItemCode() == "" {
+		weapon = equipment.LeftHand
+	}
+
+	if weapon.GetItemCode() == "" {
+		return unarmedMinDamage, unarmedMaxDamage
+	}
+
+	record, ok := g.asset.Records.Item.Weapons[weapon.GetItemCode()]
+	if !ok {
+		return unarmedMinDamage, unarmedMaxDamage
+	}
+
+	minDmg, maxDmg = record.MinDamage, record.MaxDamage
+	if minDmg == 0 && maxDmg == 0 {
+		// one-handed range is empty: this is a two-handed-only weapon
+		minDmg, maxDmg = record.Min2HandDamage, record.Max2HandDamage
+	}
+
+	if maxDmg <= minDmg {
+		return unarmedMinDamage, unarmedMaxDamage
+	}
+
+	return minDmg, maxDmg
 }
 
 var (
