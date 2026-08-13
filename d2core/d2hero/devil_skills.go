@@ -14,28 +14,40 @@ import "github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 // will replace this with a proper data table.
 const SkillTraitDeFeu = 1000
 
-// NewTraitDeFeuSkill returns a HeroSkill for "Trait de feu" with just
-// enough real data to render and cast without touching Diablo 2's own
+// NewDevilHeroSkill returns a HeroSkill for any skill in DevilSkills, with
+// just enough real data to render and cast without touching Diablo 2's own
 // skill data at all: Charclass "" resolves to the game's built-in generic
 // skill icon sheet (used for e.g. the default "Attack" skill), since no
-// Devil-specific skill icon exists yet (ROADMAP.md Phase 6).
+// Devil-specific skill icons exist yet (ROADMAP.md Phase 6). nil if
+// skillID isn't in DevilSkills.
 //
 // Known gap: HeroSkill.UnmarshalJSON only restores Shallow (the ID) on
 // load, and whatever re-resolves that ID into SkillRecord/
 // SkillDescriptionRecord after loading a save only knows Diablo 2's own
-// skills.txt today. A freshly created character works for the current
+// skills.txt today. A freshly created/learned skill works for the current
 // session; surviving a save/load round-trip needs that resolution path
 // extended (ROADMAP.md Phase 1, "Sauvegarde").
-func NewTraitDeFeuSkill() *HeroSkill {
+func NewDevilHeroSkill(skillID int) *HeroSkill {
+	if _, ok := DevilSkills[skillID]; !ok {
+		return nil
+	}
+
 	return &HeroSkill{
 		SkillRecord: &d2records.SkillRecord{
-			ID:        SkillTraitDeFeu,
+			ID:        skillID,
 			Charclass: "",
 		},
 		SkillDescriptionRecord: &d2records.SkillDescriptionRecord{
 			IconCel: 0,
 		},
 		SkillPoints: 1,
-		Shallow:     &shallowHeroSkill{SkillID: SkillTraitDeFeu, SkillPoints: 1},
+		Shallow:     &shallowHeroSkill{SkillID: skillID, SkillPoints: 1},
 	}
+}
+
+// NewTraitDeFeuSkill returns a HeroSkill for "Trait de feu" specifically --
+// kept as a thin wrapper since character creation (select_hero_class.go)
+// hardcodes everyone's starting skill to it.
+func NewTraitDeFeuSkill() *HeroSkill {
+	return NewDevilHeroSkill(SkillTraitDeFeu)
 }
