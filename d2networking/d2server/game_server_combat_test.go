@@ -1180,6 +1180,34 @@ func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
 	}
 }
 
+// TestRestoreManaOnKillBroadcastsNewMana is a regression test: the restore
+// used to mutate the server's own copy of Mana with nothing telling the
+// client (even in solo play, which still round-trips through a local
+// client/server -- ROADMAP.md).
+func TestRestoreManaOnKillBroadcastsNewMana(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillAbsorptionEnergie: {}},
+	}
+	conn := &fakeClientConnection{state: state}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	server.restoreManaOnKill("p")
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	used, err := d2netpacket.UnmarshalPotionUsed(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PotionUsedPacket: %v", err)
+	}
+
+	if used.Mana != state.Stats.Mana {
+		t.Errorf("expected the broadcast to carry the restored Mana (%d), got %d", state.Stats.Mana, used.Mana)
+	}
+}
+
 func TestRestoreManaOnKillWithoutAbsorptionEnergieIsNoop(t *testing.T) {
 	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 0, MaxMana: 20}}
 	server := serverWithConnection(state)

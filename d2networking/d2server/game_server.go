@@ -561,6 +561,18 @@ func (g *GameServer) restoreManaOnKill(playerID string) {
 	}
 
 	state.Stats.RestoreMana(state.Stats.MaxMana * absorptionEnergieManaRestorePercent / 100)
+
+	// Correction (août 2026): the restore itself was never broadcast either
+	// -- reuses PotionUsedPacket (it just carries the player's new Mana
+	// total, nothing potion-specific) rather than adding a redundant packet
+	// type for the exact same shape.
+	restoredPacket, err := d2netpacket.CreatePotionUsedPacket(playerID, state.Stats.Mana)
+	if err != nil {
+		g.Errorf("CreatePotionUsedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(restoredPacket)
 }
 
 // resolveUsePotion unmarshals a UsePotionRequestPacket and, if
