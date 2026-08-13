@@ -59,13 +59,14 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 **Simplifications volontaires qui restent acceptables pour l'instant** (documentées en commentaire `ponytail:` dans le code) : ciblage par proximité au lieu de clic-sur-cible, pas de jet de précision, une seule cible par sort (pas de zone d'effet même pour les sorts qui devraient en avoir un).
 
 ## Phase 2 — Arbres de compétences du Mage 🚧
-*Démarrée — 2/10 sorts d'Élémentalisme.*
+*Démarrée — 3/10 sorts d'Élémentalisme.*
 
 Le design définit **30 compétences en 3 arbres de 10** (`devil_game_design_reference.md` §7) : Élémentalisme (dégâts directs), Arcane (contrôle/amplification), Ésotérisme (défense/survie/invocations), avec synergies inter-arbres et un système de palier (`niveau requis`) qui débloque les compétences supérieures à condition d'avoir investi dans les inférieures.
 
 - ✅ **Modèle de données** : `d2core/d2hero/devil_skill_tree.go` — `DevilSkillDef` (arbre, palier, `base_sort`, coût en mana, cible/pourcentage de synergie) et le registre `DevilSkills`, plus `CanLearnSkill` pour le palier. Remplace les deux maps ad-hoc de `game_server.go` par une seule source de vérité. Commit `1f1275c0`.
 - ✅ **Éclat de glace** (2e sort d'Élémentalisme) : `base_sort` plus faible que Trait de feu (4 contre 6, coût en mana plus élevé) mais un vrai effet de ralentissement — `NPC.ApplySlow`/`IsSlowed`, `ChasePlayer` réduit sa vitesse de moitié pendant l'effet. Rendu possible par l'IA de monstre de la Phase 4 (avant ça, rien n'aurait consommé un ralentissement de façon significative). Commit `43c26f4a`.
-- Reste 8 sorts d'Élémentalisme, puis Arcane et Ésotérisme ensuite — Arcane demande du contrôle de groupe (ralentissement, immobilisation) qui n'existe pas encore dans le moteur ; Ésotérisme demande des invocations (Familier, Golem arcane) qui réutilisent le système `d2mapentity.NPC` mais côté allié, pas ennemi.
+- ✅ **Éclair en chaîne** (3e sort, palier 6 — premier sort qui exploite réellement `CanLearnSkill`) : dégâts sur jusqu'à 3 cibles. A demandé de sortir `resolveMeleeHit` de son modèle mono-cible — `nearestKillableNPC` (recherche avec exclusion) et `applyHit` (dégâts/mort/or/ralentissement/diffusion) sont maintenant partagés entre le coup simple et `resolveChainHit`. **Limite de test connue** : les champs de `NPC` sont privés hors de `d2mapentity`, donc l'itération multi-cible n'est pas testée unitairement au niveau du serveur (seules les données de compétence le sont) — documenté dans le commit plutôt que masqué. Commit `9c53f951`.
+- Reste 7 sorts d'Élémentalisme, puis Arcane et Ésotérisme ensuite — Arcane demande du contrôle de groupe (ralentissement, immobilisation, déjà amorcé avec `ApplySlow`) ; Ésotérisme demande des invocations (Familier, Golem arcane) qui réutilisent le système `d2mapentity.NPC` mais côté allié, pas ennemi.
 - Respec : implémenter les 3 méthodes du design (respec partiel par quête, glyphe d'oubli ciblé, respec complet via essences de boss) une fois qu'il y a des builds à corriger.
 
 **Pourquoi Élémentalisme en premier :** c'est l'arbre qui valide le plus directement la formule de dégâts déjà posée en Phase 1, sans dépendre de mécaniques qui n'existent pas encore (contrôle de groupe, invocations alliées).
