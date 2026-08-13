@@ -33,6 +33,12 @@ type HeroStatsState struct {
 	LightningResist int `json:"lightningResist"`
 	ShadowResist    int `json:"shadowResist"`
 
+	// ManaShieldActive is Devil's "Bouclier de mana" (Ésotérisme, §6/§7)
+	// defensive spell -- while true, ApplyDamageWithManaShield drains Mana
+	// before touching Health. Not yet driven by an actual cast/toggle
+	// (ROADMAP.md Phase 2); set directly for now.
+	ManaShieldActive bool `json:"manaShieldActive"`
+
 	// values which are not saved/loaded(computed)
 	NextLevelExp int `json:"-"`
 }
@@ -110,4 +116,31 @@ func (s *HeroStatsState) ApplyDamage(amount int) (died bool) {
 	}
 
 	return s.Health == 0
+}
+
+// ApplyDamageWithManaShield applies amount, draining it from Mana first if
+// ManaShieldActive, with any remainder past available Mana falling through
+// to Health via ApplyDamage.
+//
+// ponytail: 1:1 absorption (1 damage drains 1 mana) -- the design names the
+// mechanic (§6/§7) but doesn't specify a ratio. No duration or real
+// cast/toggle exists yet either; something else sets ManaShieldActive
+// directly (ROADMAP.md Phase 2).
+func (s *HeroStatsState) ApplyDamageWithManaShield(amount int) (died bool) {
+	if !s.ManaShieldActive || s.Mana <= 0 {
+		return s.ApplyDamage(amount)
+	}
+
+	absorbed := amount
+	if absorbed > s.Mana {
+		absorbed = s.Mana
+	}
+
+	s.Mana -= absorbed
+
+	if remainder := amount - absorbed; remainder > 0 {
+		return s.ApplyDamage(remainder)
+	}
+
+	return s.Health <= 0
 }
