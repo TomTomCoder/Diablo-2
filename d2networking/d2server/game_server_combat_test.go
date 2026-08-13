@@ -710,6 +710,44 @@ func TestEffectiveEnergyStacksWeaponAndAmuletBonuses(t *testing.T) {
 	}
 }
 
+func TestEffectiveEnergyIncludesRingAllAttributesBonus(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Energy: 20},
+		Equipment: d2inventory.CharacterEquipment{
+			Ring: &d2inventory.InventoryItemMisc{ItemCode: d2hero.ItemAnneauDuDebut},
+		},
+	}
+
+	want := 20 + d2hero.ItemAllAttributesBonus(d2hero.ItemAnneauDuDebut)
+
+	if got := effectiveEnergy(state); got != want {
+		t.Errorf("expected effective Energy %d (base + ring's all-attributes bonus), got %d", want, got)
+	}
+}
+
+func TestEffectiveDexterityIncludesRingAllAttributesBonus(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Dexterity: 15},
+		Equipment: d2inventory.CharacterEquipment{
+			Ring: &d2inventory.InventoryItemMisc{ItemCode: d2hero.ItemAnneauDuDebut},
+		},
+	}
+
+	want := 15 + d2hero.ItemAllAttributesBonus(d2hero.ItemAnneauDuDebut)
+
+	if got := effectiveDexterity(state); got != want {
+		t.Errorf("expected effective Dexterity %d (base + ring's all-attributes bonus), got %d", want, got)
+	}
+}
+
+func TestEffectiveDexterityWithNothingEquippedIsJustBaseDexterity(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Dexterity: 15}}
+
+	if got := effectiveDexterity(state); got != 15 {
+		t.Errorf("expected effective Dexterity 15 with nothing equipped, got %d", got)
+	}
+}
+
 // TestResolveAttackDamageIncludesEquippedWeaponEnergyBonus is a regression
 // test: DevilItemDef.EnergyBonus (e.g. Bâton de l'Apprenti's declared
 // "+5 Energy", devil_mage_character_design.md §5) previously had zero

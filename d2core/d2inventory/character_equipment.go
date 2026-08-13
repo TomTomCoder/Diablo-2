@@ -19,4 +19,9 @@ type CharacterEquipment struct {
 	// new item type, since it already has everything a non-weapon,
 	// non-armor equippable needs (ItemCode + nil-safe GetItemCode).
 	Amulet *InventoryItemMisc `json:"amulet"`
+
+	// Ring: same reasoning as Amulet. A single slot, not D2's usual two --
+	// Devil's own starting equipment (§5) only ever lists one ring
+	// ("Anneau du Début").
+	Ring *InventoryItemMisc `json:"ring"`
 }

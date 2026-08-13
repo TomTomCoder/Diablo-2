@@ -20,6 +20,12 @@ const ItemBatonInitie = "dvl_baton_initie"
 // starting items. Equips in the new CharacterEquipment.Amulet slot.
 const ItemPendentifArcane = "dvl_pendentif_arcane"
 
+// ItemAnneauDuDebut is Devil's own item code for "Anneau du Début"
+// (devil_mage_character_design.md §5: "+2 à tous les attributs"), one of
+// the Mage's 5 starting items. Equips in the new
+// CharacterEquipment.Ring slot.
+const ItemAnneauDuDebut = "dvl_anneau_du_debut"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -28,6 +34,15 @@ type DevilItemDef struct {
 	Code        string
 	Name        string
 	EnergyBonus int
+
+	// AllAttributesBonus adds this many points to every attribute
+	// (Strength, Energy, Dexterity, Vitality) -- e.g. Anneau du Début's
+	// "+2 à tous les attributs". Only Energy and Dexterity currently have a
+	// live "effective stat" read path (effectiveEnergy/effectiveDexterity
+	// in game_server.go) -- Strength and Vitality are set once at
+	// character creation and never re-derived, so an equipped item's bonus
+	// to either has no live effect yet. See ROADMAP.md Phase 5.
+	AllAttributesBonus int
 
 	// FireDamagePercent is a damage *modifier* (e.g. "+10% dégâts Feu"),
 	// applied on top of a cast's base_sort/Energy damage -- not a source of
@@ -58,6 +73,11 @@ var DevilItems = map[string]*DevilItemDef{
 		Name:        "Pendentif Arcane",
 		EnergyBonus: 3,
 	},
+	ItemAnneauDuDebut: {
+		Code:               ItemAnneauDuDebut,
+		Name:               "Anneau du Début",
+		AllAttributesBonus: 2,
+	},
 }
 
 // ItemFireDamagePercent returns itemCode's Fire damage modifier percent
@@ -75,6 +95,16 @@ func ItemFireDamagePercent(itemCode string) int {
 func ItemEnergyBonus(itemCode string) int {
 	if def, ok := DevilItems[itemCode]; ok {
 		return def.EnergyBonus
+	}
+
+	return 0
+}
+
+// ItemAllAttributesBonus returns itemCode's all-attributes bonus (0 if
+// it's not in DevilItems or grants no such bonus).
+func ItemAllAttributesBonus(itemCode string) int {
+	if def, ok := DevilItems[itemCode]; ok {
+		return def.AllAttributesBonus
 	}
 
 	return 0

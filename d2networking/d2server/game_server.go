@@ -139,32 +139,60 @@ func (g *GameServer) playerStateOf(sourceEntityID string) *d2hero.HeroState {
 	return connection.GetPlayerState()
 }
 
-// dexterityOf returns sourceEntityID's Dexterity, or 0 if it isn't a
-// connected player or has no stats resolved.
+// dexterityOf returns sourceEntityID's effective Dexterity (see
+// effectiveDexterity), or 0 if it isn't a connected player or has no stats
+// resolved.
 func (g *GameServer) dexterityOf(sourceEntityID string) int {
 	state := g.playerStateOf(sourceEntityID)
 	if state == nil || state.Stats == nil {
 		return 0
 	}
 
-	return state.Stats.Dexterity
+	return effectiveDexterity(state)
 }
 
-// effectiveEnergy returns state's own Energy plus the Energy bonus
-// (d2hero.ItemEnergyBonus) of every equipped item that can carry one --
-// e.g. Bâton de l'Apprenti's "+5 Energy" and Pendentif Arcane's "+3 Energy"
-// (devil_mage_character_design.md §5), which previously had no effect on
-// gameplay: resolveAttackDamage and manaRegenPerSecond both read
-// state.Stats.Energy directly, ignoring equipment entirely.
-//
-// ponytail: only checks RightHand and Amulet -- Devil has no ring slots
-// yet (d2inventory.CharacterEquipment) to carry an Energy bonus from
-// Anneau du Début, which grants "+2 à tous les attributs" anyway, a shape
-// DevilItemDef doesn't model yet either. See ROADMAP.md Phase 5.
+// equippedItemCodes returns the item code of every equipment slot that
+// could carry a Devil item bonus (RightHand/Amulet/Ring). Unequipped slots
+// contribute "" harmlessly -- d2hero's Item*Bonus lookups return 0/fallback
+// for unknown codes.
+func equippedItemCodes(state *d2hero.HeroState) []string {
+	return []string{
+		state.Equipment.RightHand.GetItemCode(),
+		state.Equipment.Amulet.GetItemCode(),
+		state.Equipment.Ring.GetItemCode(),
+	}
+}
+
+// effectiveEnergy returns state's own Energy plus every equipped item's
+// Energy-specific bonus (d2hero.ItemEnergyBonus) and all-attributes bonus
+// (d2hero.ItemAllAttributesBonus) -- e.g. Bâton de l'Apprenti's "+5
+// Energy", Pendentif Arcane's "+3 Energy", and Anneau du Début's "+2 à
+// tous les attributs" (devil_mage_character_design.md §5), none of which
+// previously had any effect on gameplay: resolveAttackDamage and
+// manaRegenPerSecond both read state.Stats.Energy directly, ignoring
+// equipment entirely.
 func effectiveEnergy(state *d2hero.HeroState) int {
-	return state.Stats.Energy +
-		d2hero.ItemEnergyBonus(state.Equipment.RightHand.GetItemCode()) +
-		d2hero.ItemEnergyBonus(state.Equipment.Amulet.GetItemCode())
+	total := state.Stats.Energy
+
+	for _, code := range equippedItemCodes(state) {
+		total += d2hero.ItemEnergyBonus(code) + d2hero.ItemAllAttributesBonus(code)
+	}
+
+	return total
+}
+
+// effectiveDexterity returns state's own Dexterity plus every equipped
+// item's all-attributes bonus (d2hero.ItemAllAttributesBonus) -- no Devil
+// item grants a Dexterity-only bonus yet, only the all-attributes shape
+// (Anneau du Début).
+func effectiveDexterity(state *d2hero.HeroState) int {
+	total := state.Stats.Dexterity
+
+	for _, code := range equippedItemCodes(state) {
+		total += d2hero.ItemAllAttributesBonus(code)
+	}
+
+	return total
 }
 
 // aiTickInterval is how often the monster AI loop reevaluates.
