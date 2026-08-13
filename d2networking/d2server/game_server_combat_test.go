@@ -883,6 +883,102 @@ func TestResolveInvestSkillPointUnknownPlayerNoop(t *testing.T) {
 	server.resolveInvestSkillPoint(packet)
 }
 
+func TestResolveSpendAttributePointSpendsAndBroadcastsNewValue(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 2, Vitality: 10}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateSpendAttributePointRequestPacket("p", int(d2hero.AttributeVitality))
+	if err != nil {
+		t.Fatalf("test setup: CreateSpendAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveSpendAttributePoint(packet)
+
+	if state.Stats.Vitality != 11 {
+		t.Errorf("expected Vitality=11, got %d", state.Stats.Vitality)
+	}
+
+	if state.Stats.StatsPoints != 1 {
+		t.Errorf("expected StatsPoints to drop to 1, got %d", state.Stats.StatsPoints)
+	}
+}
+
+func TestResolveSpendAttributePointFailsWithoutPointsIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Vitality: 10}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateSpendAttributePointRequestPacket("p", int(d2hero.AttributeVitality))
+	if err != nil {
+		t.Fatalf("test setup: CreateSpendAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveSpendAttributePoint(packet)
+
+	if state.Stats.Vitality != 10 {
+		t.Errorf("expected Vitality unchanged at 10, got %d", state.Stats.Vitality)
+	}
+}
+
+func TestResolveSpendAttributePointUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateSpendAttributePointRequestPacket("nobody", int(d2hero.AttributeVitality))
+	if err != nil {
+		t.Fatalf("test setup: CreateSpendAttributePointRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveSpendAttributePoint(packet)
+}
+
+func TestResolveRespecSingleAttributePointRefundsOnlyThatAttribute(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Strength: 11, StrengthSpent: 1}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("p", int(d2hero.AttributeStrength))
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleAttributePoint(packet)
+
+	if state.Stats.Strength != 10 {
+		t.Errorf("expected Strength restored to 10, got %d", state.Stats.Strength)
+	}
+
+	if state.Stats.StatsPoints != 1 {
+		t.Errorf("expected the point refunded to StatsPoints, got %d", state.Stats.StatsPoints)
+	}
+}
+
+func TestResolveRespecSingleAttributePointFailsIfNothingSpentIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Strength: 10}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("p", int(d2hero.AttributeStrength))
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleAttributePoint(packet)
+
+	if state.Stats.StatsPoints != 0 {
+		t.Errorf("expected no refund with nothing spent, got %d", state.Stats.StatsPoints)
+	}
+}
+
+func TestResolveRespecSingleAttributePointUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("nobody", int(d2hero.AttributeStrength))
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleAttributePointRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveRespecSingleAttributePoint(packet)
+}
+
 func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},

@@ -707,6 +707,89 @@ func (g *GameServer) resolveInvestSkillPoint(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(investedPacket)
 }
 
+// attributeValue returns attr's current value on stats (Strength/Energy/
+// Dexterity/Vitality), or 0 for an unrecognized attribute. Shared by
+// resolveSpendAttributePoint/resolveRespecSingleAttributePoint so both can
+// report the attribute's new value without duplicating the switch.
+func attributeValue(stats *d2hero.HeroStatsState, attr d2hero.Attribute) int {
+	switch attr {
+	case d2hero.AttributeStrength:
+		return stats.Strength
+	case d2hero.AttributeEnergy:
+		return stats.Energy
+	case d2hero.AttributeDexterity:
+		return stats.Dexterity
+	case d2hero.AttributeVitality:
+		return stats.Vitality
+	default:
+		return 0
+	}
+}
+
+// resolveSpendAttributePoint unmarshals a SpendAttributePointRequestPacket
+// and, if the caster has a point available, spends it on the requested
+// attribute (HeroStatsState.SpendAttributePoint), broadcasting the
+// attribute's new value and the caster's remaining StatsPoints.
+func (g *GameServer) resolveSpendAttributePoint(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalSpendAttributePointRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveSpendAttributePoint: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	attr := d2hero.Attribute(requestPacket.Attribute)
+	if err := state.Stats.SpendAttributePoint(attr); err != nil {
+		return
+	}
+
+	spentPacket, err := d2netpacket.CreateAttributePointSpentPacket(
+		requestPacket.SourceEntityID, requestPacket.Attribute, attributeValue(state.Stats, attr), state.Stats.StatsPoints)
+	if err != nil {
+		g.Errorf("CreateAttributePointSpentPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(spentPacket)
+}
+
+// resolveRespecSingleAttributePoint unmarshals a
+// RespecSingleAttributePointRequestPacket and, if the caster has a point
+// spent on the requested attribute, refunds it
+// (HeroState.RespecSingleAttributePoint -- the attribute half of "Glyphe
+// d'oubli"), broadcasting the attribute's new value and the caster's new
+// StatsPoints total.
+func (g *GameServer) resolveRespecSingleAttributePoint(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalRespecSingleAttributePointRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveRespecSingleAttributePoint: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	attr := d2hero.Attribute(requestPacket.Attribute)
+	if err := state.RespecSingleAttributePoint(attr); err != nil {
+		return
+	}
+
+	respecedPacket, err := d2netpacket.CreateSingleAttributePointRespecedPacket(
+		requestPacket.SourceEntityID, requestPacket.Attribute, attributeValue(state.Stats, attr), state.Stats.StatsPoints)
+	if err != nil {
+		g.Errorf("CreateSingleAttributePointRespecedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(respecedPacket)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -1756,6 +1839,10 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveRespecSingleSkill(packet)
 	case d2netpackettype.InvestSkillPointRequest:
 		g.resolveInvestSkillPoint(packet)
+	case d2netpackettype.SpendAttributePointRequest:
+		g.resolveSpendAttributePoint(packet)
+	case d2netpackettype.RespecSingleAttributePointRequest:
+		g.resolveRespecSingleAttributePoint(packet)
 	case d2netpackettype.SpawnItem:
 		g.sendPacketToClients(packet)
 	case d2netpackettype.SavePlayer:

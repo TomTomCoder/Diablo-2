@@ -186,6 +186,14 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleSkillPointInvestedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.AttributePointSpent:
+		if err := g.handleAttributePointSpentPacket(packet); err != nil {
+			return err
+		}
+	case d2netpackettype.SingleAttributePointRespeced:
+		if err := g.handleSingleAttributePointRespecedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -497,6 +505,61 @@ func (g *GameClient) handleSkillPointInvestedPacket(packet d2netpacket.NetPacket
 
 	skill.SkillPoints = invested.InvestedPoints
 	player.Stats.SkillPoints = invested.SkillPoints
+
+	return nil
+}
+
+// setAttributeValue writes newValue to stats' Strength/Energy/Dexterity/
+// Vitality field matching attr. A no-op for an unrecognized attribute --
+// mirrors GameServer.attributeValue's own switch on the server side.
+func setAttributeValue(stats *d2hero.HeroStatsState, attr, newValue int) {
+	switch d2hero.Attribute(attr) {
+	case d2hero.AttributeStrength:
+		stats.Strength = newValue
+	case d2hero.AttributeEnergy:
+		stats.Energy = newValue
+	case d2hero.AttributeDexterity:
+		stats.Dexterity = newValue
+	case d2hero.AttributeVitality:
+		stats.Vitality = newValue
+	}
+}
+
+// handleAttributePointSpentPacket applies a server-resolved attribute-point
+// spend to the local copy of the given player's stats.
+func (g *GameClient) handleAttributePointSpentPacket(packet d2netpacket.NetPacket) error {
+	spent, err := d2netpacket.UnmarshalAttributePointSpent(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[spent.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	setAttributeValue(player.Stats, spent.Attribute, spent.NewValue)
+	player.Stats.StatsPoints = spent.StatsPoints
+
+	return nil
+}
+
+// handleSingleAttributePointRespecedPacket applies a server-resolved
+// single-attribute-point refund to the local copy of the given player's
+// stats.
+func (g *GameClient) handleSingleAttributePointRespecedPacket(packet d2netpacket.NetPacket) error {
+	respeced, err := d2netpacket.UnmarshalSingleAttributePointRespeced(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[respeced.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	setAttributeValue(player.Stats, respeced.Attribute, respeced.NewValue)
+	player.Stats.StatsPoints = respeced.StatsPoints
 
 	return nil
 }
