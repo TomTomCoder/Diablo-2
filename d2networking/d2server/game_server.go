@@ -615,6 +615,66 @@ func (g *GameServer) resolveLearnSkill(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(learnedPacket)
 }
 
+// resolveRespecSkills unmarshals a RespecSkillsRequestPacket and forgets
+// every skill the caster has learned (HeroState.RespecSkills -- "Respec
+// partiel"), broadcasting their refunded SkillPoints. Unlike
+// resolveLearnSkill/resolveUsePotion, RespecSkills has no failure mode of
+// its own (forgetting zero skills is a valid no-op) -- the only way this
+// silently does nothing is an unresolved caster.
+func (g *GameServer) resolveRespecSkills(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalRespecSkillsRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveRespecSkills: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.RespecSkills()
+
+	respecedPacket, err := d2netpacket.CreateSkillsRespecedPacket(requestPacket.SourceEntityID, state.Stats.SkillPoints)
+	if err != nil {
+		g.Errorf("CreateSkillsRespecedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(respecedPacket)
+}
+
+// resolveRespecSingleSkill unmarshals a RespecSingleSkillRequestPacket and
+// forgets exactly the requested skill (HeroState.RespecSingleSkill --
+// "Glyphe d'oubli"), broadcasting the forgotten skill and the caster's
+// refunded SkillPoints. Silently does nothing if the skill wasn't learned
+// or the caster isn't resolved.
+func (g *GameServer) resolveRespecSingleSkill(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalRespecSingleSkillRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveRespecSingleSkill: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	if _, err := state.RespecSingleSkill(requestPacket.SkillID); err != nil {
+		return
+	}
+
+	respecedPacket, err := d2netpacket.CreateSingleSkillRespecedPacket(
+		requestPacket.SourceEntityID, requestPacket.SkillID, state.Stats.SkillPoints)
+	if err != nil {
+		g.Errorf("CreateSingleSkillRespecedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(respecedPacket)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -1629,6 +1689,10 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveUsePotion(packet)
 	case d2netpackettype.LearnSkillRequest:
 		g.resolveLearnSkill(packet)
+	case d2netpackettype.RespecSkillsRequest:
+		g.resolveRespecSkills(packet)
+	case d2netpackettype.RespecSingleSkillRequest:
+		g.resolveRespecSingleSkill(packet)
 	case d2netpackettype.SpawnItem:
 		g.sendPacketToClients(packet)
 	case d2netpackettype.SavePlayer:

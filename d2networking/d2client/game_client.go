@@ -174,6 +174,14 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleSkillLearnedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.SkillsRespeced:
+		if err := g.handleSkillsRespecedPacket(packet); err != nil {
+			return err
+		}
+	case d2netpackettype.SingleSkillRespeced:
+		if err := g.handleSingleSkillRespecedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -407,6 +415,57 @@ func (g *GameClient) handleSkillLearnedPacket(packet d2netpacket.NetPacket) erro
 
 	player.Skills[learned.SkillID] = skill
 	player.Stats.SkillPoints = learned.SkillPoints
+
+	return nil
+}
+
+// handleSkillsRespecedPacket clears the local copy of the given player's
+// Skills (and equipped Left/RightSkill, since they'd otherwise reference a
+// skill that no longer exists), and updates SkillPoints.
+func (g *GameClient) handleSkillsRespecedPacket(packet d2netpacket.NetPacket) error {
+	respeced, err := d2netpacket.UnmarshalSkillsRespeced(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[respeced.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	player.Skills = make(map[int]*d2hero.HeroSkill)
+	player.LeftSkill = nil
+	player.RightSkill = nil
+	player.Stats.SkillPoints = respeced.SkillPoints
+
+	return nil
+}
+
+// handleSingleSkillRespecedPacket removes one specific skill from the
+// local copy of the given player's Skills, clearing Left/RightSkill only
+// if either was equipped to that skill, and updates SkillPoints.
+func (g *GameClient) handleSingleSkillRespecedPacket(packet d2netpacket.NetPacket) error {
+	respeced, err := d2netpacket.UnmarshalSingleSkillRespeced(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[respeced.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	delete(player.Skills, respeced.SkillID)
+
+	if player.LeftSkill != nil && player.LeftSkill.SkillRecord != nil && player.LeftSkill.SkillRecord.ID == respeced.SkillID {
+		player.LeftSkill = nil
+	}
+
+	if player.RightSkill != nil && player.RightSkill.SkillRecord != nil && player.RightSkill.SkillRecord.ID == respeced.SkillID {
+		player.RightSkill = nil
+	}
+
+	player.Stats.SkillPoints = respeced.SkillPoints
 
 	return nil
 }

@@ -732,6 +732,102 @@ func TestResolveLearnSkillUnknownPlayerNoop(t *testing.T) {
 	server.resolveLearnSkill(packet)
 }
 
+func TestResolveRespecSkillsRefundsAllPoints(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {SkillPoints: 1}},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSkillsRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSkillsRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSkills(packet)
+
+	if len(state.Skills) != 0 {
+		t.Errorf("expected Skills cleared, got %d entries", len(state.Skills))
+	}
+
+	if state.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints refunded to 1, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveRespecSkillsUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateRespecSkillsRequestPacket("nobody")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSkillsRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveRespecSkills(packet)
+}
+
+func TestResolveRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills: map[int]*d2hero.HeroSkill{
+			d2hero.SkillTraitDeFeu:   {SkillPoints: 1},
+			d2hero.SkillEclatDeGlace: {SkillPoints: 1},
+		},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSingleSkillRequestPacket("p", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleSkill(packet)
+
+	if _, known := state.Skills[d2hero.SkillTraitDeFeu]; known {
+		t.Error("expected Trait de feu forgotten")
+	}
+
+	if _, known := state.Skills[d2hero.SkillEclatDeGlace]; !known {
+		t.Error("expected Éclat de glace to remain learned")
+	}
+
+	if state.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints refunded to 1, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveRespecSingleSkillFailsIfNotLearnedIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills: make(map[int]*d2hero.HeroSkill),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSingleSkillRequestPacket("p", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleSkill(packet)
+
+	if state.Stats.SkillPoints != 0 {
+		t.Errorf("expected no refund for a skill that was never learned, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveRespecSingleSkillUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateRespecSingleSkillRequestPacket("nobody", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleSkillRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveRespecSingleSkill(packet)
+}
+
 func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},

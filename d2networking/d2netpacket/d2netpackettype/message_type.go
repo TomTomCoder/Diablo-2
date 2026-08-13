@@ -40,6 +40,10 @@ const (
 	PotionUsed                                           // Sent by the server, a player's Mana changed from using a potion
 	LearnSkillRequest                                    // Sent by the client, requests learning a given skill
 	SkillLearned                                         // Sent by the server, a player learned a skill (and spent a skill point)
+	RespecSkillsRequest                                  // Sent by the client, requests forgetting every learned skill (Respec partiel)
+	SkillsRespeced                                       // Sent by the server, a player's skills were all forgotten and refunded
+	RespecSingleSkillRequest                             // Sent by the client, requests forgetting one specific skill (Glyphe d'oubli)
+	SingleSkillRespeced                                  // Sent by the server, one of a player's skills was forgotten and refunded
 
 	UnknownPacketType = 666
 )
@@ -68,6 +72,10 @@ func (n NetPacketType) String() string {
 		PotionUsed:                      "PotionUsed",
 		LearnSkillRequest:               "LearnSkillRequest",
 		SkillLearned:                    "SkillLearned",
+		RespecSkillsRequest:             "RespecSkillsRequest",
+		SkillsRespeced:                  "SkillsRespeced",
+		RespecSingleSkillRequest:        "RespecSingleSkillRequest",
+		SingleSkillRespeced:             "SingleSkillRespeced",
 	}
 
 	return strings[n]
