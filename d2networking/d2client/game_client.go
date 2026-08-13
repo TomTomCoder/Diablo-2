@@ -182,6 +182,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleSingleSkillRespecedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.SkillPointInvested:
+		if err := g.handleSkillPointInvestedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -466,6 +470,33 @@ func (g *GameClient) handleSingleSkillRespecedPacket(packet d2netpacket.NetPacke
 	}
 
 	player.Stats.SkillPoints = respeced.SkillPoints
+
+	return nil
+}
+
+// handleSkillPointInvestedPacket updates the local copy of the given
+// player's already-known skill with its new invested-points total, and
+// updates their remaining SkillPoints. A no-op if the skill isn't known
+// locally yet -- the server is the source of truth and would have rejected
+// the request in that case too (HeroState.InvestSkillPoint).
+func (g *GameClient) handleSkillPointInvestedPacket(packet d2netpacket.NetPacket) error {
+	invested, err := d2netpacket.UnmarshalSkillPointInvested(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[invested.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	skill, known := player.Skills[invested.SkillID]
+	if !known {
+		return nil
+	}
+
+	skill.SkillPoints = invested.InvestedPoints
+	player.Stats.SkillPoints = invested.SkillPoints
 
 	return nil
 }

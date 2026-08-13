@@ -675,6 +675,38 @@ func (g *GameServer) resolveRespecSingleSkill(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(respecedPacket)
 }
 
+// resolveInvestSkillPoint unmarshals an InvestSkillPointRequestPacket and,
+// if the caster already knows the skill and has a point to spend, adds
+// another point to it (HeroState.InvestSkillPoint -- e.g. Maîtrise
+// élémentaire's "+% dégâts élémentaires par point"), broadcasting the
+// skill's new invested total and the caster's remaining SkillPoints.
+func (g *GameServer) resolveInvestSkillPoint(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalInvestSkillPointRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveInvestSkillPoint: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	if err := state.InvestSkillPoint(requestPacket.SkillID); err != nil {
+		return
+	}
+
+	investedPacket, err := d2netpacket.CreateSkillPointInvestedPacket(
+		requestPacket.SourceEntityID, requestPacket.SkillID,
+		state.Skills[requestPacket.SkillID].SkillPoints, state.Stats.SkillPoints)
+	if err != nil {
+		g.Errorf("CreateSkillPointInvestedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(investedPacket)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -1722,6 +1754,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveRespecSkills(packet)
 	case d2netpackettype.RespecSingleSkillRequest:
 		g.resolveRespecSingleSkill(packet)
+	case d2netpackettype.InvestSkillPointRequest:
+		g.resolveInvestSkillPoint(packet)
 	case d2netpackettype.SpawnItem:
 		g.sendPacketToClients(packet)
 	case d2netpackettype.SavePlayer:

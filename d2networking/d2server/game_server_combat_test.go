@@ -829,6 +829,60 @@ func TestResolveRespecSingleSkillUnknownPlayerNoop(t *testing.T) {
 	server.resolveRespecSingleSkill(packet)
 }
 
+func TestResolveInvestSkillPointAddsPointAndBroadcastsTotals(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 18, SkillPoints: 2},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillMaitriseElementaire: {SkillPoints: 1}},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateInvestSkillPointRequestPacket("p", d2hero.SkillMaitriseElementaire)
+	if err != nil {
+		t.Fatalf("test setup: CreateInvestSkillPointRequestPacket failed: %v", err)
+	}
+
+	server.resolveInvestSkillPoint(packet)
+
+	if got := state.Skills[d2hero.SkillMaitriseElementaire].SkillPoints; got != 2 {
+		t.Errorf("expected 2 points invested, got %d", got)
+	}
+
+	if state.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints to drop to 1, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveInvestSkillPointFailsIfNotLearnedIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 18, SkillPoints: 2},
+		Skills: make(map[int]*d2hero.HeroSkill),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateInvestSkillPointRequestPacket("p", d2hero.SkillMaitriseElementaire)
+	if err != nil {
+		t.Fatalf("test setup: CreateInvestSkillPointRequestPacket failed: %v", err)
+	}
+
+	server.resolveInvestSkillPoint(packet)
+
+	if state.Stats.SkillPoints != 2 {
+		t.Errorf("expected no point spent investing in an unlearned skill, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveInvestSkillPointUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateInvestSkillPointRequestPacket("nobody", d2hero.SkillMaitriseElementaire)
+	if err != nil {
+		t.Fatalf("test setup: CreateInvestSkillPointRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveInvestSkillPoint(packet)
+}
+
 func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},

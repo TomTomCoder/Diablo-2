@@ -44,6 +44,8 @@ const (
 	SkillsRespeced                                       // Sent by the server, a player's skills were all forgotten and refunded
 	RespecSingleSkillRequest                             // Sent by the client, requests forgetting one specific skill (Glyphe d'oubli)
 	SingleSkillRespeced                                  // Sent by the server, one of a player's skills was forgotten and refunded
+	InvestSkillPointRequest                              // Sent by the client, requests investing another point into an already-known skill
+	SkillPointInvested                                   // Sent by the server, a player invested another point into a known skill
 
 	UnknownPacketType = 666
 )
@@ -76,6 +78,8 @@ func (n NetPacketType) String() string {
 		SkillsRespeced:                  "SkillsRespeced",
 		RespecSingleSkillRequest:        "RespecSingleSkillRequest",
 		SingleSkillRespeced:             "SingleSkillRespeced",
+		InvestSkillPointRequest:         "InvestSkillPointRequest",
+		SkillPointInvested:              "SkillPointInvested",
 	}
 
 	return strings[n]
