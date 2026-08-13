@@ -71,12 +71,19 @@ const SkillBouleDeFeu = SkillNovaDeGivre + 1
 // aiTickInterval until it lapses.
 const SkillTempeteStatique = SkillBouleDeFeu + 1
 
+// SkillOrbeGlaciale is Devil's own skill ID for "Orbe glaciale"
+// (Élémentalisme, devil_game_design_reference.md §7): "Projectile lent,
+// explose en large AoE de froid". Same AoE-at-target-position shape as
+// Boule de feu (see resolveAoeHit in game_server.go), just a larger radius
+// and a lower base_sort -- the value here is area coverage, not raw damage.
+const SkillOrbeGlaciale = SkillTempeteStatique + 1
+
 // SkillChampStatique is Devil's own skill ID for "Champ statique" (Arcane,
 // devil_game_design_reference.md §7): "Réduit la vie de toutes les entités à
 // l'écran d'un % fixe". Devil's first Arcane skill -- percent-of-current-HP
 // damage rather than base_sort scaling, so BaseSortDamage is unused (0) for
 // it. See resolveChampStatiqueHit in game_server.go.
-const SkillChampStatique = SkillTempeteStatique + 1
+const SkillChampStatique = SkillOrbeGlaciale + 1
 
 // SkillTelekinesie is Devil's own skill ID for "Télékinésie" (Arcane,
 // devil_game_design_reference.md §7): "Repousse les entités, interaction
@@ -163,6 +170,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  12, // tier 3, alongside Boule de feu
 		BaseSortDamage: 6,  // lightning-family: between Éclair en chaîne and Boule de feu
 		ManaCost:       9,
+	},
+	SkillOrbeGlaciale: {
+		ID:             SkillOrbeGlaciale,
+		Name:           "Orbe glaciale",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  18, // tier 4, per the design's level table
+		BaseSortDamage: 5,  // lower than the other tier-3/4 spells -- its value is the AoE footprint, not raw damage
+		ManaCost:       11,
 	},
 	SkillChampStatique: {
 		ID:            SkillChampStatique,

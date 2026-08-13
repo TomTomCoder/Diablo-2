@@ -176,6 +176,22 @@ func TestSkillTeleportationHasHigherTierThanAmplification(t *testing.T) {
 	}
 }
 
+func TestSkillOrbeGlacialeHasHighestTierAndLowerDamageThanBouleDeFeu(t *testing.T) {
+	orb, fireball := DevilSkills[SkillOrbeGlaciale], DevilSkills[SkillBouleDeFeu]
+
+	if orb.RequiredLevel <= fireball.RequiredLevel {
+		t.Error("expected Orbe glaciale to require a higher level than the tier-3 Élémentalisme spells")
+	}
+
+	if orb.Tree != TreeElementalisme {
+		t.Error("expected Orbe glaciale to belong to Élémentalisme")
+	}
+
+	if orb.BaseSortDamage >= fireball.BaseSortDamage {
+		t.Error("expected Orbe glaciale to trade damage for its larger AoE footprint, like Nova de givre vs Trait de feu")
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

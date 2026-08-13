@@ -188,23 +188,26 @@ const (
 // not on the cast's targeted position like every other Élémentalisme spell.
 const novaDeGivreRadiusSubtiles = 5
 
-// bouleDeFeuRadiusSubtiles/tempeteStatiqueRadiusSubtiles: how many subtiles
-// around the cast's targeted position these AoE-at-target spells hit
-// ("Projectile AoE, dégâts feu élevés" / "Invoque une zone d'éclair
-// persistante" -- see SkillTempeteStatique's doc comment for why the
-// "persistante" part isn't modeled yet).
+// bouleDeFeuRadiusSubtiles/tempeteStatiqueRadiusSubtiles/orbeGlacialeRadiusSubtiles:
+// how many subtiles around the cast's targeted position these
+// AoE-at-target spells hit ("Projectile AoE, dégâts feu élevés" / "Invoque
+// une zone d'éclair persistante" -- see SkillTempeteStatique's doc comment
+// for why the "persistante" part isn't modeled yet -- / "explose en large
+// AoE de froid").
 const (
 	bouleDeFeuRadiusSubtiles      = 3
 	tempeteStatiqueRadiusSubtiles = 4
+	orbeGlacialeRadiusSubtiles    = 6 // "large AoE" -- the biggest radius of the three
 )
 
 // aoeAtTargetRadiusSubtiles maps each AoE-at-target-position Élémentalisme
 // skill to its radius, so resolveMeleeHit can dispatch to resolveAoeHit
-// without a growing if-chain as more such spells are added (Orbe glaciale,
-// Météore, Apocalypse are all this shape too -- ROADMAP.md Phase 2).
+// without a growing if-chain as more such spells are added (Météore,
+// Apocalypse are this shape too -- ROADMAP.md Phase 2).
 var aoeAtTargetRadiusSubtiles = map[int]float64{
 	d2hero.SkillBouleDeFeu:      bouleDeFeuRadiusSubtiles,
 	d2hero.SkillTempeteStatique: tempeteStatiqueRadiusSubtiles,
+	d2hero.SkillOrbeGlaciale:    orbeGlacialeRadiusSubtiles,
 }
 
 // telekinesieRadiusSubtiles/telekinesieKnockbackDistance: Télékinésie finds

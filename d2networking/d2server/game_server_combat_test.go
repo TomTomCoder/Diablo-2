@@ -352,7 +352,7 @@ func TestResolveRalentissementHitNoMapEnginesDoesNotPanic(t *testing.T) {
 }
 
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
-	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique} {
+	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique, d2hero.SkillOrbeGlaciale} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {
 			t.Errorf("expected skill %d to be dispatched via aoeAtTargetRadiusSubtiles", skillID)
 		}
