@@ -188,6 +188,11 @@ const (
 // not on the cast's targeted position like every other Élémentalisme spell.
 const novaDeGivreRadiusSubtiles = 5
 
+// bouleDeFeuRadiusSubtiles: Boule de feu hits every killable NPC within this
+// many subtiles of the cast's targeted position ("Projectile AoE, dégâts
+// feu élevés").
+const bouleDeFeuRadiusSubtiles = 3
+
 // runMonsterAILoop periodically advances monster AI. Meant to be started as
 // a goroutine; returns once the server is stopped.
 func (g *GameServer) runMonsterAILoop() {
@@ -373,6 +378,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
+	if castPacket.SkillID == d2hero.SkillBouleDeFeu {
+		g.resolveAoeHit(target, castPacket.SourceEntityID, castPacket.SkillID, bouleDeFeuRadiusSubtiles)
+		return
+	}
+
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
 	if nearest == nil {
 		return
@@ -476,8 +486,15 @@ func (g *GameServer) resolveNovaHit(sourceEntityID string, skillID int) {
 	}
 
 	center := d2vector.NewPosition(state.X, state.Y)
+	g.resolveAoeHit(center, sourceEntityID, skillID, novaDeGivreRadiusSubtiles)
+}
 
-	for _, npc := range g.killableNPCsWithin(center, novaDeGivreRadiusSubtiles) {
+// resolveAoeHit hits every killable NPC within radiusSubtiles of center.
+// Shared by any Élémentalisme spell whose damage isn't a single/chain hit --
+// Nova de givre (centered on the caster) and Boule de feu (centered on the
+// cast's targeted position) both funnel through this.
+func (g *GameServer) resolveAoeHit(center d2vector.Position, sourceEntityID string, skillID int, radiusSubtiles float64) {
+	for _, npc := range g.killableNPCsWithin(center, radiusSubtiles) {
 		g.applyHit(npc, sourceEntityID, skillID)
 	}
 }

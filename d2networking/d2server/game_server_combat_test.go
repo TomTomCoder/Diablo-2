@@ -294,6 +294,14 @@ func TestKillableNPCsWithinNoMapEnginesReturnsNil(t *testing.T) {
 	}
 }
 
+func TestResolveAoeHitNoMapEnginesDoesNotPanic(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// Boule de feu's path: AoE centered on a targeted position rather than
+	// the caster. Must not panic with no map engines to scan.
+	server.resolveAoeHit(d2vector.NewPosition(0, 0), "p", d2hero.SkillBouleDeFeu, bouleDeFeuRadiusSubtiles)
+}
+
 func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})

@@ -76,6 +76,21 @@ func TestSkillNovaDeGivreSharesTierWithChainLightning(t *testing.T) {
 	}
 }
 
+func TestSkillBouleDeFeuHasHighestTierAndDamageSoFar(t *testing.T) {
+	fireball := DevilSkills[SkillBouleDeFeu]
+
+	if fireball.RequiredLevel <= DevilSkills[SkillNovaDeGivre].RequiredLevel {
+		t.Error("expected Boule de feu to require a higher level than the tier-2 spells")
+	}
+
+	for id, def := range DevilSkills {
+		if id != SkillBouleDeFeu && def.BaseSortDamage > fireball.BaseSortDamage {
+			t.Errorf("expected Boule de feu (%d) to have the highest base_sort, but %q has %d",
+				fireball.BaseSortDamage, def.Name, def.BaseSortDamage)
+		}
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

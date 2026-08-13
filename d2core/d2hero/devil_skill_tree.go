@@ -53,6 +53,12 @@ const SkillEclairEnChaine = SkillEclatDeGlace + 1
 // game_server.go.
 const SkillNovaDeGivre = SkillEclairEnChaine + 1
 
+// SkillBouleDeFeu is Devil's own skill ID for "Boule de feu" (Élémentalisme,
+// devil_game_design_reference.md §7): "Projectile AoE, dégâts feu élevés".
+// Like Nova de givre it's an AoE hit (see resolveAoeHit in game_server.go),
+// but centered on the cast's targeted position rather than the caster.
+const SkillBouleDeFeu = SkillNovaDeGivre + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: three entries instead of the design's full 30 -- this phase is
@@ -92,6 +98,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  6, // tier 2, alongside Éclair en chaîne
 		BaseSortDamage: 4, // same cold-family trade-off as Éclat de glace: lower damage, an AoE footprint instead
 		ManaCost:       8, // costliest tier-2 spell -- it hits every killable NPC in range, not just one
+	},
+	SkillBouleDeFeu: {
+		ID:             SkillBouleDeFeu,
+		Name:           "Boule de feu",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  12, // tier 3, per the design's level table
+		BaseSortDamage: 10, // "dégâts feu élevés" -- highest base_sort of any Élémentalisme spell so far
+		ManaCost:       10,
 	},
 }
 
