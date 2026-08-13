@@ -1264,7 +1264,8 @@ type GameServer struct {
 	lastCastAt          map[string]time.Time
 	lastMonsterAttackAt map[string]time.Time
 	lastTranscendanceAt map[string]time.Time
-	clock               func() time.Time // overridden in tests; defaults to time.Now
+	activeEventUntil    map[string]time.Time // see game_server_events.go
+	clock               func() time.Time     // overridden in tests; defaults to time.Now
 
 	*d2util.Logger
 }
@@ -1312,6 +1313,7 @@ func NewGameServer(asset *d2asset.AssetManager,
 		lastCastAt:          make(map[string]time.Time),
 		lastMonsterAttackAt: make(map[string]time.Time),
 		lastTranscendanceAt: make(map[string]time.Time),
+		activeEventUntil:    make(map[string]time.Time),
 		clock:               time.Now,
 	}
 

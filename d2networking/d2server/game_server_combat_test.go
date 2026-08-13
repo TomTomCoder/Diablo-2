@@ -31,6 +31,7 @@ func serverWithConnection(state *d2hero.HeroState) *GameServer {
 		lastCastAt:          make(map[string]time.Time),
 		lastMonsterAttackAt: make(map[string]time.Time),
 		lastTranscendanceAt: make(map[string]time.Time),
+		activeEventUntil:    make(map[string]time.Time),
 		clock:               time.Now,
 	}
 	if state != nil {
