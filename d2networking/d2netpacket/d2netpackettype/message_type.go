@@ -36,6 +36,8 @@ const (
 	GoldAwarded                                          // Sent by the server, a player's gold total changed
 	ExperienceAwarded                                    // Sent by the server, a player gained experience (and possibly leveled up)
 	PlayerTeleported                                     // Sent by the server, a player was instantly moved (Devil's own "Téléportation" skill)
+	UsePotionRequest                                     // Sent by the client, requests using the potion in a given belt slot
+	PotionUsed                                           // Sent by the server, a player's Mana changed from using a potion
 
 	UnknownPacketType = 666
 )
@@ -60,6 +62,8 @@ func (n NetPacketType) String() string {
 		GoldAwarded:                     "GoldAwarded",
 		ExperienceAwarded:               "ExperienceAwarded",
 		PlayerTeleported:                "PlayerTeleported",
+		UsePotionRequest:                "UsePotionRequest",
+		PotionUsed:                      "PotionUsed",
 	}
 
 	return strings[n]

@@ -553,6 +553,37 @@ func (g *GameServer) restoreManaOnKill(playerID string) {
 	state.Stats.RestoreMana(state.Stats.MaxMana * absorptionEnergieManaRestorePercent / 100)
 }
 
+// resolveUsePotion unmarshals a UsePotionRequestPacket and, if
+// HeroState.UsePotion succeeds (valid slot, not empty, hero has stats),
+// broadcasts the caster's new Mana total via PotionUsedPacket. Silently
+// does nothing on any failure (unknown player, bad slot, empty slot) --
+// same "no hit resolution at all" shape as a cast that can't resolve, see
+// resolveMeleeHit.
+func (g *GameServer) resolveUsePotion(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalUsePotionRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveUsePotion: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	if err := state.UsePotion(requestPacket.BeltIndex); err != nil {
+		return
+	}
+
+	usedPacket, err := d2netpacket.CreatePotionUsedPacket(requestPacket.SourceEntityID, state.Stats.Mana)
+	if err != nil {
+		g.Errorf("CreatePotionUsedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(usedPacket)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -1563,6 +1594,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 	case d2netpackettype.CastSkill:
 		g.resolveMeleeHit(packet)
 		g.sendPacketToClients(packet)
+	case d2netpackettype.UsePotionRequest:
+		g.resolveUsePotion(packet)
 	case d2netpackettype.SpawnItem:
 		g.sendPacketToClients(packet)
 	case d2netpackettype.SavePlayer:

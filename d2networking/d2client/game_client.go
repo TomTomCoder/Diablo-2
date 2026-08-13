@@ -166,6 +166,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handlePlayerTeleportedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.PotionUsed:
+		if err := g.handlePotionUsedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -352,6 +356,24 @@ func (g *GameClient) handleGoldAwardedPacket(packet d2netpacket.NetPacket) error
 	}
 
 	player.Gold = awarded.Gold
+
+	return nil
+}
+
+// handlePotionUsedPacket applies a server-resolved Mana total to the local
+// copy of the given player's stats, after they consumed a potion.
+func (g *GameClient) handlePotionUsedPacket(packet d2netpacket.NetPacket) error {
+	used, err := d2netpacket.UnmarshalPotionUsed(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[used.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	player.Stats.Mana = used.Mana
 
 	return nil
 }

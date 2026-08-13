@@ -622,6 +622,62 @@ func TestResolveEveilDuNexusHitUnknownPlayerNoop(t *testing.T) {
 	server.resolveEveilDuNexusHit("nobody")
 }
 
+func TestResolveUsePotionRestoresManaAndClearsSlot(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 0, MaxMana: 100}}
+	state.InitBelt(2)
+
+	if err := state.AddPotionToBelt(d2hero.ItemPotionDeMana); err != nil {
+		t.Fatalf("test setup: AddPotionToBelt failed: %v", err)
+	}
+
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateUsePotionRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateUsePotionRequestPacket failed: %v", err)
+	}
+
+	server.resolveUsePotion(packet)
+
+	if want := d2hero.ItemManaRestoreAmount(d2hero.ItemPotionDeMana); state.Stats.Mana != want {
+		t.Errorf("expected Mana restored to %d, got %d", want, state.Stats.Mana)
+	}
+
+	if state.Belt[0] != "" {
+		t.Errorf("expected belt slot 0 cleared after use, got %q", state.Belt[0])
+	}
+}
+
+func TestResolveUsePotionOnEmptySlotIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 0, MaxMana: 100}}
+	state.InitBelt(2)
+
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateUsePotionRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateUsePotionRequestPacket failed: %v", err)
+	}
+
+	server.resolveUsePotion(packet)
+
+	if state.Stats.Mana != 0 {
+		t.Errorf("expected no Mana restored from an empty slot, got %d", state.Stats.Mana)
+	}
+}
+
+func TestResolveUsePotionUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateUsePotionRequestPacket("nobody", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateUsePotionRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveUsePotion(packet)
+}
+
 func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},
