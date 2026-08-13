@@ -678,6 +678,60 @@ func TestResolveUsePotionUnknownPlayerNoop(t *testing.T) {
 	server.resolveUsePotion(packet)
 }
 
+func TestResolveLearnSkillLearnsAndBroadcastsRemainingPoints(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 1, SkillPoints: 2},
+		Skills: make(map[int]*d2hero.HeroSkill),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateLearnSkillRequestPacket("p", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateLearnSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveLearnSkill(packet)
+
+	if _, known := state.Skills[d2hero.SkillTraitDeFeu]; !known {
+		t.Error("expected Trait de feu added to Skills")
+	}
+
+	if state.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints to drop to 1, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveLearnSkillFailsWithoutPointsIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 1, SkillPoints: 0},
+		Skills: make(map[int]*d2hero.HeroSkill),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateLearnSkillRequestPacket("p", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateLearnSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveLearnSkill(packet)
+
+	if _, known := state.Skills[d2hero.SkillTraitDeFeu]; known {
+		t.Error("expected LearnSkill to fail with no skill points available")
+	}
+}
+
+func TestResolveLearnSkillUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateLearnSkillRequestPacket("nobody", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateLearnSkillRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveLearnSkill(packet)
+}
+
 func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},

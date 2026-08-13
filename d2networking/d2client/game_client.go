@@ -170,6 +170,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handlePotionUsedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.SkillLearned:
+		if err := g.handleSkillLearnedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -374,6 +378,35 @@ func (g *GameClient) handlePotionUsedPacket(packet d2netpacket.NetPacket) error 
 	}
 
 	player.Stats.Mana = used.Mana
+
+	return nil
+}
+
+// handleSkillLearnedPacket adds a server-resolved learned skill to the
+// local copy of the given player's Skills, and updates their remaining
+// SkillPoints.
+func (g *GameClient) handleSkillLearnedPacket(packet d2netpacket.NetPacket) error {
+	learned, err := d2netpacket.UnmarshalSkillLearned(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[learned.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	skill := d2hero.NewDevilHeroSkill(learned.SkillID)
+	if skill == nil {
+		return nil
+	}
+
+	if player.Skills == nil {
+		player.Skills = make(map[int]*d2hero.HeroSkill)
+	}
+
+	player.Skills[learned.SkillID] = skill
+	player.Stats.SkillPoints = learned.SkillPoints
 
 	return nil
 }

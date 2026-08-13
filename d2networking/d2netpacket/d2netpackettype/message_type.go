@@ -38,6 +38,8 @@ const (
 	PlayerTeleported                                     // Sent by the server, a player was instantly moved (Devil's own "Téléportation" skill)
 	UsePotionRequest                                     // Sent by the client, requests using the potion in a given belt slot
 	PotionUsed                                           // Sent by the server, a player's Mana changed from using a potion
+	LearnSkillRequest                                    // Sent by the client, requests learning a given skill
+	SkillLearned                                         // Sent by the server, a player learned a skill (and spent a skill point)
 
 	UnknownPacketType = 666
 )
@@ -64,6 +66,8 @@ func (n NetPacketType) String() string {
 		PlayerTeleported:                "PlayerTeleported",
 		UsePotionRequest:                "UsePotionRequest",
 		PotionUsed:                      "PotionUsed",
+		LearnSkillRequest:               "LearnSkillRequest",
+		SkillLearned:                    "SkillLearned",
 	}
 
 	return strings[n]

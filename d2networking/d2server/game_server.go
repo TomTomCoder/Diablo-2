@@ -584,6 +584,37 @@ func (g *GameServer) resolveUsePotion(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(usedPacket)
 }
 
+// resolveLearnSkill unmarshals a LearnSkillRequestPacket and, if
+// HeroState.LearnSkill succeeds (level gate, has a point to spend, not
+// already known), broadcasts the result via SkillLearnedPacket. Silently
+// does nothing on any failure -- same "no hit resolution at all" shape as
+// a cast/potion that can't resolve, see resolveMeleeHit/resolveUsePotion.
+func (g *GameServer) resolveLearnSkill(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalLearnSkillRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveLearnSkill: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	if err := state.LearnSkill(requestPacket.SkillID); err != nil {
+		return
+	}
+
+	learnedPacket, err := d2netpacket.CreateSkillLearnedPacket(
+		requestPacket.SourceEntityID, requestPacket.SkillID, state.Stats.SkillPoints)
+	if err != nil {
+		g.Errorf("CreateSkillLearnedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(learnedPacket)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -1596,6 +1627,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.sendPacketToClients(packet)
 	case d2netpackettype.UsePotionRequest:
 		g.resolveUsePotion(packet)
+	case d2netpackettype.LearnSkillRequest:
+		g.resolveLearnSkill(packet)
 	case d2netpackettype.SpawnItem:
 		g.sendPacketToClients(packet)
 	case d2netpackettype.SavePlayer:
