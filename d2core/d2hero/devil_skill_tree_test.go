@@ -236,6 +236,21 @@ func TestSkillVortexHasHigherTierThanPrisonDeGlace(t *testing.T) {
 	}
 }
 
+func TestSkillDistorsionTemporelleIsHighestTierArcane(t *testing.T) {
+	dt := DevilSkills[SkillDistorsionTemporelle]
+
+	for id, def := range DevilSkills {
+		if id != SkillDistorsionTemporelle && def.Tree == TreeArcane && def.RequiredLevel > dt.RequiredLevel {
+			t.Errorf("expected Distorsion temporelle (%d) to be the highest-tier Arcane skill, but %q requires %d",
+				dt.RequiredLevel, def.Name, def.RequiredLevel)
+		}
+	}
+
+	if dt.BaseSortDamage != 0 {
+		t.Errorf("expected Distorsion temporelle to deal no direct base_sort damage, got %d", dt.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

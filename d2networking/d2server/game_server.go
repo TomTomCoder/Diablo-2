@@ -410,6 +410,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillDistorsionTemporelle {
+		g.resolveDistorsionTemporelleHit()
+		return
+	}
+
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
 	if radius, ok := aoeAtTargetRadiusSubtiles[castPacket.SkillID]; ok {
@@ -650,6 +655,34 @@ func (g *GameServer) resolveChampStatiqueHit(sourceEntityID string, skillID int)
 		}
 
 		g.applyResolvedDamage(npc, sourceEntityID, skillID, npc.HP*champStatiqueDamagePercent/100)
+	}
+}
+
+// distorsionTemporelleSlowDuration is exactly what the design specifies
+// (devil_game_design_reference.md §7 Arcane: "Ralentit toutes les entités à
+// l'écran pendant 5 secondes") -- unlike Ralentissement's own placeholder
+// duration, no guesswork needed here.
+const distorsionTemporelleSlowDuration = 5 * time.Second
+
+// resolveDistorsionTemporelleHit slows (d2mapentity.NPC.ApplySlow) every
+// killable NPC on the map, same "toutes les entités à l'écran" modeling
+// choice as Champ statique (every NPC on the map, not a real per-client
+// screen/viewport query -- see champStatiqueDamagePercent's doc comment).
+// Deals no damage.
+func (g *GameServer) resolveDistorsionTemporelleHit() {
+	if len(g.mapEngines) == 0 {
+		return
+	}
+
+	until := g.clock().Add(distorsionTemporelleSlowDuration)
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		npc, ok := entity.(*d2mapentity.NPC)
+		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+			continue
+		}
+
+		npc.ApplySlow(until)
 	}
 }
 

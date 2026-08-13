@@ -141,6 +141,14 @@ const SkillVortex = SkillPrisonDeGlace + 1
 // missing "persistante" zone -- no delayed-effect/timer entity exists yet.
 const SkillMeteore = SkillVortex + 1
 
+// SkillDistorsionTemporelle is Devil's own skill ID for "Distorsion
+// temporelle" (Arcane, devil_game_design_reference.md §7): "Ralentit toutes
+// les entités à l'écran pendant 5 secondes". Devil's highest-tier Arcane
+// skill. Unlike Ralentissement's own placeholder duration, the design gives
+// an exact number here -- see distorsionTemporelleSlowDuration in
+// game_server.go. Deals no damage (BaseSortDamage 0).
+const SkillDistorsionTemporelle = SkillMeteore + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -261,6 +269,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  24, // tier 5, per the design's level table
 		BaseSortDamage: 14, // "dégâts feu massifs" -- highest base_sort of any Devil spell so far
 		ManaCost:       14,
+	},
+	SkillDistorsionTemporelle: {
+		ID:            SkillDistorsionTemporelle,
+		Name:          "Distorsion temporelle",
+		Tree:          TreeArcane,
+		RequiredLevel: 30, // tier 6, per the design's level table -- Devil's highest-tier Arcane skill
+		ManaCost:      15, // costliest Arcane spell so far
 	},
 }
 
