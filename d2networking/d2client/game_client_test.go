@@ -1,0 +1,181 @@
+package d2client
+
+import (
+	"testing"
+	"time"
+
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
+	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2netpacket"
+)
+
+// This is the first test file for package d2client: every handler here
+// only ever touches GameClient.Players (a plain exported map), so each is
+// unit-testable without a real map engine or asset manager. The NPC-facing
+// handlers (handleNPCMovedPacket/handleNPCStatusEffectPacket) aren't
+// covered here -- they need a populated MapEngine.Entities(), which is
+// only ever initialized by ResetMap against a real, MPQ-loaded asset
+// manager (see d2mapengine.MapEngine.ResetMap), the same limitation
+// documented throughout d2server's own tests.
+
+func clientWithPlayer(id string, player *d2mapentity.Player) *GameClient {
+	return &GameClient{Players: map[string]*d2mapentity.Player{id: player}}
+}
+
+func TestHandlePlayerStatusEffectPacketManaShield(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{}})
+
+	packet, err := d2netpacket.CreatePlayerStatusEffectPacket("p", d2netpacket.PlayerStatusManaShield, true, time.Time{})
+	if err != nil {
+		t.Fatalf("test setup: CreatePlayerStatusEffectPacket failed: %v", err)
+	}
+
+	if err := client.handlePlayerStatusEffectPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !client.Players["p"].Stats.ManaShieldActive {
+		t.Error("expected ManaShieldActive to be applied")
+	}
+}
+
+func TestHandlePlayerStatusEffectPacketMagicImmune(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{}})
+
+	until := time.Now().Add(8 * time.Second)
+
+	packet, err := d2netpacket.CreatePlayerStatusEffectPacket("p", d2netpacket.PlayerStatusMagicImmune, true, until)
+	if err != nil {
+		t.Fatalf("test setup: CreatePlayerStatusEffectPacket failed: %v", err)
+	}
+
+	if err := client.handlePlayerStatusEffectPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !client.Players["p"].Stats.IsMagicImmune(time.Now()) {
+		t.Error("expected magic immunity to be applied")
+	}
+}
+
+func TestHandleAttributePointSpentPacketAppliesAttributeAndPools(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{Vitality: 10, MaxHealth: 40, Health: 40}})
+
+	packet, err := d2netpacket.CreateAttributePointSpentPacket("p", int(d2hero.AttributeVitality), 11, 0, 44, 44, 20, 20)
+	if err != nil {
+		t.Fatalf("test setup: CreateAttributePointSpentPacket failed: %v", err)
+	}
+
+	if err := client.handleAttributePointSpentPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	stats := client.Players["p"].Stats
+	if stats.Vitality != 11 || stats.MaxHealth != 44 || stats.Health != 44 {
+		t.Errorf("expected Vitality=11 MaxHealth=Health=44, got Vitality=%d MaxHealth=%d Health=%d",
+			stats.Vitality, stats.MaxHealth, stats.Health)
+	}
+}
+
+func TestHandleSingleAttributePointRespecedPacketAppliesAttributeAndPools(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{Vitality: 11, MaxHealth: 44, Health: 44}})
+
+	packet, err := d2netpacket.CreateSingleAttributePointRespecedPacket("p", int(d2hero.AttributeVitality), 10, 1, 40, 40, 20, 20)
+	if err != nil {
+		t.Fatalf("test setup: CreateSingleAttributePointRespecedPacket failed: %v", err)
+	}
+
+	if err := client.handleSingleAttributePointRespecedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	stats := client.Players["p"].Stats
+	if stats.Vitality != 10 || stats.MaxHealth != 40 || stats.Health != 40 || stats.StatsPoints != 1 {
+		t.Errorf("expected Vitality=10 MaxHealth=Health=40 StatsPoints=1, got Vitality=%d MaxHealth=%d Health=%d StatsPoints=%d",
+			stats.Vitality, stats.MaxHealth, stats.Health, stats.StatsPoints)
+	}
+}
+
+func TestHandleSkillsRespecedPacketAppliesEverything(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Stats:      &d2hero.HeroStatsState{},
+		Skills:     map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {}},
+		LeftSkill:  d2hero.NewTraitDeFeuSkill(),
+		RightSkill: d2hero.NewTraitDeFeuSkill(),
+	})
+
+	packet, err := d2netpacket.CreateSkillsRespecedPacket("p", 2, 3, 10, 10, 10, 10, 40, 40, 20, 20)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillsRespecedPacket failed: %v", err)
+	}
+
+	if err := client.handleSkillsRespecedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if len(player.Skills) != 0 {
+		t.Errorf("expected Skills cleared, got %d entries", len(player.Skills))
+	}
+
+	if player.LeftSkill != nil || player.RightSkill != nil {
+		t.Error("expected LeftSkill/RightSkill cleared")
+	}
+
+	if player.Stats.SkillPoints != 2 || player.Stats.StatsPoints != 3 || player.Stats.Vitality != 10 {
+		t.Errorf("expected SkillPoints=2 StatsPoints=3 Vitality=10, got SkillPoints=%d StatsPoints=%d Vitality=%d",
+			player.Stats.SkillPoints, player.Stats.StatsPoints, player.Stats.Vitality)
+	}
+}
+
+func TestHandleItemCraftedPacketUpdatesWeaponAndGold(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Equipment: &d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+		},
+	})
+
+	packet, err := d2netpacket.CreateItemCraftedPacket("p", d2hero.RecipeUpgradeBatonApprenti, d2hero.ItemBatonInitie, "Bâton de l'Initié", 50)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemCraftedPacket failed: %v", err)
+	}
+
+	if err := client.handleItemCraftedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.Equipment.RightHand.ItemCode != d2hero.ItemBatonInitie {
+		t.Errorf("expected RightHand upgraded to %q, got %q", d2hero.ItemBatonInitie, player.Equipment.RightHand.ItemCode)
+	}
+
+	if player.Gold != 50 {
+		t.Errorf("expected Gold=50, got %d", player.Gold)
+	}
+}
+
+func TestHandleSkillPointInvestedPacketUpdatesInvestedPoints(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Stats:  &d2hero.HeroStatsState{SkillPoints: 1},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillMaitriseElementaire: {SkillPoints: 1}},
+	})
+
+	packet, err := d2netpacket.CreateSkillPointInvestedPacket("p", d2hero.SkillMaitriseElementaire, 2, 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillPointInvestedPacket failed: %v", err)
+	}
+
+	if err := client.handleSkillPointInvestedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.Skills[d2hero.SkillMaitriseElementaire].SkillPoints != 2 {
+		t.Errorf("expected 2 points invested, got %d", player.Skills[d2hero.SkillMaitriseElementaire].SkillPoints)
+	}
+
+	if player.Stats.SkillPoints != 0 {
+		t.Errorf("expected SkillPoints drained to 0, got %d", player.Stats.SkillPoints)
+	}
+}
