@@ -27,11 +27,6 @@ type HeroState struct {
 // LearnSkill spends one skill point to add skillID to h.Skills, if h is
 // eligible: CanLearnSkill (level/palier gate), has a skill point to spend,
 // and doesn't already know it.
-//
-// ponytail: nothing currently grants SkillPoints (no leveling/XP system
-// exists yet), so this has no real caller yet either -- it's the business
-// logic ready for whichever trigger comes first: a debug command, or the
-// real client request once one exists. See ROADMAP.md Phase 2.
 func (h *HeroState) LearnSkill(skillID int) error {
 	if h.Stats == nil {
 		return errors.New("hero has no stats")
@@ -62,4 +57,30 @@ func (h *HeroState) LearnSkill(skillID int) error {
 	h.Stats.SkillPoints--
 
 	return nil
+}
+
+// RespecSkills clears every skill h has learned and refunds the skill
+// points spent on them (devil_game_design_reference.md §10 "Respec
+// partiel" -- the skill half of it; that method also resets attribute
+// points, which this doesn't touch -- see ROADMAP.md for why: attributes
+// have no "points spent" tracking to refund, only a current total
+// indistinguishable from its base value). LeftSkill/RightSkill are reset
+// to 0 (no skill equipped) since they'd otherwise reference a skill that no
+// longer exists in h.Skills. Reports how many skill points were refunded.
+func (h *HeroState) RespecSkills() (pointsRefunded int) {
+	for _, skill := range h.Skills {
+		if skill != nil {
+			pointsRefunded += skill.SkillPoints
+		}
+	}
+
+	h.Skills = make(map[int]*HeroSkill)
+	h.LeftSkill = 0
+	h.RightSkill = 0
+
+	if h.Stats != nil {
+		h.Stats.SkillPoints += pointsRefunded
+	}
+
+	return pointsRefunded
 }
