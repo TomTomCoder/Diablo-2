@@ -202,14 +202,33 @@ func (f *HeroStateFactory) LoadHeroState(filePath string) *HeroState {
 	// Here, we turn the Shallow skill data back into records from the asset manager.
 	// This is because this factory has a reference to the asset manager with loaded records.
 	// We cant do this while unmarshalling because there is no reference to the asset manager.
+	//
+	// Bug fix: this previously assumed every persisted skill ID lives in
+	// D2's own skills.txt (f.asset.Records.Skill.Details), which is never
+	// true for Devil's own namespaced skill IDs -- the map lookup missed,
+	// returning nil, and the very next line dereferenced that nil
+	// *d2records.SkillRecord's Skilldesc field, panicking on load for any
+	// saved character with a Devil skill (i.e. every saved character,
+	// since even the starting Trait de feu is one).
 	for idx := range result.Skills {
 		hs := result.Skills[idx]
 
-		if hs == nil {
+		if hs == nil || hs.Shallow == nil {
+			continue
+		}
+
+		if devilSkill := NewDevilHeroSkill(hs.Shallow.SkillID); devilSkill != nil {
+			devilSkill.SkillPoints = hs.Shallow.SkillPoints
+			result.Skills[idx] = devilSkill
+
 			continue
 		}
 
 		hs.SkillRecord = f.asset.Records.Skill.Details[hs.Shallow.SkillID]
+		if hs.SkillRecord == nil {
+			continue
+		}
+
 		hs.SkillDescriptionRecord = f.asset.Records.Skill.Descriptions[hs.SkillRecord.Skilldesc]
 		hs.SkillPoints = hs.Shallow.SkillPoints
 	}
