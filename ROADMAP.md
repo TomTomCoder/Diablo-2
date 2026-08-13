@@ -91,9 +91,12 @@ Construit la première tranche de contenu jouable racontée, sur la Région I (T
 - **Une quête complète de bout en bout** sur cette région, pour valider tout le pipeline narratif avant d'en écrire pour les 4 autres régions.
 - **Génération procédurale améliorée** (`devil_game_design_reference.md` §4.1) : mini-map toujours visible et mise à jour en temps réel (actuellement la mini-map D2 est optionnelle/incomplète), tiles sans labyrinthes sans issue, icônes de points d'intérêt (boss, waypoints, coffres rares) dès leur découverte. Améliorations du moteur `d2mapgen`/`d2maprenderer`, pas juste du contenu.
 
-## Phase 5 — Objets, loot & progression
-*En parallèle des Phases 2/4 une fois qu'il y a des objets et des monstres à looter.*
+## Phase 5 — Objets, loot & progression 🚧
+*Démarrée.*
 
+- ✅ **Modificateur d'arme** : voir Phase 1 (Bâton de l'Apprenti, `+10% dégâts Feu`). Commit `3578d906`.
+- ✅ **Or à la mort d'un monstre** : `d2hero.RollGoldDrop` (5-20, plage à plat faute de données de Treasure Class par niveau de monstre), nouveau paquet `GoldAwarded`. Contourne le mur des objets qui tombent au sol (voir ci-dessous) : l'or n'a pas besoin de sprite pour exister, donc c'est un mécanisme réel de bout en bout plutôt qu'une plomberie qui ne produirait rien de visible. Commit `175070f8`.
+- **⚠️ Limite structurelle des objets au sol** : faire apparaître un objet ramassable (`d2mapentity.Item`) exige un vrai sprite — `MapEntityFactory.NewItem` charge l'animation depuis `item.CommonRecord().FlippyFile`, un fichier DC6 réel. Aucun sprite d'objet Devil n'existe (même mur que l'identité visuelle du Mage, Phase 6). Tant que ça reste vrai, tout objet Devil ramassable au sol échouera à s'afficher (`NewItem` retourne une erreur, gérée sans crash côté client, mais rien n'apparaît). L'or et les futurs mécanismes sans dépendance visuelle (XP, réputation...) restent le terrain praticable de cette phase en attendant.
 - **Objets magie-only** : bâtons, orbes, robes, amulettes, anneaux, grimoires — pas d'armure physique lourde, pas d'arme de corps-à-corps non magique (`devil_game_design_reference.md` §8). `items.txt` et le système d'équipement (`d2inventory.CharacterEquipment`) sont à retravailler avec ce nouveau set d'emplacements/types, pas juste réutilisés depuis D2.
 - **Treasure Classes** : le concept (probabilités par TC, NoDrop, picks) est directement réutilisable depuis D2 — c'est un mécanisme, pas du contenu Blizzard.
 - **Cube de Nexus** (remplace le Cube Horadrique) avec un **Codex progressif in-game** des recettes découvertes — amélioration sur D2 (recettes non documentées in-game), fonctionnalité UI à construire en plus de la logique de craft.
