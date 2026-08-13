@@ -127,3 +127,94 @@ func TestGrantExperienceMultipleLevelUps(t *testing.T) {
 		t.Errorf("expected points for 2 level-ups, got SkillPoints=%d StatsPoints=%d", stats.SkillPoints, stats.StatsPoints)
 	}
 }
+
+func TestSpendAttributePointIncreasesAttributeAndSpendsAPoint(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 2, Vitality: 10}
+
+	if err := stats.SpendAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("expected SpendAttributePoint to succeed, got %v", err)
+	}
+
+	if stats.Vitality != 11 {
+		t.Errorf("expected Vitality=11, got %d", stats.Vitality)
+	}
+
+	if stats.VitalitySpent != 1 {
+		t.Errorf("expected VitalitySpent=1, got %d", stats.VitalitySpent)
+	}
+
+	if stats.StatsPoints != 1 {
+		t.Errorf("expected StatsPoints to drop to 1, got %d", stats.StatsPoints)
+	}
+}
+
+func TestSpendAttributePointFailsWithoutPoints(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 0}
+
+	if err := stats.SpendAttributePoint(AttributeStrength); err == nil {
+		t.Error("expected an error with no attribute points available")
+	}
+}
+
+func TestSpendAttributePointFailsForUnknownAttribute(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 1}
+
+	if err := stats.SpendAttributePoint(Attribute(99)); err == nil {
+		t.Error("expected an error for an unknown attribute")
+	}
+}
+
+func TestRefundAttributePointUndoesASpentPoint(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 1, Energy: 5}
+
+	if err := stats.SpendAttributePoint(AttributeEnergy); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint failed: %v", err)
+	}
+
+	if err := stats.RefundAttributePoint(AttributeEnergy); err != nil {
+		t.Fatalf("expected RefundAttributePoint to succeed, got %v", err)
+	}
+
+	if stats.Energy != 5 {
+		t.Errorf("expected Energy restored to 5, got %d", stats.Energy)
+	}
+
+	if stats.EnergySpent != 0 {
+		t.Errorf("expected EnergySpent reset to 0, got %d", stats.EnergySpent)
+	}
+
+	if stats.StatsPoints != 1 {
+		t.Errorf("expected the point refunded to StatsPoints, got %d", stats.StatsPoints)
+	}
+}
+
+func TestRefundAttributePointFailsIfNothingSpent(t *testing.T) {
+	stats := &HeroStatsState{}
+
+	if err := stats.RefundAttributePoint(AttributeStrength); err == nil {
+		t.Error("expected an error refunding an attribute with nothing spent on it")
+	}
+}
+
+func TestRespecAllAttributePointsRefundsEverything(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 4, Strength: 10, Energy: 10, Dexterity: 10, Vitality: 10}
+
+	for _, attr := range []Attribute{AttributeStrength, AttributeEnergy, AttributeDexterity, AttributeVitality} {
+		if err := stats.SpendAttributePoint(attr); err != nil {
+			t.Fatalf("test setup: SpendAttributePoint(%v) failed: %v", attr, err)
+		}
+	}
+
+	if refunded := stats.RespecAllAttributePoints(); refunded != 4 {
+		t.Errorf("expected 4 points refunded, got %d", refunded)
+	}
+
+	if stats.Strength != 10 || stats.Energy != 10 || stats.Dexterity != 10 || stats.Vitality != 10 {
+		t.Errorf("expected every attribute restored to its base of 10, got Str=%d Ene=%d Dex=%d Vit=%d",
+			stats.Strength, stats.Energy, stats.Dexterity, stats.Vitality)
+	}
+
+	if stats.StatsPoints != 4 {
+		t.Errorf("expected all 4 points back in StatsPoints, got %d", stats.StatsPoints)
+	}
+}

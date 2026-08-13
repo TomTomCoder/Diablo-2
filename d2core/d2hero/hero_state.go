@@ -97,14 +97,15 @@ func (h *HeroState) InvestSkillPoint(skillID int) error {
 	return nil
 }
 
-// RespecSkills clears every skill h has learned and refunds the skill
-// points spent on them (devil_game_design_reference.md §10 "Respec
-// partiel" -- the skill half of it; that method also resets attribute
-// points, which this doesn't touch -- see ROADMAP.md for why: attributes
-// have no "points spent" tracking to refund, only a current total
-// indistinguishable from its base value). LeftSkill/RightSkill are reset
+// RespecSkills implements the design's "Respec partiel"
+// (devil_game_design_reference.md §10: "Tous les points de compétences et
+// d'attributs") in full: clears every skill h has learned, refunding the
+// skill points spent on them, and also refunds every attribute point ever
+// spent via HeroStatsState.SpendAttributePoint
+// (HeroStatsState.RespecAllAttributePoints). LeftSkill/RightSkill are reset
 // to 0 (no skill equipped) since they'd otherwise reference a skill that no
-// longer exists in h.Skills. Reports how many skill points were refunded.
+// longer exists in h.Skills. Reports how many *skill* points were refunded
+// (the attribute refund is reflected directly in h.Stats.StatsPoints).
 func (h *HeroState) RespecSkills() (pointsRefunded int) {
 	for _, skill := range h.Skills {
 		if skill != nil {
@@ -118,16 +119,19 @@ func (h *HeroState) RespecSkills() (pointsRefunded int) {
 
 	if h.Stats != nil {
 		h.Stats.SkillPoints += pointsRefunded
+		h.Stats.RespecAllAttributePoints()
 	}
 
 	return pointsRefunded
 }
 
 // RespecSingleSkill removes skillID from h.Skills and refunds its skill
-// points, without touching any other learned skill. Implements the skill
-// half of the design's "Glyphe d'oubli" (devil_game_design_reference.md
-// §10: "1 compétence ou 1 point d'attribut" -- see RespecSkills' own doc
-// comment for why the attribute half isn't modeled).
+// points, without touching any other learned skill. Implements the "1
+// compétence" half of the design's "Glyphe d'oubli"
+// (devil_game_design_reference.md §10: "1 compétence ou 1 point
+// d'attribut") -- see RespecSingleAttributePoint for the other half, "1
+// point d'attribut". A single use of the item is one or the other, not
+// both, hence two separate methods rather than one that does both.
 //
 // ponytail: no item/drop/craft delivers this yet -- same as LearnSkill
 // originally, this is the business logic ready for whichever trigger comes
@@ -154,4 +158,17 @@ func (h *HeroState) RespecSingleSkill(skillID int) (pointsRefunded int, err erro
 	}
 
 	return pointsRefunded, nil
+}
+
+// RespecSingleAttributePoint refunds one point previously spent (via
+// HeroStatsState.SpendAttributePoint) on attr, without touching any skill
+// or any other attribute. Implements the "1 point d'attribut" half of the
+// design's "Glyphe d'oubli" (devil_game_design_reference.md §10) -- see
+// RespecSingleSkill for the other half, "1 compétence".
+func (h *HeroState) RespecSingleAttributePoint(attr Attribute) error {
+	if h.Stats == nil {
+		return errors.New("hero has no stats")
+	}
+
+	return h.Stats.RefundAttributePoint(attr)
 }

@@ -143,6 +143,65 @@ func TestRespecSkillsRefundsPointsAndClearsSkills(t *testing.T) {
 	}
 }
 
+// TestRespecSkillsAlsoRefundsAttributePoints checks the "et d'attributs"
+// half of "Respec partiel" (devil_game_design_reference.md §10), completed
+// alongside HeroStatsState.SpendAttributePoint/RespecAllAttributePoints --
+// previously RespecSkills only ever refunded skills.
+func TestRespecSkillsAlsoRefundsAttributePoints(t *testing.T) {
+	hero := newLearnableHeroState(1, 0)
+	hero.Stats.StatsPoints = 1
+	hero.Stats.Vitality = 10
+
+	if err := hero.Stats.SpendAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint failed: %v", err)
+	}
+
+	hero.RespecSkills()
+
+	if hero.Stats.Vitality != 10 {
+		t.Errorf("expected Vitality restored to its base of 10, got %d", hero.Stats.Vitality)
+	}
+
+	if hero.Stats.StatsPoints != 1 {
+		t.Errorf("expected the attribute point refunded to StatsPoints, got %d", hero.Stats.StatsPoints)
+	}
+}
+
+func TestRespecSingleAttributePointRefundsOnlyThatAttribute(t *testing.T) {
+	hero := newLearnableHeroState(1, 0)
+	hero.Stats.StatsPoints = 2
+	hero.Stats.Strength = 10
+	hero.Stats.Dexterity = 10
+
+	if err := hero.Stats.SpendAttributePoint(AttributeStrength); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint(Strength) failed: %v", err)
+	}
+
+	if err := hero.Stats.SpendAttributePoint(AttributeDexterity); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint(Dexterity) failed: %v", err)
+	}
+
+	if err := hero.RespecSingleAttributePoint(AttributeStrength); err != nil {
+		t.Fatalf("expected RespecSingleAttributePoint to succeed, got %v", err)
+	}
+
+	if hero.Stats.Strength != 10 {
+		t.Errorf("expected Strength restored to its base of 10, got %d", hero.Stats.Strength)
+	}
+
+	if hero.Stats.Dexterity != 11 {
+		t.Errorf("expected Dexterity to remain untouched at 11, got %d", hero.Stats.Dexterity)
+	}
+}
+
+func TestRespecSingleAttributePointFailsIfNothingSpent(t *testing.T) {
+	hero := newLearnableHeroState(1, 0)
+
+	if err := hero.RespecSingleAttributePoint(AttributeVitality); err == nil {
+		t.Error("expected an error respeccing an attribute with nothing spent on it")
+	}
+}
+
 func TestRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
 	hero := newLearnableHeroState(6, 2)
 	hero.LeftSkill = SkillTraitDeFeu

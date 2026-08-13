@@ -1,6 +1,7 @@
 package d2hero
 
 import (
+	"errors"
 	"time"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
@@ -19,6 +20,18 @@ type HeroStatsState struct {
 	// there are stats and skills points remaining to add.
 	StatsPoints int `json:"statsPoints"`
 	SkillPoints int `json:"skillPoints"`
+
+	// StrengthSpent/EnergySpent/DexteritySpent/VitalitySpent count how much
+	// of the corresponding attribute above came from spending a level-up
+	// point via SpendAttributePoint, as opposed to the class's base stats
+	// from character creation. Needed so RespecAllAttributePoints/
+	// RefundAttributePoint can refund exactly what was spent without also
+	// undoing the base values (devil_game_design_reference.md §10 "Respec
+	// partiel"/"Glyphe d'oubli").
+	StrengthSpent  int `json:"strengthSpent"`
+	EnergySpent    int `json:"energySpent"`
+	DexteritySpent int `json:"dexteritySpent"`
+	VitalitySpent  int `json:"vitalitySpent"`
 
 	Health     int     `json:"health"`
 	MaxHealth  int     `json:"maxHealth"`
@@ -119,6 +132,111 @@ func (s *HeroStatsState) GrantExperience(amount int) {
 		s.StatsPoints += statsPointsPerLevel
 		s.NextLevelExp = experienceForLevel(s.Level)
 	}
+}
+
+// Attribute identifies one of the four attributes a level-up's "5 points
+// d'attributs à répartir librement" (devil_game_design_reference.md §6) can
+// be spent on via SpendAttributePoint.
+type Attribute int
+
+// Devil's four attributes -- Strength, Energy, Dexterity, Vitality.
+const (
+	AttributeStrength Attribute = iota
+	AttributeEnergy
+	AttributeDexterity
+	AttributeVitality
+)
+
+// SpendAttributePoint spends one of s.StatsPoints on attr, increasing it (and
+// its matching *Spent counter, for RefundAttributePoint/
+// RespecAllAttributePoints) by 1.
+func (s *HeroStatsState) SpendAttributePoint(attr Attribute) error {
+	if s.StatsPoints <= 0 {
+		return errors.New("no attribute points available")
+	}
+
+	switch attr {
+	case AttributeStrength:
+		s.Strength++
+		s.StrengthSpent++
+	case AttributeEnergy:
+		s.Energy++
+		s.EnergySpent++
+	case AttributeDexterity:
+		s.Dexterity++
+		s.DexteritySpent++
+	case AttributeVitality:
+		s.Vitality++
+		s.VitalitySpent++
+	default:
+		return errors.New("unknown attribute")
+	}
+
+	s.StatsPoints--
+
+	return nil
+}
+
+// RefundAttributePoint undoes one previously spent point on attr (the
+// design's "Glyphe d'oubli" applied to "1 point d'attribut" instead of a
+// skill -- devil_game_design_reference.md §10), returning it to
+// s.StatsPoints. Errors if attr has no spent points to refund.
+func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
+	switch attr {
+	case AttributeStrength:
+		if s.StrengthSpent <= 0 {
+			return errors.New("no spent points to refund on this attribute")
+		}
+
+		s.Strength--
+		s.StrengthSpent--
+	case AttributeEnergy:
+		if s.EnergySpent <= 0 {
+			return errors.New("no spent points to refund on this attribute")
+		}
+
+		s.Energy--
+		s.EnergySpent--
+	case AttributeDexterity:
+		if s.DexteritySpent <= 0 {
+			return errors.New("no spent points to refund on this attribute")
+		}
+
+		s.Dexterity--
+		s.DexteritySpent--
+	case AttributeVitality:
+		if s.VitalitySpent <= 0 {
+			return errors.New("no spent points to refund on this attribute")
+		}
+
+		s.Vitality--
+		s.VitalitySpent--
+	default:
+		return errors.New("unknown attribute")
+	}
+
+	s.StatsPoints++
+
+	return nil
+}
+
+// RespecAllAttributePoints undoes every point ever spent via
+// SpendAttributePoint across all four attributes, refunding them to
+// StatsPoints -- the attribute half of the design's "Respec partiel"
+// (devil_game_design_reference.md §10: "Tous les points de compétences et
+// d'attributs"). Reports how many points were refunded in total.
+func (s *HeroStatsState) RespecAllAttributePoints() (pointsRefunded int) {
+	pointsRefunded = s.StrengthSpent + s.EnergySpent + s.DexteritySpent + s.VitalitySpent
+
+	s.Strength -= s.StrengthSpent
+	s.Energy -= s.EnergySpent
+	s.Dexterity -= s.DexteritySpent
+	s.Vitality -= s.VitalitySpent
+
+	s.StrengthSpent, s.EnergySpent, s.DexteritySpent, s.VitalitySpent = 0, 0, 0, 0
+	s.StatsPoints += pointsRefunded
+
+	return pointsRefunded
 }
 
 // resistanceCap is the maximum any elemental resistance can reach; unlike
