@@ -314,6 +314,22 @@ func TestSkillEveilDuNexusIsTheEsoterismeUltimate(t *testing.T) {
 	}
 }
 
+func TestSkillAbsorptionEnergieIsAFreePassive(t *testing.T) {
+	skill := DevilSkills[SkillAbsorptionEnergie]
+
+	if skill.Tree != TreeEsoterisme {
+		t.Errorf("expected Absorption d'énergie to belong to Ésotérisme, got tree %v", skill.Tree)
+	}
+
+	if skill.ManaCost != 0 {
+		t.Errorf("expected Absorption d'énergie (a passive, never cast) to have ManaCost 0, got %d", skill.ManaCost)
+	}
+
+	if skill.BaseSortDamage != 0 {
+		t.Errorf("expected Absorption d'énergie to deal no direct base_sort damage, got %d", skill.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

@@ -546,6 +546,38 @@ func TestResolveEveilDuNexusHitUnknownPlayerNoop(t *testing.T) {
 	server.resolveEveilDuNexusHit("nobody")
 }
 
+func TestRestoreManaOnKillWithAbsorptionEnergieLearned(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Mana: 0, MaxMana: 20},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillAbsorptionEnergie: {}},
+	}
+	server := serverWithConnection(state)
+
+	server.restoreManaOnKill("p")
+
+	if want := 20 * absorptionEnergieManaRestorePercent / 100; state.Stats.Mana != want {
+		t.Errorf("expected Mana restored to %d, got %d", want, state.Stats.Mana)
+	}
+}
+
+func TestRestoreManaOnKillWithoutAbsorptionEnergieIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 0, MaxMana: 20}}
+	server := serverWithConnection(state)
+
+	server.restoreManaOnKill("p")
+
+	if state.Stats.Mana != 0 {
+		t.Errorf("expected no mana restored without the skill learned, got %d", state.Stats.Mana)
+	}
+}
+
+func TestRestoreManaOnKillUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the player isn't a connected/resolved state.
+	server.restoreManaOnKill("nobody")
+}
+
 func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
 	// Trait de feu has its own base_sort (6), distinct from the flat
 	// fallback (4) -- proves per-skill data actually takes effect.

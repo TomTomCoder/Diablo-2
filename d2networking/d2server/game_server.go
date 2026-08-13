@@ -408,6 +408,31 @@ func (g *GameServer) awardExperience(playerID string) {
 	g.sendPacketToClients(packet)
 }
 
+// absorptionEnergieManaRestorePercent is how much of MaxMana Absorption
+// d'énergie restores per kill, if learned (devil_game_design_reference.md
+// §7 Ésotérisme: "Chaque entité tuée restaure un % de mana").
+//
+// ponytail: the design names the effect but not a percentage; 20% is a
+// placeholder pending real balance numbers.
+const absorptionEnergieManaRestorePercent = 20
+
+// restoreManaOnKill restores absorptionEnergieManaRestorePercent of
+// playerID's own MaxMana if they've learned Absorption d'énergie (a true
+// passive -- there's no cast/dispatch for it, this just runs on every kill).
+// A no-op otherwise, or if playerID isn't a resolved connected player.
+func (g *GameServer) restoreManaOnKill(playerID string) {
+	state := g.playerStateOf(playerID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	if _, learned := state.Skills[d2hero.SkillAbsorptionEnergie]; !learned {
+		return
+	}
+
+	state.Stats.RestoreMana(state.Stats.MaxMana * absorptionEnergieManaRestorePercent / 100)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -606,6 +631,7 @@ func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID st
 		g.mapEngines[0].RemoveEntity(npc)
 		g.awardGold(sourceEntityID)
 		g.awardExperience(sourceEntityID)
+		g.restoreManaOnKill(sourceEntityID)
 	} else if skillID == d2hero.SkillEclatDeGlace {
 		npc.ApplySlow(g.clock().Add(eclatDeGlaceSlowDuration))
 	}

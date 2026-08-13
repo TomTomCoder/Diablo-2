@@ -205,6 +205,16 @@ func (s *HeroStatsState) Heal(amount int) {
 	}
 }
 
+// RestoreMana increases Mana by amount, capped at MaxMana. Mana's
+// equivalent of Heal.
+func (s *HeroStatsState) RestoreMana(amount int) {
+	s.Mana += amount
+
+	if s.Mana > s.MaxMana {
+		s.Mana = s.MaxMana
+	}
+}
+
 // ApplyMagicImmunity marks the hero as immune to damage (see IsMagicImmune)
 // until the given time. Devil's "Éveil du Nexus" ultimate (Ésotérisme §7).
 func (s *HeroStatsState) ApplyMagicImmunity(until time.Time) {

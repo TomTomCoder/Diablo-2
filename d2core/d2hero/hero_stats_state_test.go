@@ -45,6 +45,22 @@ func TestHeroStatsStateHeal(t *testing.T) {
 	}
 }
 
+func TestHeroStatsStateRestoreMana(t *testing.T) {
+	stats := &HeroStatsState{Mana: 2, MaxMana: 10}
+
+	stats.RestoreMana(3)
+
+	if stats.Mana != 5 {
+		t.Errorf("expected Mana 5 after restoring 3, got %d", stats.Mana)
+	}
+
+	stats.RestoreMana(100)
+
+	if stats.Mana != 10 {
+		t.Errorf("expected RestoreMana to cap at MaxMana (10), got %d", stats.Mana)
+	}
+}
+
 func TestHeroStatsStateMagicImmunity(t *testing.T) {
 	stats := &HeroStatsState{}
 	now := time.Now()

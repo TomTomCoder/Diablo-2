@@ -187,6 +187,15 @@ const SkillArmureDeGlace = SkillBouclierDeMana + 1
 // damage (BaseSortDamage 0).
 const SkillEveilDuNexus = SkillArmureDeGlace + 1
 
+// SkillAbsorptionEnergie is Devil's own skill ID for "Absorption d'énergie"
+// (Ésotérisme, devil_game_design_reference.md §7): "Chaque entité tuée
+// restaure un % de mana". Passif, but -- unlike Maîtrise
+// élémentaire/Résonance magique -- doesn't need per-point scaling to be
+// meaningful: it's a flat restore, on or off, so the existing
+// learned/not-learned model (HeroState.Skills) is enough. See
+// GameServer.restoreManaOnKill. Deals no direct damage (BaseSortDamage 0).
+const SkillAbsorptionEnergie = SkillEveilDuNexus + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -343,6 +352,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 30, // tier 6, per the design's level table -- Devil's highest-tier Ésotérisme skill
 		ManaCost:      16, // costly defensive ultimate
+	},
+	SkillAbsorptionEnergie: {
+		ID:            SkillAbsorptionEnergie,
+		Name:          "Absorption d'énergie",
+		Tree:          TreeEsoterisme,
+		RequiredLevel: 12, // tier 3, per the design's level table
+		ManaCost:      0,  // passive -- never cast, always on once learned
 	},
 }
 
