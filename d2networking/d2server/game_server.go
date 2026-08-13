@@ -42,28 +42,8 @@ const (
 const meleeHitRadiusSubtiles = 3
 
 // baseSortDamage is the fallback base_sort damage used when the cast
-// skill isn't in skillBaseSortDamage (or no connection/stats resolved).
+// skill isn't in d2hero.DevilSkills (or no connection/stats resolved).
 const baseSortDamage = 4
-
-// skillBaseSortDamage holds base_sort damage for skills that have their own
-// combat data. Everything else falls back to baseSortDamage.
-//
-// d2hero.SkillTraitDeFeu is Devil's own skill ID for "Trait de feu" --
-// shared with character creation (select_hero_class.go) so both sides
-// agree on the same ID.
-var skillBaseSortDamage = map[int]int{
-	d2hero.SkillTraitDeFeu: 6,
-}
-
-// baseSortDamageFor returns the given skill's base_sort damage, or the flat
-// fallback if it isn't in skillBaseSortDamage.
-func baseSortDamageFor(skillID int) int {
-	if dmg, ok := skillBaseSortDamage[skillID]; ok {
-		return dmg
-	}
-
-	return baseSortDamage
-}
 
 // baseCastCooldown is the time between casts at 0 Dexterity.
 const baseCastCooldown = 800 * time.Millisecond
@@ -91,27 +71,8 @@ func castCooldownFor(dexterity int) time.Duration {
 }
 
 // defaultManaCost is the fallback mana cost used when the cast skill isn't
-// in skillManaCost.
+// in d2hero.DevilSkills.
 const defaultManaCost = 2
-
-// skillManaCost holds mana costs for skills that have their own combat
-// data. Everything else falls back to defaultManaCost.
-//
-// ponytail: same placeholder status as skillBaseSortDamage -- real values
-// arrive with Devil's actual skill data model (ROADMAP.md Phase 2).
-var skillManaCost = map[int]int{
-	d2hero.SkillTraitDeFeu: 3,
-}
-
-// manaCostFor returns the given skill's mana cost, or the flat fallback if
-// it isn't in skillManaCost.
-func manaCostFor(skillID int) int {
-	if cost, ok := skillManaCost[skillID]; ok {
-		return cost
-	}
-
-	return defaultManaCost
-}
 
 // baseManaRegenPerSecond is how much mana regenerates per second at 0
 // Energy; manaRegenPerSecond scales it up from there.
@@ -130,7 +91,7 @@ func manaRegenPerSecond(energy int) float64 {
 
 // canCastNow reports whether sourceEntityID may deal damage with a cast of
 // skillID right now: they must be off cooldown (castCooldownFor) and, if
-// they're a resolved player, have enough mana (manaCostFor) after applying
+// they're a resolved player, have enough mana (d2hero.SkillManaCost) after applying
 // regen (manaRegenPerSecond) since their last cast. Mana is deducted and
 // this moment recorded as their last cast if both checks pass.
 //
@@ -156,7 +117,7 @@ func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 			state.Stats.Mana = min(state.Stats.Mana+regen, state.Stats.MaxMana)
 		}
 
-		cost := manaCostFor(skillID)
+		cost := d2hero.SkillManaCost(skillID, defaultManaCost)
 		if state.Stats.Mana < cost {
 			return false
 		}
@@ -385,7 +346,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 //
 //	Dégâts = base_sort × (1 + Energy / 100)
 //
-// base_sort comes from baseSortDamageFor(skillID) -- see skillBaseSortDamage.
+// base_sort comes from d2hero.SkillBaseSortDamage(skillID, ...) -- see d2hero.DevilSkills.
 // Falls back to the unscaled base damage if the attacker isn't a connected
 // player or has no stats resolved.
 //
@@ -393,7 +354,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 // Feu" a staff can grant), no attack rating. See ROADMAP.md Phase 1/2 for
 // the rest of the combat formula.
 func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int {
-	baseSort := baseSortDamageFor(skillID)
+	baseSort := d2hero.SkillBaseSortDamage(skillID, baseSortDamage)
 
 	state := g.playerStateOf(sourceEntityID)
 	if state == nil || state.Stats == nil {
