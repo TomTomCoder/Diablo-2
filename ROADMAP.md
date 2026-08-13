@@ -35,7 +35,7 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 - ✅ Test de fumée (`d2core/d2asset/d2asset_smoke_test.go`).
 
 ## Phase 1 — Combat et attributs du Mage 🚧
-*Démarré. Commits locaux `0c9f823`, `1ebdbd3`, `e5cc5d82`.*
+*Cinq items sur six faits et testés. Ne reste que la sauvegarde (limite connue ci-dessous).*
 
 **Fait :**
 - Une tranche verticale de combat de bout en bout — un monstre tuable a des PV, un cast de compétence proche de lui déclenche une résolution de dégâts côté serveur, le client reçoit et applique la mise à jour (PV ou suppression à la mort). Commits `0c9f823`, `1ebdbd3`.
@@ -49,7 +49,7 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 **⚠️ Limite connue :** la sauvegarde ne survit pas encore à un rechargement — `HeroSkill.UnmarshalJSON` ne restaure que l'ID (`Shallow`), et la résolution qui reconstruit ensuite la compétence complète ne connaît que les skills.txt de D2. Un personnage fraîchement créé fonctionne pour la session en cours ; ça se recoupe avec l'item "Sauvegarde" ci-dessous.
 
 **Reste à faire :**
-- **Modificateurs d'équipement** : le bâton/orbe équipé (ex. `+10% dégâts Feu` du Bâton de l'Apprenti, `devil_mage_character_design.md` §5) doit s'appliquer comme *modificateur* sur la formule, pas comme source de dégâts de base. L'équipement de départ Devil n'est pas encore assigné à la création de personnage — même chantier que *Trait de feu*, à traiter pareil (une compétence/un objet propre à Devil, un test qui garantit l'absence de crash).
+- ✅ **Modificateurs d'équipement** : `d2core/d2hero/devil_items.go` — le Bâton de l'Apprenti (`+10% dégâts Feu`) a maintenant un vrai code d'objet Devil, assigné comme arme de départ à la création de personnage, et son modificateur s'applique dans `resolveAttackDamage` par-dessus la mise à l'échelle par Energy. Commit `3578d906`.
 - ✅ **Résistances** : `FireResist`/`ColdResist`/`LightningResist`/`ShadowResist` sur `HeroStatsState`, `CapResistance` (clampe à [0, 75], jamais négatif contrairement à D2) et `MitigateDamage` (réduction en %). `tryMonsterAttack` mitige déjà ses dégâts via `FireResist` (tous les monstres traités comme dégâts de Feu pour l'instant, faute de données élémentaires par monstre). Commit `d0c46288`.
 - ✅ **Bouclier de mana** : `HeroStatsState.ManaShieldActive` + `ApplyDamageWithManaShield` — draine le mana 1:1 avant de toucher la Health, le surplus retombe sur la Health normalement. Pas encore relié à un vrai sort/toggle (viendra avec la vraie compétence Ésotérisme en Phase 2) — activé directement pour l'instant. Commit `5b5f3946`.
 - **Sauvegarde** : format JSON maison pour commencer (pas la compatibilité `.d2s`, hors sujet puisque les stats/formats de personnage ne sont plus ceux de D2) — et voir la limite connue ci-dessus pour la résolution de compétence au chargement.
