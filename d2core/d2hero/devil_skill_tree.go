@@ -262,11 +262,10 @@ const SkillRegenerationAcceleree = SkillResonanceMagique + 1
 
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
-// ponytail: a handful of entries instead of the design's full 30 -- this
-// phase is about proving the data model (tier gating, synergies, a status
-// effect, multi-target/AoE hits) works, not filling it in. Add the rest of
-// Élémentalisme next (ROADMAP.md Phase 2), then Arcane/Ésotérisme once
-// their prerequisite mechanics (group control, ally summons) exist.
+// 27 of the design's 30 skills are here (ROADMAP.md Phase 2) -- the 3
+// missing ones (Familier, Double ésotérique, Golem arcane) are genuine ally
+// summons, blocked on real monster data + sprites that don't exist yet
+// (see MapEntityFactory.NewNPC's requirements), not a data-model gap.
 var DevilSkills = map[int]*DevilSkillDef{
 	SkillTraitDeFeu: {
 		ID:              SkillTraitDeFeu,

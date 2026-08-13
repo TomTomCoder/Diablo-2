@@ -61,7 +61,9 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 
 **Phase 1 close** : sur les six items listés au départ (dégâts, cooldown, mana, résistances, bouclier de mana, sauvegarde), les six sont maintenant faits et testés — les modificateurs d'équipement et la résolution de compétence au chargement (le dernier point bloquant, qui s'est avéré être un crash plutôt qu'une simple limite silencieuse) sont désormais réglés.
 
-**Simplifications volontaires qui restent acceptables pour l'instant** (documentées en commentaire `ponytail:` dans le code) : ciblage par proximité au lieu de clic-sur-cible, pas de jet de précision, une seule cible par sort (pas de zone d'effet même pour les sorts qui devraient en avoir un).
+**Simplifications volontaires qui restent acceptables pour l'instant** (documentées en commentaire `ponytail:` dans le code) : ciblage par proximité au lieu de clic-sur-cible, pas de jet de précision.
+
+**Correction (août 2026)** : la ligne ci-dessus affirmait encore "une seule cible par sort (pas de zone d'effet même pour les sorts qui devraient en avoir un)" — vrai à la fin de la Phase 1, plus du tout depuis la Phase 2 : `resolveAoeHit`/`killableNPCsWithin` (Boule de feu, Nova de givre, Tempête statique, Orbe glaciale, Météore, Apocalypse, Ralentissement, Prison de glace, Distorsion temporelle, Vortex, Champ statique) et `resolveChainHit` (Éclair en chaîne) couvrent tous une vraie zone ou une vraie chaîne de cibles, pas une cible unique.
 
 ## Phase 2 — Arbres de compétences du Mage 🚧
 *Démarrée — 10/10 sorts d'Élémentalisme, 10/10 Arcane, 7/10 Ésotérisme (27/30 au total ; les 3 restants sont tous des invocations alliées, bloquées sur des données/sprites de monstre qui n'existent pas).*
