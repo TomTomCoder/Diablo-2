@@ -98,6 +98,25 @@ func TestNPCChasePlayerRespectsSlow(t *testing.T) {
 	}
 }
 
+func TestNPCApplyAmplification(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	if npc.IsAmplified(now) {
+		t.Fatal("a fresh NPC should not start amplified")
+	}
+
+	npc.ApplyAmplification(now.Add(time.Second))
+
+	if !npc.IsAmplified(now) {
+		t.Error("expected the NPC to be amplified immediately after ApplyAmplification")
+	}
+
+	if npc.IsAmplified(now.Add(2 * time.Second)) {
+		t.Error("expected the amplification to have expired after its duration elapsed")
+	}
+}
+
 func TestNPCKnockbackPushesAwayAlongSourceLine(t *testing.T) {
 	npc := killableNPC(10)
 	npc.Position = d2vector.NewPosition(5, 5)

@@ -316,6 +316,16 @@ func TestResolveTelekinesieHitUnknownPlayerNoop(t *testing.T) {
 	server.resolveTelekinesieHit("nobody", d2vector.NewPosition(0, 0))
 }
 
+func TestAmplifiedDamage(t *testing.T) {
+	if got := amplifiedDamage(10, false); got != 10 {
+		t.Errorf("expected unamplified damage unchanged, got %d", got)
+	}
+
+	if got, want := amplifiedDamage(10, true), 10*amplificationDamagePercent/100; got != want {
+		t.Errorf("expected amplified damage %d, got %d", want, got)
+	}
+}
+
 func TestResolveRalentissementHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server := serverWithConnection(nil)
 

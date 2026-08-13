@@ -143,6 +143,23 @@ func TestSkillRalentissementSharesTierWithNovaDeGivre(t *testing.T) {
 	}
 }
 
+func TestSkillAmplificationSharesTierWithRalentissement(t *testing.T) {
+	amp, slow := DevilSkills[SkillAmplification], DevilSkills[SkillRalentissement]
+
+	if amp.RequiredLevel != slow.RequiredLevel {
+		t.Errorf("expected Amplification and Ralentissement to share tier 2's RequiredLevel, got %d vs %d",
+			amp.RequiredLevel, slow.RequiredLevel)
+	}
+
+	if amp.Tree != TreeArcane {
+		t.Error("expected Amplification to belong to Arcane")
+	}
+
+	if amp.BaseSortDamage != 0 {
+		t.Errorf("expected Amplification to deal no direct base_sort damage, got %d", amp.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

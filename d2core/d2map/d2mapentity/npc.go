@@ -32,6 +32,12 @@ type NPC struct {
 	// SlowedUntil is when this NPC's movement speed reduction expires (see
 	// ApplySlow/IsSlowed). Zero value means not slowed.
 	SlowedUntil time.Time
+
+	// AmplifiedUntil is when this NPC's incoming-damage amplification
+	// (Amplification, "Augmente les dégâts magiques reçus par la cible")
+	// expires. Zero value means not amplified. See
+	// ApplyAmplification/IsAmplified.
+	AmplifiedUntil time.Time
 }
 
 const (
@@ -112,6 +118,18 @@ func (v *NPC) ApplySlow(until time.Time) {
 // IsSlowed reports whether this NPC's slow effect is still active at now.
 func (v *NPC) IsSlowed(now time.Time) bool {
 	return now.Before(v.SlowedUntil)
+}
+
+// ApplyAmplification marks this NPC as amplified (taking increased damage,
+// see IsAmplified) until the given time.
+func (v *NPC) ApplyAmplification(until time.Time) {
+	v.AmplifiedUntil = until
+}
+
+// IsAmplified reports whether this NPC's damage amplification is still
+// active at now.
+func (v *NPC) IsAmplified(now time.Time) bool {
+	return now.Before(v.AmplifiedUntil)
 }
 
 // Knockback instantly displaces this NPC distanceSubtiles further away from

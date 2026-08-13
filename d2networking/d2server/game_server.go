@@ -431,8 +431,17 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillAmplification {
+		nearest.ApplyAmplification(g.clock().Add(amplificationDuration))
+		return
+	}
+
 	g.applyHit(nearest, castPacket.SourceEntityID, castPacket.SkillID)
 }
+
+// amplificationDuration is how long Amplification's debuff lasts on the
+// NPC it's cast on.
+const amplificationDuration = 4 * time.Second
 
 // nearestKillableNPC returns the closest killable, living NPC to from
 // within radiusSubtiles, skipping any NPC ID present in exclude (nil is a
@@ -472,12 +481,34 @@ func (g *GameServer) applyHit(npc *d2mapentity.NPC, sourceEntityID string, skill
 	g.applyResolvedDamage(npc, sourceEntityID, skillID, g.resolveAttackDamage(sourceEntityID, skillID))
 }
 
+// amplificationDamagePercent is how much of its normal amount a hit deals
+// against an amplified NPC (Amplification, "Augmente les dégâts magiques
+// reçus par la cible" -- devil_game_design_reference.md §7). 150 = +50%.
+//
+// ponytail: the design names the effect but not a percentage; +50% is a
+// placeholder pending real balance numbers.
+const amplificationDamagePercent = 150
+
+// amplifiedDamage scales damage by amplificationDamagePercent if amplified,
+// otherwise returns it unchanged. Factored out of applyResolvedDamage so the
+// scaling itself is testable without a live d2mapentity.NPC.
+func amplifiedDamage(damage int, amplified bool) int {
+	if !amplified {
+		return damage
+	}
+
+	return damage * amplificationDamagePercent / 100
+}
+
 // applyResolvedDamage applies an already-computed damage amount to npc:
-// death/gold-award/XP-award, Éclat de glace's slow, and the NPCHit
-// broadcast. Factored out of applyHit so skills whose damage isn't
-// resolveAttackDamage's Energy-scaled formula -- e.g. Champ statique's
-// percent-of-current-HP -- can still share the death/broadcast plumbing.
+// Amplification's damage scaling, death/gold-award/XP-award, Éclat de
+// glace's slow, and the NPCHit broadcast. Factored out of applyHit so
+// skills whose damage isn't resolveAttackDamage's Energy-scaled formula --
+// e.g. Champ statique's percent-of-current-HP -- can still share the
+// death/broadcast plumbing.
 func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID string, skillID, damage int) {
+	damage = amplifiedDamage(damage, npc.IsAmplified(g.clock()))
+
 	died := npc.ApplyDamage(damage)
 
 	if died {
