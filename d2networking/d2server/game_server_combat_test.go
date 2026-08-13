@@ -1192,6 +1192,25 @@ func TestResolveAttackDamageWeaponFireModifier(t *testing.T) {
 	}
 }
 
+// TestResolveAttackDamageWeaponFireModifierDoesNotLeakToNonFireSkills is a
+// regression test: a Fire%-boosting weapon used to buff every skill's
+// damage regardless of its actual element, since resolveAttackDamage had
+// no per-skill element data to check against.
+func TestResolveAttackDamageWeaponFireModifierDoesNotLeakToNonFireSkills(t *testing.T) {
+	const eclatDeGlaceBase = 4 // no Energy scaling in this test (Energy: 0)
+
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Energy: 0},
+		Equipment: d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+		},
+	})
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillEclatDeGlace); got != eclatDeGlaceBase {
+		t.Errorf("expected no Fire modifier on a Cold skill, got %d instead of the base %d", got, eclatDeGlaceBase)
+	}
+}
+
 func TestResolveAttackDamageNoWeaponNoModifier(t *testing.T) {
 	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 0}})
 

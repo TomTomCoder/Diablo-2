@@ -1371,9 +1371,8 @@ func (g *GameServer) resolveTeleportationHit(sourceEntityID string, target d2vec
 // Falls back to the unscaled base damage if the attacker isn't a connected
 // player or has no stats resolved.
 //
-// ponytail: no elemental type, no gear modifiers (e.g. the "+10% dégâts
-// Feu" a staff can grant), no attack rating. See ROADMAP.md Phase 1/2 for
-// the rest of the combat formula.
+// ponytail: no attack rating. See ROADMAP.md Phase 1/2 for the rest of the
+// combat formula.
 func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int {
 	baseSort := d2hero.SkillBaseSortDamage(skillID, baseSortDamage)
 
@@ -1384,12 +1383,14 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 
 	damage := baseSort + (baseSort*effectiveEnergy(state))/100
 
-	// ponytail: always applies the equipped weapon's Fire modifier,
-	// regardless of the cast skill's actual element -- there's no per-skill
-	// element data yet (d2hero.DevilSkillDef has no element field either).
-	// See ROADMAP.md Phase 2/5.
-	if firePercent := d2hero.ItemFireDamagePercent(state.Equipment.RightHand.GetItemCode()); firePercent > 0 {
-		damage += (damage * firePercent) / 100
+	// Correction (août 2026): this used to apply the equipped weapon's Fire
+	// modifier to every skill regardless of its actual element -- a Fire%
+	// staff was silently buffing Éclat de glace/Éclair en chaîne too. Now
+	// gated on d2hero.DevilSkillDef.DealsFireDamage.
+	if def, ok := d2hero.DevilSkills[skillID]; ok && def.DealsFireDamage {
+		if firePercent := d2hero.ItemFireDamagePercent(state.Equipment.RightHand.GetItemCode()); firePercent > 0 {
+			damage += (damage * firePercent) / 100
+		}
 	}
 
 	// Maîtrise élémentaire only boosts Élémentalisme's own skills.

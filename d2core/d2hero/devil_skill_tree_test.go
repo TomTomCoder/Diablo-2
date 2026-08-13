@@ -426,6 +426,22 @@ func TestSkillRegenerationAccelereeSharesTierWithBouclierDeMana(t *testing.T) {
 	}
 }
 
+func TestDealsFireDamageMatchesEachSkillsOwnDescription(t *testing.T) {
+	fireSkills := []int{SkillTraitDeFeu, SkillBouleDeFeu, SkillMeteore, SkillApocalypse}
+	for _, id := range fireSkills {
+		if !DevilSkills[id].DealsFireDamage {
+			t.Errorf("expected %q to deal Fire damage per its own description", DevilSkills[id].Name)
+		}
+	}
+
+	nonFireSkills := []int{SkillEclatDeGlace, SkillEclairEnChaine, SkillTelekinesie}
+	for _, id := range nonFireSkills {
+		if DevilSkills[id].DealsFireDamage {
+			t.Errorf("expected %q to NOT deal Fire damage per its own description", DevilSkills[id].Name)
+		}
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

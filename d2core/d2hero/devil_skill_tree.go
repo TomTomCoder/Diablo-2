@@ -29,6 +29,16 @@ type DevilSkillDef struct {
 	// SynergyTargetID == 0 means this skill has no synergy.
 	SynergyTargetID int
 	SynergyPercent  int
+
+	// DealsFireDamage marks a skill whose damage is (at least partly) Fire,
+	// per its own design description (Trait de feu/Boule de feu/Météore's
+	// "dégâts feu", Apocalypse's "feu" among its three elements). Gates
+	// equipment Fire modifiers (d2hero.ItemFireDamagePercent) in
+	// resolveAttackDamage -- a bool rather than a full multi-value element
+	// field since Fire is the only element any Devil item currently grants
+	// a bonus to; add Cold/Lightning fields the same way if/when an item
+	// ever does.
+	DealsFireDamage bool
 }
 
 // SkillEclatDeGlace is Devil's own skill ID for "Éclat de glace"
@@ -259,12 +269,13 @@ const SkillRegenerationAcceleree = SkillResonanceMagique + 1
 // their prerequisite mechanics (group control, ally summons) exist.
 var DevilSkills = map[int]*DevilSkillDef{
 	SkillTraitDeFeu: {
-		ID:             SkillTraitDeFeu,
-		Name:           "Trait de feu",
-		Tree:           TreeElementalisme,
-		RequiredLevel:  1,
-		BaseSortDamage: 6,
-		ManaCost:       3,
+		ID:              SkillTraitDeFeu,
+		Name:            "Trait de feu",
+		Tree:            TreeElementalisme,
+		RequiredLevel:   1,
+		BaseSortDamage:  6,
+		ManaCost:        3,
+		DealsFireDamage: true,
 	},
 	SkillEclatDeGlace: {
 		ID:             SkillEclatDeGlace,
@@ -291,12 +302,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		ManaCost:       8, // costliest tier-2 spell -- it hits every killable NPC in range, not just one
 	},
 	SkillBouleDeFeu: {
-		ID:             SkillBouleDeFeu,
-		Name:           "Boule de feu",
-		Tree:           TreeElementalisme,
-		RequiredLevel:  12, // tier 3, per the design's level table
-		BaseSortDamage: 10, // "dégâts feu élevés" -- highest base_sort of any Élémentalisme spell so far
-		ManaCost:       10,
+		ID:              SkillBouleDeFeu,
+		Name:            "Boule de feu",
+		Tree:            TreeElementalisme,
+		RequiredLevel:   12, // tier 3, per the design's level table
+		BaseSortDamage:  10, // "dégâts feu élevés" -- highest base_sort of any Élémentalisme spell so far
+		ManaCost:        10,
+		DealsFireDamage: true,
 	},
 	SkillTempeteStatique: {
 		ID:             SkillTempeteStatique,
@@ -364,12 +376,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		ManaCost:      12,
 	},
 	SkillMeteore: {
-		ID:             SkillMeteore,
-		Name:           "Météore",
-		Tree:           TreeElementalisme,
-		RequiredLevel:  24, // tier 5, per the design's level table
-		BaseSortDamage: 14, // "dégâts feu massifs" -- highest base_sort of any Devil spell so far
-		ManaCost:       14,
+		ID:              SkillMeteore,
+		Name:            "Météore",
+		Tree:            TreeElementalisme,
+		RequiredLevel:   24, // tier 5, per the design's level table
+		BaseSortDamage:  14, // "dégâts feu massifs" -- highest base_sort of any Devil spell so far
+		ManaCost:        14,
+		DealsFireDamage: true,
 	},
 	SkillDistorsionTemporelle: {
 		ID:            SkillDistorsionTemporelle,
@@ -385,6 +398,9 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  30, // tier 6, per the design's level table -- Devil's highest-tier Élémentalisme skill
 		BaseSortDamage: 16, // the ultimate -- highest base_sort of any Devil spell
 		ManaCost:       18, // costliest spell in the game so far
+		// "Pluie d'éclairs + feu + froid" -- one of its three elements is
+		// Fire, so it still qualifies for a Fire weapon bonus.
+		DealsFireDamage: true,
 	},
 	SkillBouclierDeMana: {
 		ID:            SkillBouclierDeMana,
