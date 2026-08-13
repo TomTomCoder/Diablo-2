@@ -76,18 +76,30 @@ func TestSkillNovaDeGivreSharesTierWithChainLightning(t *testing.T) {
 	}
 }
 
-func TestSkillBouleDeFeuHasHighestTierAndDamageSoFar(t *testing.T) {
+func TestSkillBouleDeFeuHasHigherTierThanTier2Spells(t *testing.T) {
 	fireball := DevilSkills[SkillBouleDeFeu]
 
 	if fireball.RequiredLevel <= DevilSkills[SkillNovaDeGivre].RequiredLevel {
 		t.Error("expected Boule de feu to require a higher level than the tier-2 spells")
 	}
+}
+
+func TestSkillMeteoreHasHighestDamageSoFar(t *testing.T) {
+	meteore := DevilSkills[SkillMeteore]
 
 	for id, def := range DevilSkills {
-		if id != SkillBouleDeFeu && def.BaseSortDamage > fireball.BaseSortDamage {
-			t.Errorf("expected Boule de feu (%d) to have the highest base_sort, but %q has %d",
-				fireball.BaseSortDamage, def.Name, def.BaseSortDamage)
+		if id != SkillMeteore && def.BaseSortDamage > meteore.BaseSortDamage {
+			t.Errorf("expected Météore (%d) to have the highest base_sort, but %q has %d",
+				meteore.BaseSortDamage, def.Name, def.BaseSortDamage)
 		}
+	}
+
+	if meteore.Tree != TreeElementalisme {
+		t.Error("expected Météore to belong to Élémentalisme")
+	}
+
+	if meteore.RequiredLevel <= DevilSkills[SkillOrbeGlaciale].RequiredLevel {
+		t.Error("expected Météore to require a higher level than the tier-4 Élémentalisme spells")
 	}
 }
 

@@ -130,6 +130,17 @@ const SkillPrisonDeGlace = SkillTeleportation + 1
 // (BaseSortDamage 0).
 const SkillVortex = SkillPrisonDeGlace + 1
 
+// SkillMeteore is Devil's own skill ID for "Météore" (Élémentalisme,
+// devil_game_design_reference.md §7): "Frappe retardée sur une zone,
+// dégâts feu massifs". Same AoE-at-target-position shape as Boule de feu
+// (see resolveAoeHit in game_server.go) -- highest base_sort of any
+// Élémentalisme spell so far.
+//
+// ponytail: resolved as an instant AoE hit rather than an actual delayed
+// strike, same simplification (and same reasoning) as Tempête statique's
+// missing "persistante" zone -- no delayed-effect/timer entity exists yet.
+const SkillMeteore = SkillVortex + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -242,6 +253,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 24, // tier 5, per the design's level table
 		ManaCost:      12,
+	},
+	SkillMeteore: {
+		ID:             SkillMeteore,
+		Name:           "Météore",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  24, // tier 5, per the design's level table
+		BaseSortDamage: 14, // "dégâts feu massifs" -- highest base_sort of any Devil spell so far
+		ManaCost:       14,
 	},
 }
 
