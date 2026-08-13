@@ -676,3 +676,26 @@ type (
 
 	}
 )
+
+// HPRangeForDifficulty returns this monster's (min, max) HP range for the
+// given difficulty (monstats.txt's minHP/MinHP(N)/MinHP(H) and
+// maxHP/MaxHP(N)/MaxHP(H) columns -- devil_game_design_reference.md §1:
+// "Chaque région est rejouable en trois niveaux de difficulté... Les
+// entités y sont plus puissantes").
+//
+// ponytail: MapEntityFactory.NewNPC currently always uses
+// MinHPNormal/MaxHPNormal regardless of the actual game difficulty --
+// this method exists so that can be fixed, but wiring it in means
+// threading a difficulty value through NewNPC's 3 call sites (client-side
+// map/summon code this environment can't visually verify without running
+// the actual game), so it's deliberately not done yet. See ROADMAP.md.
+func (r *MonStatRecord) HPRangeForDifficulty(difficulty d2enum.DifficultyType) (min, max int) {
+	switch difficulty {
+	case d2enum.DifficultyNightmare:
+		return r.MinHPNightmare, r.MaxHPNightmare
+	case d2enum.DifficultyHell:
+		return r.MinHPHell, r.MaxHPHell
+	default:
+		return r.MinHPNormal, r.MaxHPNormal
+	}
+}
