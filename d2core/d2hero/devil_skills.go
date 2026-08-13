@@ -45,6 +45,20 @@ func NewDevilHeroSkill(skillID int) *HeroSkill {
 	}
 }
 
+// maitriseElementaireDamagePercentPerPoint is the placeholder magnitude for
+// Maîtrise élémentaire's "+% dégâts élémentaires par point"
+// (devil_game_design_reference.md §7) -- the design gives no number, same
+// practice as amplificationDamagePercent/eveilDuNexusHealPercent in
+// game_server.go.
+const maitriseElementaireDamagePercentPerPoint = 5
+
+// MaitriseElementaireDamagePercent returns the total elemental-damage bonus
+// percent for a caster with the given number of points invested in
+// Maîtrise élémentaire (0 for none invested).
+func MaitriseElementaireDamagePercent(points int) int {
+	return points * maitriseElementaireDamagePercentPerPoint
+}
+
 // NewTraitDeFeuSkill returns a HeroSkill for "Trait de feu" specifically --
 // kept as a thin wrapper since character creation (select_hero_class.go)
 // hardcodes everyone's starting skill to it.

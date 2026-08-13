@@ -103,8 +103,9 @@ const SkillRalentissement = SkillTelekinesie + 1
 
 // SkillAmplification is Devil's own skill ID for "Amplification" (Arcane,
 // devil_game_design_reference.md §7): "Augmente les dégâts magiques reçus
-// par la cible". A single-target debuff -- see resolveAmplificationHit in
-// game_server.go and d2mapentity.NPC.ApplyAmplification/IsAmplified. Deals
+// par la cible". A single-target debuff -- see the inline dispatch in
+// GameServer.resolveMeleeHit (game_server.go) and
+// d2mapentity.NPC.ApplyAmplification/IsAmplified. Deals
 // no direct damage itself (BaseSortDamage 0).
 const SkillAmplification = SkillRalentissement + 1
 
@@ -215,10 +216,18 @@ const SkillTempeteDeLames = SkillTranscendance + 1
 // SkillRuptureArcane is Devil's own skill ID for "Rupture arcane" (Arcane,
 // devil_game_design_reference.md §7): "Projectile qui supprime les
 // résistances d'une cible". A single-target debuff, same tier as
-// Téléportation -- see resolveRuptureArcaneHit in game_server.go and
+// Téléportation -- see the inline dispatch in GameServer.resolveMeleeHit
+// (game_server.go) and
 // d2mapentity.NPC.ApplyResistanceStrip/IsResistanceStripped. Deals no direct
 // damage itself (BaseSortDamage 0).
 const SkillRuptureArcane = SkillTempeteDeLames + 1
+
+// SkillMaitriseElementaire is Devil's own skill ID for "Maîtrise
+// élémentaire" (Élémentalisme, devil_game_design_reference.md §7): "Augmente
+// tous les dégâts élémentaires (+% par point)". Devil's first skill that
+// takes more than one invested point -- see HeroState.InvestSkillPoint and
+// MaitriseElementaireDamagePercent. Never cast (BaseSortDamage/ManaCost 0).
+const SkillMaitriseElementaire = SkillRuptureArcane + 1
 
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
@@ -405,6 +414,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 12, // tier 3, alongside Téléportation
 		ManaCost:      7,  // single-target debuff -- between Amplification's 6 (tier 2) and Téléportation's 8 (tier 3 utility)
+	},
+	SkillMaitriseElementaire: {
+		ID:            SkillMaitriseElementaire,
+		Name:          "Maîtrise élémentaire",
+		Tree:          TreeElementalisme,
+		RequiredLevel: 18, // tier 4, alongside Orbe glaciale
+		ManaCost:      0,  // passive -- never cast, always on once learned
 	},
 }
 

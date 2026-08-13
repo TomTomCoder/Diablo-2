@@ -66,6 +66,37 @@ func (h *HeroState) LearnSkill(skillID int) error {
 	return nil
 }
 
+// InvestSkillPoint spends one skill point to add another point to a skill h
+// already knows -- e.g. Maîtrise élémentaire's "+% dégâts élémentaires par
+// point" (devil_game_design_reference.md §7), or any of the design's
+// "chaque point dans X augmente Y" synergies (§7 "Synergies"). Unlike
+// LearnSkill, which only ever grants the first point, this requires the
+// skill to already be known.
+func (h *HeroState) InvestSkillPoint(skillID int) error {
+	if h.Stats == nil {
+		return errors.New("hero has no stats")
+	}
+
+	skill, known := h.Skills[skillID]
+	if !known {
+		return errors.New("skill not yet learned")
+	}
+
+	if h.Stats.SkillPoints <= 0 {
+		return errors.New("no skill points available")
+	}
+
+	skill.SkillPoints++
+
+	if skill.Shallow != nil {
+		skill.Shallow.SkillPoints = skill.SkillPoints
+	}
+
+	h.Stats.SkillPoints--
+
+	return nil
+}
+
 // RespecSkills clears every skill h has learned and refunds the skill
 // points spent on them (devil_game_design_reference.md §10 "Respec
 // partiel" -- the skill half of it; that method also resets attribute

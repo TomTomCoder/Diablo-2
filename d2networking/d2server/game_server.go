@@ -1255,6 +1255,15 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 		damage += (damage * firePercent) / 100
 	}
 
+	// Maîtrise élémentaire only boosts Élémentalisme's own skills.
+	if def, ok := d2hero.DevilSkills[skillID]; ok && def.Tree == d2hero.TreeElementalisme {
+		if maitrise, learned := state.Skills[d2hero.SkillMaitriseElementaire]; learned {
+			if percent := d2hero.MaitriseElementaireDamagePercent(maitrise.SkillPoints); percent > 0 {
+				damage += (damage * percent) / 100
+			}
+		}
+	}
+
 	return damage
 }
 

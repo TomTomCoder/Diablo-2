@@ -61,6 +61,46 @@ func TestLearnSkillFailsForUnknownSkill(t *testing.T) {
 	}
 }
 
+func TestInvestSkillPointAddsToAnAlreadyLearnedSkill(t *testing.T) {
+	hero := newLearnableHeroState(1, 2)
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("LearnSkill should succeed, got %v", err)
+	}
+
+	if err := hero.InvestSkillPoint(SkillTraitDeFeu); err != nil {
+		t.Fatalf("expected InvestSkillPoint to succeed, got %v", err)
+	}
+
+	if got := hero.Skills[SkillTraitDeFeu].SkillPoints; got != 2 {
+		t.Errorf("expected 2 points invested in Trait de feu, got %d", got)
+	}
+
+	if hero.Stats.SkillPoints != 0 {
+		t.Errorf("expected SkillPoints to drop to 0, got %d", hero.Stats.SkillPoints)
+	}
+}
+
+func TestInvestSkillPointFailsIfNotYetLearned(t *testing.T) {
+	hero := newLearnableHeroState(1, 1)
+
+	if err := hero.InvestSkillPoint(SkillTraitDeFeu); err == nil {
+		t.Error("expected an error investing in a skill that isn't learned yet")
+	}
+}
+
+func TestInvestSkillPointFailsWithoutPoints(t *testing.T) {
+	hero := newLearnableHeroState(1, 1)
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("LearnSkill should succeed, got %v", err)
+	}
+
+	if err := hero.InvestSkillPoint(SkillTraitDeFeu); err == nil {
+		t.Error("expected an error with no skill points available")
+	}
+}
+
 func TestRespecSkillsRefundsPointsAndClearsSkills(t *testing.T) {
 	hero := newLearnableHeroState(6, 2)
 	hero.LeftSkill = SkillTraitDeFeu

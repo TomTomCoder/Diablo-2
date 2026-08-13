@@ -31,3 +31,18 @@ func TestNewTraitDeFeuSkill(t *testing.T) {
 		t.Error("Shallow.SkillID must match SkillTraitDeFeu for save/load to round-trip the ID")
 	}
 }
+
+func TestMaitriseElementaireDamagePercent(t *testing.T) {
+	if got := MaitriseElementaireDamagePercent(0); got != 0 {
+		t.Errorf("expected 0%% with no points invested, got %d", got)
+	}
+
+	one := MaitriseElementaireDamagePercent(1)
+	if one <= 0 {
+		t.Fatalf("expected a positive bonus for 1 point invested, got %d", one)
+	}
+
+	if got := MaitriseElementaireDamagePercent(3); got != one*3 {
+		t.Errorf("expected the bonus to scale linearly with points invested (%d), got %d", one*3, got)
+	}
+}

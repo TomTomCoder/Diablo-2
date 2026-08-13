@@ -375,6 +375,23 @@ func TestSkillRuptureArcaneSharesTierWithTeleportation(t *testing.T) {
 	}
 }
 
+func TestSkillMaitriseElementaireSharesTierWithOrbeGlaciale(t *testing.T) {
+	maitrise, orbe := DevilSkills[SkillMaitriseElementaire], DevilSkills[SkillOrbeGlaciale]
+
+	if maitrise.RequiredLevel != orbe.RequiredLevel {
+		t.Errorf("expected Maîtrise élémentaire and Orbe glaciale to share tier 4's RequiredLevel, got %d vs %d",
+			maitrise.RequiredLevel, orbe.RequiredLevel)
+	}
+
+	if maitrise.Tree != TreeElementalisme {
+		t.Error("expected Maîtrise élémentaire to belong to Élémentalisme")
+	}
+
+	if maitrise.BaseSortDamage != 0 {
+		t.Errorf("expected Maîtrise élémentaire to deal no direct base_sort damage, got %d", maitrise.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

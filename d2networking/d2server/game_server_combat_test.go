@@ -1010,3 +1010,40 @@ func TestResolveAttackDamageNoWeaponNoModifier(t *testing.T) {
 		t.Errorf("expected no modifier with nothing equipped, got %d", got)
 	}
 }
+
+// TestResolveAttackDamageAppliesMaitriseElementaireToElementalisteSkills is a
+// regression test for Maîtrise élémentaire ("+% dégâts élémentaires par
+// point", devil_game_design_reference.md §7) -- Devil's first
+// multi-point-investment skill (see HeroState.InvestSkillPoint).
+func TestResolveAttackDamageAppliesMaitriseElementaireToElementalisteSkills(t *testing.T) {
+	const points = 3
+
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Energy: 0},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillMaitriseElementaire: {SkillPoints: points}},
+	})
+
+	traitDeFeuBase := d2hero.DevilSkills[d2hero.SkillTraitDeFeu].BaseSortDamage
+	percent := d2hero.MaitriseElementaireDamagePercent(points)
+	want := traitDeFeuBase + (traitDeFeuBase*percent)/100
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != want {
+		t.Errorf("expected Maîtrise élémentaire's bonus applied to an Élémentalisme skill (%d), got %d", want, got)
+	}
+}
+
+// TestResolveAttackDamageMaitriseElementaireDoesNotAffectOtherTrees checks
+// the tree gating: Maîtrise élémentaire must not inflate an Ésotérisme
+// skill's damage.
+func TestResolveAttackDamageMaitriseElementaireDoesNotAffectOtherTrees(t *testing.T) {
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Energy: 0},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillMaitriseElementaire: {SkillPoints: 3}},
+	})
+
+	want := d2hero.DevilSkills[d2hero.SkillTempeteDeLames].BaseSortDamage
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTempeteDeLames); got != want {
+		t.Errorf("expected an Ésotérisme skill to be unaffected by Maîtrise élémentaire (%d), got %d", want, got)
+	}
+}
