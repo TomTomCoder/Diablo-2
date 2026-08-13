@@ -267,6 +267,22 @@ func TestSkillDistorsionTemporelleIsHighestTierArcane(t *testing.T) {
 	}
 }
 
+func TestSkillBouclierDeManaIsDevilsFirstEsoterismeSkill(t *testing.T) {
+	shield := DevilSkills[SkillBouclierDeMana]
+
+	if shield.Tree != TreeEsoterisme {
+		t.Errorf("expected Bouclier de mana to belong to Ésotérisme, got tree %v", shield.Tree)
+	}
+
+	if shield.RequiredLevel != 1 {
+		t.Errorf("expected Bouclier de mana to be a tier-1 skill, got RequiredLevel %d", shield.RequiredLevel)
+	}
+
+	if shield.BaseSortDamage != 0 {
+		t.Errorf("expected Bouclier de mana to deal no direct base_sort damage, got %d", shield.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

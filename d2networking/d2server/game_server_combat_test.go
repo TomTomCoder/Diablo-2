@@ -379,6 +379,34 @@ func TestResolveApocalypseHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolveApocalypseHit("p", d2hero.SkillApocalypse)
 }
 
+func TestResolveBouclierDeManaHitTogglesManaShield(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}
+	server := serverWithConnection(state)
+
+	if state.Stats.ManaShieldActive {
+		t.Fatal("expected ManaShieldActive to start false")
+	}
+
+	server.resolveBouclierDeManaHit("p")
+
+	if !state.Stats.ManaShieldActive {
+		t.Error("expected first cast to turn ManaShieldActive on")
+	}
+
+	server.resolveBouclierDeManaHit("p")
+
+	if state.Stats.ManaShieldActive {
+		t.Error("expected second cast to turn ManaShieldActive back off")
+	}
+}
+
+func TestResolveBouclierDeManaHitUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveBouclierDeManaHit("nobody")
+}
+
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique, d2hero.SkillOrbeGlaciale, d2hero.SkillMeteore} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {

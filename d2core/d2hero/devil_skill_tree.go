@@ -160,6 +160,17 @@ const SkillDistorsionTemporelle = SkillMeteore + 1
 // game_server.go.
 const SkillApocalypse = SkillDistorsionTemporelle + 1
 
+// SkillBouclierDeMana is Devil's own skill ID for "Bouclier de mana"
+// (Ésotérisme, devil_game_design_reference.md §7): "Absorbe les dégâts avec
+// la réserve de mana". Devil's first Ésotérisme skill. Casting it toggles
+// HeroStatsState.ManaShieldActive -- see resolveBouclierDeManaHit in
+// game_server.go. The absorption itself already existed from an earlier
+// phase (HeroStatsState.ApplyDamageWithManaShield, wired into
+// tryMonsterAttack); this finally gives the player a real way to turn it on
+// and off, rather than it being set directly for tests only. Deals no
+// direct damage (BaseSortDamage 0).
+const SkillBouclierDeMana = SkillApocalypse + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -295,6 +306,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  30, // tier 6, per the design's level table -- Devil's highest-tier Élémentalisme skill
 		BaseSortDamage: 16, // the ultimate -- highest base_sort of any Devil spell
 		ManaCost:       18, // costliest spell in the game so far
+	},
+	SkillBouclierDeMana: {
+		ID:            SkillBouclierDeMana,
+		Name:          "Bouclier de mana",
+		Tree:          TreeEsoterisme,
+		RequiredLevel: 1,
+		ManaCost:      4, // cheap toggle -- the real cost is the mana drained per hit absorbed, not the cast itself
 	},
 }
 

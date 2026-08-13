@@ -420,6 +420,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillBouclierDeMana {
+		g.resolveBouclierDeManaHit(castPacket.SourceEntityID)
+		return
+	}
+
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
 	if radius, ok := aoeAtTargetRadiusSubtiles[castPacket.SkillID]; ok {
@@ -708,6 +713,21 @@ func (g *GameServer) resolveApocalypseHit(sourceEntityID string, skillID int) {
 
 		g.applyHit(npc, sourceEntityID, skillID)
 	}
+}
+
+// resolveBouclierDeManaHit toggles sourceEntityID's own
+// HeroStatsState.ManaShieldActive. The absorption itself
+// (ApplyDamageWithManaShield) is already wired into tryMonsterAttack from
+// an earlier phase -- this is just the first real trigger a player has to
+// turn it on and off, rather than it being set directly for tests only.
+// A no-op if sourceEntityID isn't a resolved connected player with stats.
+func (g *GameServer) resolveBouclierDeManaHit(sourceEntityID string) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.Stats.ManaShieldActive = !state.Stats.ManaShieldActive
 }
 
 // resolveTelekinesieHit knocks every killable NPC within telekinesieRadiusSubtiles
