@@ -137,6 +137,29 @@ func TestNPCAggroDistanceTiles(t *testing.T) {
 	}
 }
 
+func TestNPCAiDelayFrames(t *testing.T) {
+	npc := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{AiDelayNormal: 9},
+	}
+	if got := npc.AiDelayFrames(); got != 9 {
+		t.Errorf("expected AiDelayFrames 9, got %d", got)
+	}
+
+	blank := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{},
+	}
+	if got := blank.AiDelayFrames(); got != 0 {
+		t.Errorf("expected AiDelayFrames 0 for a blank aidel column, got %d", got)
+	}
+
+	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
+	if got := noMonstat.AiDelayFrames(); got != 0 {
+		t.Errorf("expected AiDelayFrames 0 with no monstat record, got %d", got)
+	}
+}
+
 func TestNPCApplyDamage(t *testing.T) {
 	npc := killableNPC(10)
 

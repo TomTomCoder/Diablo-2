@@ -176,6 +176,22 @@ func (v *NPC) AggroDistanceTiles() int {
 	return v.monstatRecord.AiDistanceNormal
 }
 
+// AiDelayFrames returns this NPC's delay between AI actions in frames
+// (monstats.txt's "aidel" column, d2records.MonStatRecord.AiDelayNormal --
+// "the lower the number, the faster the AI's will attack"), or 0 if it has
+// no monstat record or the column was left blank. Same 0-is-"no data"
+// sentinel convention as AggroDistanceTiles.
+//
+// ponytail: always Normal-difficulty, same limitation as
+// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
+func (v *NPC) AiDelayFrames() int {
+	if v.monstatRecord == nil {
+		return 0
+	}
+
+	return v.monstatRecord.AiDelayNormal
+}
+
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.
 // No-op (and never dies) for NPCs that aren't killable.
 func (v *NPC) ApplyDamage(amount int) (died bool) {

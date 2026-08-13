@@ -243,6 +243,13 @@ const (
 	monsterAttackDamage        = 3
 )
 
+// gameTickFps converts a monstats.txt "frames" value (e.g. AiDelayNormal,
+// see NPC.AiDelayFrames) into real time. Same 25 FPS baseline already used
+// for the same purpose in d2mapentity/factory.go's own animation-speed
+// conversion (unexported there, so re-declared here rather than exported
+// solely for this one caller).
+const gameTickFps = 25.0
+
 // armureDeGlaceDamageReductionPercent/armureDeGlaceSlowDuration: while
 // Armure de glace is active (HeroStatsState.ArmureDeGlaceActive), incoming
 // monster attacks are reduced by this percent and the attacking NPC is
@@ -420,21 +427,29 @@ func (g *GameServer) nearestPlayer(from d2vector.Position) (playerID string, pos
 // per-monster damage range loaded (d2mapentity.NPC.AttackDamageRange) --
 // now rolled within that range when available, still overridden first by
 // a Devil-specific MonsterArchetypeDef if one exists for this monster key.
+// Same treatment for the cooldown itself: a monster's real AiDelayNormal
+// (d2mapentity.NPC.AiDelayFrames, converted via gameTickFps) is used as the
+// fallback in place of the flat monsterAttackCooldown when available.
 func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	now := g.clock()
 
 	var monsterKey string
 
 	fallbackDamage := monsterAttackDamage
+	cooldownFallback := monsterAttackCooldown
 
 	if npc := g.npcByID(npcID); npc != nil {
 		monsterKey = npc.MonsterKey()
 
 		damageMin, damageMax := npc.AttackDamageRange()
 		fallbackDamage = d2hero.RollDamageInRange(damageMin, damageMax, monsterAttackDamage)
+
+		if frames := npc.AiDelayFrames(); frames > 0 {
+			cooldownFallback = time.Duration(float64(frames) / gameTickFps * float64(time.Second))
+		}
 	}
 
-	cooldown := d2hero.MonsterAttackCooldown(monsterKey, monsterAttackCooldown)
+	cooldown := d2hero.MonsterAttackCooldown(monsterKey, cooldownFallback)
 
 	g.Lock()
 	last, attacked := g.lastMonsterAttackAt[npcID]
