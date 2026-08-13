@@ -43,17 +43,44 @@ func UnmarshalRespecSkillsRequest(packet []byte) (RespecSkillsRequestPacket, err
 // SkillsRespecedPacket carries a player's new SkillPoints total after every
 // learned skill was forgotten and refunded. It is sent by the server
 // whenever a RespecSkillsRequestPacket successfully resolves.
+//
+// The attribute/pool fields below exist because HeroState.RespecSkills
+// ("Respec partiel", devil_game_design_reference.md §10: "tous les points
+// de compétences et d'attributs") also refunds every attribute point ever
+// spent (HeroStatsState.RespecAllAttributePoints) -- correction (août
+// 2026): the original packet only ever carried SkillPoints, so the
+// client's own copy of the caster's attributes/StatsPoints/health/mana
+// pools never learned about the other half of the same action.
 type SkillsRespecedPacket struct {
 	PlayerID    string `json:"playerId"`
 	SkillPoints int    `json:"skillPoints"`
+	StatsPoints int    `json:"statsPoints"`
+	Strength    int    `json:"strength"`
+	Energy      int    `json:"energy"`
+	Dexterity   int    `json:"dexterity"`
+	Vitality    int    `json:"vitality"`
+	MaxHealth   int    `json:"maxHealth"`
+	Health      int    `json:"health"`
+	MaxMana     int    `json:"maxMana"`
+	Mana        int    `json:"mana"`
 }
 
 // CreateSkillsRespecedPacket returns a NetPacket which declares a
-// SkillsRespecedPacket for the given player and new SkillPoints total.
-func CreateSkillsRespecedPacket(playerID string, skillPoints int) (NetPacket, error) {
+// SkillsRespecedPacket for the given player, carrying their post-respec
+// SkillPoints and full attribute/pool state.
+func CreateSkillsRespecedPacket(playerID string, skillPoints, statsPoints, strength, energy, dexterity, vitality, maxHealth, health, maxMana, mana int) (NetPacket, error) {
 	respecedPacket := SkillsRespecedPacket{
 		PlayerID:    playerID,
 		SkillPoints: skillPoints,
+		StatsPoints: statsPoints,
+		Strength:    strength,
+		Energy:      energy,
+		Dexterity:   dexterity,
+		Vitality:    vitality,
+		MaxHealth:   maxHealth,
+		Health:      health,
+		MaxMana:     maxMana,
+		Mana:        mana,
 	}
 
 	b, err := json.Marshal(respecedPacket)

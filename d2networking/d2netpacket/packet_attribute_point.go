@@ -48,22 +48,37 @@ func UnmarshalSpendAttributePointRequest(packet []byte) (SpendAttributePointRequ
 // AttributePointSpentPacket carries an attribute's new value and the
 // caster's remaining StatsPoints. It is sent by the server whenever a
 // SpendAttributePointRequestPacket successfully resolves.
+//
+// MaxHealth/Health/MaxMana/Mana are included too, not just the touched
+// attribute -- correction (août 2026): spending on Vitality/Energy also
+// grows these (HeroStatsState.SpendAttributePoint), but the original
+// packet only ever carried the attribute itself, so the client's own
+// health/mana pools silently never grew even though the server's did.
 type AttributePointSpentPacket struct {
 	PlayerID    string `json:"playerId"`
 	Attribute   int    `json:"attribute"`
 	NewValue    int    `json:"newValue"`    // the attribute's new value after spending the point
 	StatsPoints int    `json:"statsPoints"` // the caster's remaining attribute points
+	MaxHealth   int    `json:"maxHealth"`
+	Health      int    `json:"health"`
+	MaxMana     int    `json:"maxMana"`
+	Mana        int    `json:"mana"`
 }
 
 // CreateAttributePointSpentPacket returns a NetPacket which declares an
 // AttributePointSpentPacket for the given player, attribute, its new
-// value, and the caster's remaining StatsPoints.
-func CreateAttributePointSpentPacket(playerID string, attribute, newValue, statsPoints int) (NetPacket, error) {
+// value, the caster's remaining StatsPoints, and their current
+// MaxHealth/Health/MaxMana/Mana.
+func CreateAttributePointSpentPacket(playerID string, attribute, newValue, statsPoints, maxHealth, health, maxMana, mana int) (NetPacket, error) {
 	spentPacket := AttributePointSpentPacket{
 		PlayerID:    playerID,
 		Attribute:   attribute,
 		NewValue:    newValue,
 		StatsPoints: statsPoints,
+		MaxHealth:   maxHealth,
+		Health:      health,
+		MaxMana:     maxMana,
+		Mana:        mana,
 	}
 
 	b, err := json.Marshal(spentPacket)
@@ -132,22 +147,35 @@ func UnmarshalRespecSingleAttributePointRequest(packet []byte) (RespecSingleAttr
 // after one point was refunded from it, and the caster's new StatsPoints
 // total. It is sent by the server whenever a
 // RespecSingleAttributePointRequestPacket successfully resolves.
+//
+// MaxHealth/Health/MaxMana/Mana included for the same reason as
+// AttributePointSpentPacket's own -- refunding Vitality/Energy shrinks
+// these too (HeroStatsState.RefundAttributePoint).
 type SingleAttributePointRespecedPacket struct {
 	PlayerID    string `json:"playerId"`
 	Attribute   int    `json:"attribute"`
 	NewValue    int    `json:"newValue"`
 	StatsPoints int    `json:"statsPoints"`
+	MaxHealth   int    `json:"maxHealth"`
+	Health      int    `json:"health"`
+	MaxMana     int    `json:"maxMana"`
+	Mana        int    `json:"mana"`
 }
 
 // CreateSingleAttributePointRespecedPacket returns a NetPacket which
 // declares a SingleAttributePointRespecedPacket for the given player,
-// attribute, its new value, and the caster's new StatsPoints total.
-func CreateSingleAttributePointRespecedPacket(playerID string, attribute, newValue, statsPoints int) (NetPacket, error) {
+// attribute, its new value, the caster's new StatsPoints total, and their
+// current MaxHealth/Health/MaxMana/Mana.
+func CreateSingleAttributePointRespecedPacket(playerID string, attribute, newValue, statsPoints, maxHealth, health, maxMana, mana int) (NetPacket, error) {
 	respecedPacket := SingleAttributePointRespecedPacket{
 		PlayerID:    playerID,
 		Attribute:   attribute,
 		NewValue:    newValue,
 		StatsPoints: statsPoints,
+		MaxHealth:   maxHealth,
+		Health:      health,
+		MaxMana:     maxMana,
+		Mana:        mana,
 	}
 
 	b, err := json.Marshal(respecedPacket)

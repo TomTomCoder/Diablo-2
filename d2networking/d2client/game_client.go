@@ -547,6 +547,20 @@ func (g *GameClient) handleSkillsRespecedPacket(packet d2netpacket.NetPacket) er
 	player.RightSkill = nil
 	player.Stats.SkillPoints = respeced.SkillPoints
 
+	// Correction (août 2026): RespecSkills also refunds every attribute
+	// point ever spent (HeroStatsState.RespecAllAttributePoints) -- the
+	// packet used to carry only SkillPoints, so the client never learned
+	// about this other half of the same "Respec partiel" action.
+	player.Stats.StatsPoints = respeced.StatsPoints
+	player.Stats.Strength = respeced.Strength
+	player.Stats.Energy = respeced.Energy
+	player.Stats.Dexterity = respeced.Dexterity
+	player.Stats.Vitality = respeced.Vitality
+	player.Stats.MaxHealth = respeced.MaxHealth
+	player.Stats.Health = respeced.Health
+	player.Stats.MaxMana = respeced.MaxMana
+	player.Stats.Mana = respeced.Mana
+
 	return nil
 }
 
@@ -638,6 +652,15 @@ func (g *GameClient) handleAttributePointSpentPacket(packet d2netpacket.NetPacke
 	setAttributeValue(player.Stats, spent.Attribute, spent.NewValue)
 	player.Stats.StatsPoints = spent.StatsPoints
 
+	// Correction (août 2026): spending on Vitality/Energy also grows
+	// MaxHealth/MaxMana (HeroStatsState.SpendAttributePoint) -- the packet
+	// used to carry only the touched attribute, so the client's own health/
+	// mana pools never grew even though the server's did.
+	player.Stats.MaxHealth = spent.MaxHealth
+	player.Stats.Health = spent.Health
+	player.Stats.MaxMana = spent.MaxMana
+	player.Stats.Mana = spent.Mana
+
 	return nil
 }
 
@@ -657,6 +680,14 @@ func (g *GameClient) handleSingleAttributePointRespecedPacket(packet d2netpacket
 
 	setAttributeValue(player.Stats, respeced.Attribute, respeced.NewValue)
 	player.Stats.StatsPoints = respeced.StatsPoints
+
+	// Correction (août 2026): same reasoning as
+	// handleAttributePointSpentPacket -- refunding Vitality/Energy shrinks
+	// MaxHealth/MaxMana too.
+	player.Stats.MaxHealth = respeced.MaxHealth
+	player.Stats.Health = respeced.Health
+	player.Stats.MaxMana = respeced.MaxMana
+	player.Stats.Mana = respeced.Mana
 
 	return nil
 }

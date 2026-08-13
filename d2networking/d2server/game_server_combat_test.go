@@ -976,6 +976,53 @@ func TestResolveRespecSkillsRefundsAllPoints(t *testing.T) {
 	}
 }
 
+// TestResolveRespecSkillsBroadcastsAttributesAndPools is a regression test:
+// RespecSkills ("Respec partiel") also refunds every attribute point ever
+// spent (HeroStatsState.RespecAllAttributePoints), but the broadcast
+// packet used to carry only SkillPoints -- the client never learned its
+// attributes/health/mana pools had reverted too.
+func TestResolveRespecSkillsBroadcastsAttributesAndPools(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{
+			Level: 6, SkillPoints: 0, StatsPoints: 1,
+			Vitality: 10, Health: 40, MaxHealth: 40, LifePerVit: 4,
+		},
+		Skills: map[int]*d2hero.HeroSkill{},
+	}
+
+	if err := state.Stats.SpendAttributePoint(d2hero.AttributeVitality); err != nil {
+		t.Fatalf("test setup: SpendAttributePoint failed: %v", err)
+	}
+	// state.Stats is now Vitality=11, Health=MaxHealth=44, StatsPoints=0.
+
+	conn := &fakeClientConnection{state: state}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateRespecSkillsRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSkillsRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSkills(packet)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	respeced, err := d2netpacket.UnmarshalSkillsRespeced(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal SkillsRespecedPacket: %v", err)
+	}
+
+	if respeced.Vitality != 10 {
+		t.Errorf("expected the broadcast to carry Vitality reverted to 10, got %d", respeced.Vitality)
+	}
+
+	if respeced.MaxHealth != 40 || respeced.Health != 40 {
+		t.Errorf("expected the broadcast to carry MaxHealth/Health reverted to 40/40, got %d/%d", respeced.MaxHealth, respeced.Health)
+	}
+}
+
 func TestResolveRespecSkillsUnknownPlayerNoop(t *testing.T) {
 	server := serverWithConnection(nil)
 
@@ -1123,6 +1170,38 @@ func TestResolveSpendAttributePointSpendsAndBroadcastsNewValue(t *testing.T) {
 	}
 }
 
+// TestResolveSpendAttributePointBroadcastsGrownHealth is a regression test:
+// spending on Vitality also grows MaxHealth/Health (HeroStatsState.
+// SpendAttributePoint), but the broadcast packet used to carry only the
+// attribute itself -- the client's own health pool never learned it grew.
+func TestResolveSpendAttributePointBroadcastsGrownHealth(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{StatsPoints: 1, Vitality: 10, Health: 40, MaxHealth: 40, LifePerVit: 4},
+	}
+	conn := &fakeClientConnection{state: state}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateSpendAttributePointRequestPacket("p", int(d2hero.AttributeVitality))
+	if err != nil {
+		t.Fatalf("test setup: CreateSpendAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveSpendAttributePoint(packet)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	spent, err := d2netpacket.UnmarshalAttributePointSpent(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal AttributePointSpentPacket: %v", err)
+	}
+
+	if spent.MaxHealth != 44 || spent.Health != 44 {
+		t.Errorf("expected the broadcast to carry the grown MaxHealth/Health (44/44), got %d/%d", spent.MaxHealth, spent.Health)
+	}
+}
+
 func TestResolveSpendAttributePointFailsWithoutPointsIsNoop(t *testing.T) {
 	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Vitality: 10}}
 	server := serverWithConnection(state)
@@ -1168,6 +1247,40 @@ func TestResolveRespecSingleAttributePointRefundsOnlyThatAttribute(t *testing.T)
 
 	if state.Stats.StatsPoints != 1 {
 		t.Errorf("expected the point refunded to StatsPoints, got %d", state.Stats.StatsPoints)
+	}
+}
+
+// TestResolveRespecSingleAttributePointBroadcastsShrunkHealth is a
+// regression test: refunding a Vitality point also shrinks MaxHealth/
+// Health (HeroStatsState.RefundAttributePoint), but the broadcast packet
+// used to carry only the attribute itself.
+func TestResolveRespecSingleAttributePointBroadcastsShrunkHealth(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{
+			StatsPoints: 0, Vitality: 11, VitalitySpent: 1, LifePerVit: 4, Health: 44, MaxHealth: 44,
+		},
+	}
+	conn := &fakeClientConnection{state: state}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("p", int(d2hero.AttributeVitality))
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleAttributePoint(packet)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	respeced, err := d2netpacket.UnmarshalSingleAttributePointRespeced(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal SingleAttributePointRespecedPacket: %v", err)
+	}
+
+	if respeced.MaxHealth != 40 || respeced.Health != 40 {
+		t.Errorf("expected the broadcast to carry the shrunk MaxHealth/Health (40/40), got %d/%d", respeced.MaxHealth, respeced.Health)
 	}
 }
 

@@ -680,7 +680,10 @@ func (g *GameServer) resolveRespecSkills(packet d2netpacket.NetPacket) {
 
 	state.RespecSkills()
 
-	respecedPacket, err := d2netpacket.CreateSkillsRespecedPacket(requestPacket.SourceEntityID, state.Stats.SkillPoints)
+	respecedPacket, err := d2netpacket.CreateSkillsRespecedPacket(
+		requestPacket.SourceEntityID, state.Stats.SkillPoints, state.Stats.StatsPoints,
+		state.Stats.Strength, state.Stats.Energy, state.Stats.Dexterity, state.Stats.Vitality,
+		state.Stats.MaxHealth, state.Stats.Health, state.Stats.MaxMana, state.Stats.Mana)
 	if err != nil {
 		g.Errorf("CreateSkillsRespecedPacket: %v", err)
 		return
@@ -793,7 +796,8 @@ func (g *GameServer) resolveSpendAttributePoint(packet d2netpacket.NetPacket) {
 	}
 
 	spentPacket, err := d2netpacket.CreateAttributePointSpentPacket(
-		requestPacket.SourceEntityID, requestPacket.Attribute, attributeValue(state.Stats, attr), state.Stats.StatsPoints)
+		requestPacket.SourceEntityID, requestPacket.Attribute, attributeValue(state.Stats, attr), state.Stats.StatsPoints,
+		state.Stats.MaxHealth, state.Stats.Health, state.Stats.MaxMana, state.Stats.Mana)
 	if err != nil {
 		g.Errorf("CreateAttributePointSpentPacket: %v", err)
 		return
@@ -826,7 +830,8 @@ func (g *GameServer) resolveRespecSingleAttributePoint(packet d2netpacket.NetPac
 	}
 
 	respecedPacket, err := d2netpacket.CreateSingleAttributePointRespecedPacket(
-		requestPacket.SourceEntityID, requestPacket.Attribute, attributeValue(state.Stats, attr), state.Stats.StatsPoints)
+		requestPacket.SourceEntityID, requestPacket.Attribute, attributeValue(state.Stats, attr), state.Stats.StatsPoints,
+		state.Stats.MaxHealth, state.Stats.Health, state.Stats.MaxMana, state.Stats.Mana)
 	if err != nil {
 		g.Errorf("CreateSingleAttributePointRespecedPacket: %v", err)
 		return
