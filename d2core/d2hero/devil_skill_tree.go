@@ -40,13 +40,19 @@ type DevilSkillDef struct {
 // after it, still nowhere near a real D2 skills.txt ID range.
 const SkillEclatDeGlace = SkillTraitDeFeu + 1
 
+// SkillEclairEnChaine is Devil's own skill ID for "Éclair en chaîne"
+// (Élémentalisme, devil_game_design_reference.md §7): "Foudre qui rebondit
+// sur 3 cibles". Its multi-target hit is resolved by resolveChainHit in
+// game_server.go -- see skillEclairEnChaineTargets/eclairEnChaineChainRadius.
+const SkillEclairEnChaine = SkillEclatDeGlace + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
-// ponytail: two entries instead of the design's full 30 -- this phase is
-// about proving the data model (tier gating, synergies, and now a status
-// effect) works, not filling it in. Add the rest of Élémentalisme next
-// (ROADMAP.md Phase 2), then Arcane/Ésotérisme once their prerequisite
-// mechanics (group control, ally summons) exist.
+// ponytail: three entries instead of the design's full 30 -- this phase is
+// about proving the data model (tier gating, synergies, a status effect,
+// and now a multi-target hit) works, not filling it in. Add the rest of
+// Élémentalisme next (ROADMAP.md Phase 2), then Arcane/Ésotérisme once
+// their prerequisite mechanics (group control, ally summons) exist.
 var DevilSkills = map[int]*DevilSkillDef{
 	SkillTraitDeFeu: {
 		ID:             SkillTraitDeFeu,
@@ -63,6 +69,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  1,
 		BaseSortDamage: 4, // lower base damage than Trait de feu -- its value is the slow, not raw damage
 		ManaCost:       4,
+	},
+	SkillEclairEnChaine: {
+		ID:             SkillEclairEnChaine,
+		Name:           "Éclair en chaîne",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  6, // tier 2 of Élémentalisme, per the design's level table
+		BaseSortDamage: 5,
+		ManaCost:       6,
 	},
 }
 

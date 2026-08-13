@@ -47,6 +47,22 @@ func TestSkillEclatDeGlaceIsDistinctFromTraitDeFeu(t *testing.T) {
 	}
 }
 
+func TestSkillEclairEnChaineHasHigherTier(t *testing.T) {
+	chain := DevilSkills[SkillEclairEnChaine]
+
+	if chain.RequiredLevel <= DevilSkills[SkillTraitDeFeu].RequiredLevel {
+		t.Error("expected Éclair en chaîne to require a higher level than the tier-1 starting skills")
+	}
+
+	if CanLearnSkill(SkillEclairEnChaine, chain.RequiredLevel-1) {
+		t.Error("a hero below Éclair en chaîne's RequiredLevel should not be able to learn it")
+	}
+
+	if !CanLearnSkill(SkillEclairEnChaine, chain.RequiredLevel) {
+		t.Error("a hero at exactly Éclair en chaîne's RequiredLevel should be able to learn it")
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

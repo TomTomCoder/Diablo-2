@@ -172,6 +172,16 @@ const (
 // DevilSkillDef today).
 const eclatDeGlaceSlowDuration = 3 * time.Second
 
+// skillEclairEnChaineTargets/eclairEnChaineChainRadius: Éclair en chaîne
+// hits its first target, then jumps to up to this many more nearby
+// killable NPCs, each within eclairEnChaineChainRadius subtiles of the
+// previous one (devil_game_design_reference.md §7: "Foudre qui rebondit
+// sur 3 cibles").
+const (
+	skillEclairEnChaineTargets = 3
+	eclairEnChaineChainRadius  = 6
+)
+
 // runMonsterAILoop periodically advances monster AI. Meant to be started as
 // a goroutine; returns once the server is stopped.
 func (g *GameServer) runMonsterAILoop() {
@@ -329,43 +339,90 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
+	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
+	if nearest == nil {
+		return
+	}
+
+	if castPacket.SkillID == d2hero.SkillEclairEnChaine {
+		g.resolveChainHit(nearest, castPacket.SourceEntityID, castPacket.SkillID)
+		return
+	}
+
+	g.applyHit(nearest, castPacket.SourceEntityID, castPacket.SkillID)
+}
+
+// nearestKillableNPC returns the closest killable, living NPC to from
+// within radiusSubtiles, skipping any NPC ID present in exclude (nil is a
+// valid empty exclusion set). nil if none qualify.
+func (g *GameServer) nearestKillableNPC(from d2vector.Position, radiusSubtiles float64, exclude map[string]bool) *d2mapentity.NPC {
+	if len(g.mapEngines) == 0 {
+		return nil
+	}
+
 	var nearest *d2mapentity.NPC
 
 	nearestDist := math.MaxFloat64
 
 	for _, entity := range g.mapEngines[0].Entities() {
 		npc, ok := entity.(*d2mapentity.NPC)
-		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+		if !ok || !npc.IsKillable() || npc.HP <= 0 || exclude[npc.ID()] {
 			continue
 		}
 
 		pos := npc.GetPosition()
-		if dist := pos.Distance(&target.Vector); dist < nearestDist {
+		if dist := from.Distance(&pos.Vector); dist < nearestDist {
 			nearest, nearestDist = npc, dist
 		}
 	}
 
-	if nearest == nil || nearestDist > meleeHitRadiusSubtiles {
-		return
+	if nearest == nil || nearestDist > radiusSubtiles {
+		return nil
 	}
 
-	damage := g.resolveAttackDamage(castPacket.SourceEntityID, castPacket.SkillID)
-	died := nearest.ApplyDamage(damage)
+	return nearest
+}
+
+// applyHit resolves a single hit against npc: damage, death/gold-award,
+// Éclat de glace's slow, and the NPCHit broadcast. Shared by
+// resolveMeleeHit's single-target path and resolveChainHit.
+func (g *GameServer) applyHit(npc *d2mapentity.NPC, sourceEntityID string, skillID int) {
+	damage := g.resolveAttackDamage(sourceEntityID, skillID)
+	died := npc.ApplyDamage(damage)
 
 	if died {
-		g.mapEngines[0].RemoveEntity(nearest)
-		g.awardGold(castPacket.SourceEntityID)
-	} else if castPacket.SkillID == d2hero.SkillEclatDeGlace {
-		nearest.ApplySlow(g.clock().Add(eclatDeGlaceSlowDuration))
+		g.mapEngines[0].RemoveEntity(npc)
+		g.awardGold(sourceEntityID)
+	} else if skillID == d2hero.SkillEclatDeGlace {
+		npc.ApplySlow(g.clock().Add(eclatDeGlaceSlowDuration))
 	}
 
-	hitPacket, err := d2netpacket.CreateNPCHitPacket(nearest.ID(), nearest.HP, died)
+	hitPacket, err := d2netpacket.CreateNPCHitPacket(npc.ID(), npc.HP, died)
 	if err != nil {
 		g.Errorf("CreateNPCHitPacket: %v", err)
 		return
 	}
 
 	g.sendPacketToClients(hitPacket)
+}
+
+// resolveChainHit resolves Éclair en chaîne: hits first, then jumps to up
+// to skillEclairEnChaineTargets-1 more nearby killable NPCs (each within
+// eclairEnChaineChainRadius of the previous one), applying a hit to each.
+//
+// ponytail: no damage falloff between jumps -- each hit uses the same
+// resolveAttackDamage as a single-target cast, and the design doesn't
+// specify a falloff.
+func (g *GameServer) resolveChainHit(first *d2mapentity.NPC, sourceEntityID string, skillID int) {
+	hit := make(map[string]bool, skillEclairEnChaineTargets)
+	current := first
+
+	for i := 0; i < skillEclairEnChaineTargets && current != nil; i++ {
+		g.applyHit(current, sourceEntityID, skillID)
+		hit[current.ID()] = true
+
+		current = g.nearestKillableNPC(current.GetPosition(), eclairEnChaineChainRadius, hit)
+	}
 }
 
 // resolveAttackDamage returns the damage a cast of skillID from
