@@ -547,6 +547,22 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	playerState.Stats.MaxMana += manaBonus
 	playerState.Stats.Mana += manaBonus
 
+	// Correction (août 2026): Anneau du Début's "+2 à tous les attributs"
+	// (DevilItemDef.AllAttributesBonus) reaches Energy/Dexterity live via
+	// effectiveEnergy/effectiveDexterity, but Strength/Vitality have no such
+	// "effective stat" read path -- its Vitality component previously had
+	// zero effect anywhere, not even here at creation, so 2 of its 4
+	// attribute points were silently inert. Baked into Strength/Vitality
+	// (and MaxHealth/Health via LifePerVit) the same way Robe du Novice's
+	// bonus is, right above -- Strength itself still does nothing for the
+	// Mage (devil_game_design_reference.md §5), but the item's own data
+	// stays honest for whichever class reuses this model next.
+	allAttrBonus := d2hero.ItemAllAttributesBonus(d2hero.ItemAnneauDuDebut)
+	playerState.Stats.Strength += allAttrBonus
+	playerState.Stats.Vitality += allAttrBonus
+	playerState.Stats.MaxHealth += allAttrBonus * playerState.Stats.LifePerVit
+	playerState.Stats.Health += allAttrBonus * playerState.Stats.LifePerVit
+
 	// Ceinture de Cuir Runique's "4 emplacements potions" -- the belt
 	// itself isn't an equipped stat item (no CharacterEquipment.Belt
 	// field, ROADMAP.md Phase 5), it just grants potion slots.

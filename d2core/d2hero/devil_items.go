@@ -57,11 +57,12 @@ type DevilItemDef struct {
 
 	// AllAttributesBonus adds this many points to every attribute
 	// (Strength, Energy, Dexterity, Vitality) -- e.g. Anneau du Début's
-	// "+2 à tous les attributs". Only Energy and Dexterity currently have a
-	// live "effective stat" read path (effectiveEnergy/effectiveDexterity
-	// in game_server.go) -- Strength and Vitality are set once at
-	// character creation and never re-derived, so an equipped item's bonus
-	// to either has no live effect yet. See ROADMAP.md Phase 5.
+	// "+2 à tous les attributs". Energy and Dexterity have a live
+	// "effective stat" read path (effectiveEnergy/effectiveDexterity in
+	// game_server.go); Strength and Vitality don't (they're set once at
+	// character creation and never re-derived), so select_hero_class.go
+	// bakes this bonus into them once at creation instead, the same way it
+	// already does for HealthBonus/ManaBonus below.
 	AllAttributesBonus int
 
 	// HealthBonus/ManaBonus add flat points to MaxHealth/MaxMana --
