@@ -182,6 +182,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handlePotionUsedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.ItemCrafted:
+		if err := g.handleItemCraftedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.SkillLearned:
 		if err := g.handleSkillLearnedPacket(packet); err != nil {
 			return err
@@ -495,6 +499,31 @@ func (g *GameClient) handlePotionUsedPacket(packet d2netpacket.NetPacket) error 
 	}
 
 	player.Stats.Mana = used.Mana
+
+	return nil
+}
+
+// handleItemCraftedPacket applies a server-resolved Cube de Nexus craft to
+// the local copy of the given player: the new RightHand item (Craft only
+// ever touches that slot) and their remaining Gold.
+func (g *GameClient) handleItemCraftedPacket(packet d2netpacket.NetPacket) error {
+	crafted, err := d2netpacket.UnmarshalItemCrafted(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[crafted.PlayerID]
+	if !found {
+		return nil
+	}
+
+	if player.Equipment == nil || player.Equipment.RightHand == nil {
+		return nil
+	}
+
+	player.Equipment.RightHand.ItemCode = crafted.OutputItemCode
+	player.Equipment.RightHand.ItemName = crafted.OutputItemName
+	player.Gold = crafted.Gold
 
 	return nil
 }

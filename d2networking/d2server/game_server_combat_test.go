@@ -899,6 +899,78 @@ func TestResolveUsePotionUnknownPlayerNoop(t *testing.T) {
 	server.resolveUsePotion(packet)
 }
 
+func TestResolveCraftUpgradesWeaponAndBroadcastsResult(t *testing.T) {
+	state := &d2hero.HeroState{
+		Gold: 100,
+		Equipment: d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+		},
+	}
+	conn := &fakeClientConnection{state: state}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateCraftRequestPacket("p", d2hero.RecipeUpgradeBatonApprenti)
+	if err != nil {
+		t.Fatalf("test setup: CreateCraftRequestPacket failed: %v", err)
+	}
+
+	server.resolveCraft(packet)
+
+	if state.Equipment.RightHand.ItemCode != d2hero.ItemBatonInitie {
+		t.Errorf("expected weapon upgraded to %q, got %q", d2hero.ItemBatonInitie, state.Equipment.RightHand.ItemCode)
+	}
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	crafted, err := d2netpacket.UnmarshalItemCrafted(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal ItemCraftedPacket: %v", err)
+	}
+
+	if crafted.OutputItemCode != d2hero.ItemBatonInitie {
+		t.Errorf("expected broadcast OutputItemCode %q, got %q", d2hero.ItemBatonInitie, crafted.OutputItemCode)
+	}
+
+	if crafted.OutputItemName != d2hero.DevilItems[d2hero.ItemBatonInitie].Name {
+		t.Errorf("expected broadcast OutputItemName %q, got %q", d2hero.DevilItems[d2hero.ItemBatonInitie].Name, crafted.OutputItemName)
+	}
+
+	if crafted.Gold != state.Gold {
+		t.Errorf("expected broadcast Gold %d, got %d", state.Gold, crafted.Gold)
+	}
+}
+
+func TestResolveCraftWithoutRequiredItemIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Gold: 100}
+	conn := &fakeClientConnection{state: state}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateCraftRequestPacket("p", d2hero.RecipeUpgradeBatonApprenti)
+	if err != nil {
+		t.Fatalf("test setup: CreateCraftRequestPacket failed: %v", err)
+	}
+
+	server.resolveCraft(packet)
+
+	if len(conn.sent) != 0 {
+		t.Errorf("expected no packet sent for a failed craft, got %d", len(conn.sent))
+	}
+}
+
+func TestResolveCraftUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateCraftRequestPacket("nobody", d2hero.RecipeUpgradeBatonApprenti)
+	if err != nil {
+		t.Fatalf("test setup: CreateCraftRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveCraft(packet)
+}
+
 func TestResolveLearnSkillLearnsAndBroadcastsRemainingPoints(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Level: 1, SkillPoints: 2},

@@ -629,6 +629,44 @@ func (g *GameServer) resolveUsePotion(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(usedPacket)
 }
 
+// resolveCraft unmarshals a CraftRequestPacket and, if HeroState.Craft
+// succeeds (required item equipped in RightHand, enough Gold), broadcasts
+// the result via ItemCraftedPacket. Silently does nothing on any failure --
+// same "no hit resolution at all" shape as a cast/potion that can't
+// resolve, see resolveMeleeHit/resolveUsePotion.
+func (g *GameServer) resolveCraft(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalCraftRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveCraft: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	if err := state.Craft(requestPacket.RecipeID); err != nil {
+		return
+	}
+
+	outputItemCode := state.Equipment.RightHand.GetItemCode()
+
+	outputItemName := ""
+	if def, ok := d2hero.DevilItems[outputItemCode]; ok {
+		outputItemName = def.Name
+	}
+
+	craftedPacket, err := d2netpacket.CreateItemCraftedPacket(
+		requestPacket.SourceEntityID, requestPacket.RecipeID, outputItemCode, outputItemName, state.Gold)
+	if err != nil {
+		g.Errorf("CreateItemCraftedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(craftedPacket)
+}
+
 // resolveLearnSkill unmarshals a LearnSkillRequestPacket and, if
 // HeroState.LearnSkill succeeds (level gate, has a point to spend, not
 // already known), broadcasts the result via SkillLearnedPacket. Silently
@@ -2015,6 +2053,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.sendPacketToClients(packet)
 	case d2netpackettype.UsePotionRequest:
 		g.resolveUsePotion(packet)
+	case d2netpackettype.CraftRequest:
+		g.resolveCraft(packet)
 	case d2netpackettype.LearnSkillRequest:
 		g.resolveLearnSkill(packet)
 	case d2netpackettype.RespecSkillsRequest:

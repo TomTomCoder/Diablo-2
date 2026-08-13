@@ -53,6 +53,8 @@ const (
 	NPCMoved                                               // Sent by the server, an NPC was instantly displaced (Télékinésie/Vortex)
 	NPCStatusEffect                                        // Sent by the server, a timed status effect was applied to an NPC (slow/immobilize/amplify/resistance strip)
 	PlayerStatusEffect                                     // Sent by the server, the caster's own status effect changed (mana shield/armure de glace toggle, magic immunity)
+	CraftRequest                                           // Sent by the client, requests crafting a Cube de Nexus recipe
+	ItemCrafted                                            // Sent by the server, a recipe was crafted (new equipped item + remaining gold)
 
 	UnknownPacketType = 666
 )
@@ -94,6 +96,8 @@ func (n NetPacketType) String() string {
 		NPCMoved:                          "NPCMoved",
 		NPCStatusEffect:                   "NPCStatusEffect",
 		PlayerStatusEffect:                "PlayerStatusEffect",
+		CraftRequest:                      "CraftRequest",
+		ItemCrafted:                       "ItemCrafted",
 	}
 
 	return strings[n]
