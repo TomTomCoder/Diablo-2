@@ -326,6 +326,24 @@ func TestAmplifiedDamage(t *testing.T) {
 	}
 }
 
+func TestResolveTeleportationHitMovesThePlayer(t *testing.T) {
+	state := &d2hero.HeroState{X: 0, Y: 0}
+	server := serverWithConnection(state)
+
+	server.resolveTeleportationHit("p", d2vector.NewPosition(10, 20))
+
+	if state.X != 10 || state.Y != 20 {
+		t.Errorf("expected player moved to (10, 20), got (%v, %v)", state.X, state.Y)
+	}
+}
+
+func TestResolveTeleportationHitUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveTeleportationHit("nobody", d2vector.NewPosition(10, 20))
+}
+
 func TestResolveRalentissementHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server := serverWithConnection(nil)
 

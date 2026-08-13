@@ -162,6 +162,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleExperienceAwardedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.PlayerTeleported:
+		if err := g.handlePlayerTeleportedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -369,6 +373,25 @@ func (g *GameClient) handleExperienceAwardedPacket(packet d2netpacket.NetPacket)
 	player.Stats.Level = awarded.Level
 	player.Stats.SkillPoints = awarded.SkillPoints
 	player.Stats.StatsPoints = awarded.StatsPoints
+
+	return nil
+}
+
+// handlePlayerTeleportedPacket snaps the local copy of the given player
+// directly to its server-resolved position (Téléportation) -- unlike
+// handleMovePlayerPacket, this doesn't path a walk between two points.
+func (g *GameClient) handlePlayerTeleportedPacket(packet d2netpacket.NetPacket) error {
+	teleported, err := d2netpacket.UnmarshalPlayerTeleported(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[teleported.PlayerID]
+	if !found {
+		return nil
+	}
+
+	player.Position.Set(teleported.X, teleported.Y)
 
 	return nil
 }

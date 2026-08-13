@@ -421,6 +421,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillTeleportation {
+		g.resolveTeleportationHit(castPacket.SourceEntityID, target)
+		return
+	}
+
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
 	if nearest == nil {
 		return
@@ -678,6 +683,27 @@ func (g *GameServer) resolveRalentissementHit(target d2vector.Position) {
 	for _, npc := range g.killableNPCsWithin(target, ralentissementRadiusSubtiles) {
 		npc.ApplySlow(until)
 	}
+}
+
+// resolveTeleportationHit instantly moves sourceEntityID's own HeroState to
+// target and broadcasts a PlayerTeleportedPacket so clients snap the
+// player there (unlike MovePlayerPacket, which paths a smooth walk). A
+// no-op if sourceEntityID isn't a resolved connected player.
+func (g *GameServer) resolveTeleportationHit(sourceEntityID string, target d2vector.Position) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil {
+		return
+	}
+
+	state.X, state.Y = target.X(), target.Y()
+
+	packet, err := d2netpacket.CreatePlayerTeleportedPacket(sourceEntityID, state.X, state.Y)
+	if err != nil {
+		g.Errorf("CreatePlayerTeleportedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(packet)
 }
 
 // resolveAttackDamage returns the damage a cast of skillID from

@@ -160,6 +160,22 @@ func TestSkillAmplificationSharesTierWithRalentissement(t *testing.T) {
 	}
 }
 
+func TestSkillTeleportationHasHigherTierThanAmplification(t *testing.T) {
+	tp := DevilSkills[SkillTeleportation]
+
+	if tp.RequiredLevel <= DevilSkills[SkillAmplification].RequiredLevel {
+		t.Error("expected Téléportation to require a higher level than the tier-2 Arcane spells")
+	}
+
+	if tp.Tree != TreeArcane {
+		t.Error("expected Téléportation to belong to Arcane")
+	}
+
+	if tp.BaseSortDamage != 0 {
+		t.Errorf("expected Téléportation to deal no direct base_sort damage, got %d", tp.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

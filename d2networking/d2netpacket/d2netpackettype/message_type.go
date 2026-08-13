@@ -35,6 +35,7 @@ const (
 	PlayerDamaged                                        // Sent by the server, a player took damage (and possibly died)
 	GoldAwarded                                          // Sent by the server, a player's gold total changed
 	ExperienceAwarded                                    // Sent by the server, a player gained experience (and possibly leveled up)
+	PlayerTeleported                                     // Sent by the server, a player was instantly moved (Devil's own "Téléportation" skill)
 
 	UnknownPacketType = 666
 )
@@ -58,6 +59,7 @@ func (n NetPacketType) String() string {
 		PlayerDamaged:                   "PlayerDamaged",
 		GoldAwarded:                     "GoldAwarded",
 		ExperienceAwarded:               "ExperienceAwarded",
+		PlayerTeleported:                "PlayerTeleported",
 	}
 
 	return strings[n]

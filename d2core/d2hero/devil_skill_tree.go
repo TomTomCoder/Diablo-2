@@ -101,6 +101,13 @@ const SkillRalentissement = SkillTelekinesie + 1
 // no direct damage itself (BaseSortDamage 0).
 const SkillAmplification = SkillRalentissement + 1
 
+// SkillTeleportation is Devil's own skill ID for "Téléportation" (Arcane,
+// devil_game_design_reference.md §7): "Déplacement instantané vers la
+// position visée". Moves the caster themselves, not an NPC -- see
+// resolveTeleportationHit in game_server.go and the PlayerTeleported
+// packet. Deals no damage (BaseSortDamage 0).
+const SkillTeleportation = SkillAmplification + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -184,6 +191,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 6, // tier 2, alongside Ralentissement
 		ManaCost:      6,
+	},
+	SkillTeleportation: {
+		ID:            SkillTeleportation,
+		Name:          "Téléportation",
+		Tree:          TreeArcane,
+		RequiredLevel: 12, // tier 3, per the design's level table
+		ManaCost:      8,  // utility spell -- costs more than the tier-2 debuffs, less than a tier-3 AoE
 	},
 }
 
