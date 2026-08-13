@@ -84,15 +84,8 @@ func TestSkillBouleDeFeuHasHigherTierThanTier2Spells(t *testing.T) {
 	}
 }
 
-func TestSkillMeteoreHasHighestDamageSoFar(t *testing.T) {
+func TestSkillMeteoreHasHigherTierAndDamageThanOrbeGlaciale(t *testing.T) {
 	meteore := DevilSkills[SkillMeteore]
-
-	for id, def := range DevilSkills {
-		if id != SkillMeteore && def.BaseSortDamage > meteore.BaseSortDamage {
-			t.Errorf("expected Météore (%d) to have the highest base_sort, but %q has %d",
-				meteore.BaseSortDamage, def.Name, def.BaseSortDamage)
-		}
-	}
 
 	if meteore.Tree != TreeElementalisme {
 		t.Error("expected Météore to belong to Élémentalisme")
@@ -100,6 +93,29 @@ func TestSkillMeteoreHasHighestDamageSoFar(t *testing.T) {
 
 	if meteore.RequiredLevel <= DevilSkills[SkillOrbeGlaciale].RequiredLevel {
 		t.Error("expected Météore to require a higher level than the tier-4 Élémentalisme spells")
+	}
+
+	if meteore.BaseSortDamage <= DevilSkills[SkillOrbeGlaciale].BaseSortDamage {
+		t.Error("expected Météore to deal more damage than the tier-4 Élémentalisme spells")
+	}
+}
+
+func TestSkillApocalypseIsTheUltimate(t *testing.T) {
+	apocalypse := DevilSkills[SkillApocalypse]
+
+	for id, def := range DevilSkills {
+		if id != SkillApocalypse && def.BaseSortDamage > apocalypse.BaseSortDamage {
+			t.Errorf("expected Apocalypse (%d) to have the highest base_sort, but %q has %d",
+				apocalypse.BaseSortDamage, def.Name, def.BaseSortDamage)
+		}
+	}
+
+	if apocalypse.Tree != TreeElementalisme {
+		t.Error("expected Apocalypse to belong to Élémentalisme")
+	}
+
+	if apocalypse.RequiredLevel < DevilSkills[SkillMeteore].RequiredLevel {
+		t.Error("expected Apocalypse's tier to be at least Météore's (tier 5)")
 	}
 }
 

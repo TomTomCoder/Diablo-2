@@ -372,6 +372,13 @@ func TestResolveDistorsionTemporelleHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolveDistorsionTemporelleHit()
 }
 
+func TestResolveApocalypseHitNoMapEnginesDoesNotPanic(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when there's no map engine to scan.
+	server.resolveApocalypseHit("p", d2hero.SkillApocalypse)
+}
+
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique, d2hero.SkillOrbeGlaciale, d2hero.SkillMeteore} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {

@@ -415,6 +415,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillApocalypse {
+		g.resolveApocalypseHit(castPacket.SourceEntityID, castPacket.SkillID)
+		return
+	}
+
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
 	if radius, ok := aoeAtTargetRadiusSubtiles[castPacket.SkillID]; ok {
@@ -683,6 +688,25 @@ func (g *GameServer) resolveDistorsionTemporelleHit() {
 		}
 
 		npc.ApplySlow(until)
+	}
+}
+
+// resolveApocalypseHit hits every killable NPC on the map via applyHit
+// (resolveAttackDamage's normal Energy-scaled damage) -- Élémentalisme's
+// ultimate, same "toute la zone visible" modeling choice as
+// resolveDistorsionTemporelleHit/resolveChampStatiqueHit.
+func (g *GameServer) resolveApocalypseHit(sourceEntityID string, skillID int) {
+	if len(g.mapEngines) == 0 {
+		return
+	}
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		npc, ok := entity.(*d2mapentity.NPC)
+		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+			continue
+		}
+
+		g.applyHit(npc, sourceEntityID, skillID)
 	}
 }
 

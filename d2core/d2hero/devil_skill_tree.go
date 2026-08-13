@@ -149,6 +149,17 @@ const SkillMeteore = SkillVortex + 1
 // game_server.go. Deals no damage (BaseSortDamage 0).
 const SkillDistorsionTemporelle = SkillMeteore + 1
 
+// SkillApocalypse is Devil's own skill ID for "Apocalypse" (Élémentalisme,
+// devil_game_design_reference.md §7): "Pluie d'éclairs + feu + froid sur
+// toute la zone visible". Élémentalisme's ultimate (highest tier, highest
+// base_sort) -- hits every killable NPC on the map via the normal
+// Energy-scaled resolveAttackDamage/applyHit path (unlike Champ statique's
+// percent-of-HP damage), same "toute la zone visible" modeling choice as
+// Champ statique/Distorsion temporelle (every NPC on the map, not a real
+// per-client screen/viewport query). See resolveApocalypseHit in
+// game_server.go.
+const SkillApocalypse = SkillDistorsionTemporelle + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -276,6 +287,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 30, // tier 6, per the design's level table -- Devil's highest-tier Arcane skill
 		ManaCost:      15, // costliest Arcane spell so far
+	},
+	SkillApocalypse: {
+		ID:             SkillApocalypse,
+		Name:           "Apocalypse",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  30, // tier 6, per the design's level table -- Devil's highest-tier Élémentalisme skill
+		BaseSortDamage: 16, // the ultimate -- highest base_sort of any Devil spell
+		ManaCost:       18, // costliest spell in the game so far
 	},
 }
 
