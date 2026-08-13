@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
 )
 
@@ -88,7 +89,8 @@ func TestSaveThenLoadRoundTripsARealDevilCharacter(t *testing.T) {
 			MaxHealth: 58, Health: 58,
 			ManaPerEne: 3,
 		},
-		DiscoveredRecipes: map[string]bool{RecipeUpgradeBatonApprenti: true},
+		DiscoveredRecipes:   map[string]bool{RecipeUpgradeBatonApprenti: true},
+		RespecPartielUsedAt: map[d2enum.DifficultyType]bool{d2enum.DifficultyNormal: true},
 	}
 
 	// a second point invested in Maîtrise élémentaire, so SkillPoints != 1
@@ -151,6 +153,10 @@ func TestSaveThenLoadRoundTripsARealDevilCharacter(t *testing.T) {
 
 	if !loaded.HasDiscoveredRecipe(RecipeUpgradeBatonApprenti) {
 		t.Error("expected the Codex's discovered recipe to survive the round-trip")
+	}
+
+	if !loaded.RespecPartielUsedAt[d2enum.DifficultyNormal] {
+		t.Error("expected RespecPartielUsedAt to survive the round-trip")
 	}
 }
 

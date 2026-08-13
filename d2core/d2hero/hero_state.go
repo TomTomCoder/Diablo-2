@@ -39,6 +39,13 @@ type HeroState struct {
 	// quest system that doesn't exist yet. A value is only ever true;
 	// presence in the map is what DiscoverRecipe/HasDiscoveredRecipe check.
 	DiscoveredRecipes map[string]bool `json:"discoveredRecipes"`
+
+	// RespecPartielUsedAt tracks which difficulties h has already spent its
+	// one-time "Respec partiel" at (devil_game_design_reference.md §10: "1
+	// fois par difficulté (quête Den of Nexus)"). A value is only ever
+	// true; presence is what RespecSkills checks. Doesn't track the quest
+	// gate half of the same rule -- see RespecSkills' own doc comment.
+	RespecPartielUsedAt map[d2enum.DifficultyType]bool `json:"respecPartielUsedAt"`
 }
 
 // LearnSkill spends one skill point to add skillID to h.Skills, if h is
@@ -108,15 +115,26 @@ func (h *HeroState) InvestSkillPoint(skillID int) error {
 }
 
 // RespecSkills implements the design's "Respec partiel"
-// (devil_game_design_reference.md §10: "Tous les points de compétences et
-// d'attributs") in full: clears every skill h has learned, refunding the
-// skill points spent on them, and also refunds every attribute point ever
-// spent via HeroStatsState.SpendAttributePoint
-// (HeroStatsState.RespecAllAttributePoints). LeftSkill/RightSkill are reset
-// to 0 (no skill equipped) since they'd otherwise reference a skill that no
-// longer exists in h.Skills. Reports how many *skill* points were refunded
-// (the attribute refund is reflected directly in h.Stats.StatsPoints).
-func (h *HeroState) RespecSkills() (pointsRefunded int) {
+// (devil_game_design_reference.md §10: "1 fois par difficulté (quête Den
+// of Nexus)" / "Tous les points de compétences et d'attributs") in full:
+// clears every skill h has learned, refunding the skill points spent on
+// them, and also refunds every attribute point ever spent via
+// HeroStatsState.SpendAttributePoint (HeroStatsState.RespecAllAttributePoints).
+// LeftSkill/RightSkill are reset to 0 (no skill equipped) since they'd
+// otherwise reference a skill that no longer exists in h.Skills. Reports
+// how many *skill* points were refunded (the attribute refund is reflected
+// directly in h.Stats.StatsPoints).
+//
+// Errors if h has already used its one-time Respec partiel at h.Difficulty
+// (RespecPartielUsedAt) -- the design's own "1 fois par difficulté" limit.
+// Doesn't enforce the quest gate ("quête Den of Nexus") alongside it: no
+// quest system exists yet, so that half stays undocumented as a real gap
+// rather than faked.
+func (h *HeroState) RespecSkills() (pointsRefunded int, err error) {
+	if h.RespecPartielUsedAt[h.Difficulty] {
+		return 0, errors.New("respec partiel already used at this difficulty")
+	}
+
 	for _, skill := range h.Skills {
 		if skill != nil {
 			pointsRefunded += skill.SkillPoints
@@ -132,7 +150,13 @@ func (h *HeroState) RespecSkills() (pointsRefunded int) {
 		h.Stats.RespecAllAttributePoints()
 	}
 
-	return pointsRefunded
+	if h.RespecPartielUsedAt == nil {
+		h.RespecPartielUsedAt = make(map[d2enum.DifficultyType]bool)
+	}
+
+	h.RespecPartielUsedAt[h.Difficulty] = true
+
+	return pointsRefunded, nil
 }
 
 // RespecSingleSkill removes skillID from h.Skills and refunds its skill

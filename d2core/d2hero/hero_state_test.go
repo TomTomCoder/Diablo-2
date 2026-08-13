@@ -1,6 +1,10 @@
 package d2hero
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
+)
 
 func newLearnableHeroState(level, skillPoints int) *HeroState {
 	return &HeroState{
@@ -118,7 +122,10 @@ func TestRespecSkillsRefundsPointsAndClearsSkills(t *testing.T) {
 		t.Fatalf("expected 0 SkillPoints before respec, got %d", hero.Stats.SkillPoints)
 	}
 
-	refunded := hero.RespecSkills()
+	refunded, err := hero.RespecSkills()
+	if err != nil {
+		t.Fatalf("expected RespecSkills to succeed, got %v", err)
+	}
 
 	if refunded != 2 {
 		t.Errorf("expected 2 points refunded, got %d", refunded)
@@ -156,7 +163,9 @@ func TestRespecSkillsAlsoRefundsAttributePoints(t *testing.T) {
 		t.Fatalf("test setup: SpendAttributePoint failed: %v", err)
 	}
 
-	hero.RespecSkills()
+	if _, err := hero.RespecSkills(); err != nil {
+		t.Fatalf("expected RespecSkills to succeed, got %v", err)
+	}
 
 	if hero.Stats.Vitality != 10 {
 		t.Errorf("expected Vitality restored to its base of 10, got %d", hero.Stats.Vitality)
@@ -256,7 +265,12 @@ func TestRespecSingleSkillFailsIfNotLearned(t *testing.T) {
 func TestRespecSkillsWithNoSkillsIsNoop(t *testing.T) {
 	hero := newLearnableHeroState(1, 3)
 
-	if refunded := hero.RespecSkills(); refunded != 0 {
+	refunded, err := hero.RespecSkills()
+	if err != nil {
+		t.Fatalf("expected RespecSkills to succeed, got %v", err)
+	}
+
+	if refunded != 0 {
 		t.Errorf("expected 0 points refunded with no skills learned, got %d", refunded)
 	}
 
@@ -290,5 +304,40 @@ func TestHasDiscoveredRecipeFalseForUnknownRecipe(t *testing.T) {
 
 	if hero.HasDiscoveredRecipe("some-other-recipe") {
 		t.Error("expected false for a recipe never discovered")
+	}
+}
+
+// TestRespecSkillsFailsIfAlreadyUsedAtThisDifficulty is a regression test
+// for the design's "1 fois par difficulté" limit on Respec partiel
+// (devil_game_design_reference.md §10) -- previously RespecSkills had no
+// usage limit of its own at all.
+func TestRespecSkillsFailsIfAlreadyUsedAtThisDifficulty(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("test setup: LearnSkill failed: %v", err)
+	}
+
+	if _, err := hero.RespecSkills(); err != nil {
+		t.Fatalf("expected the first RespecSkills to succeed, got %v", err)
+	}
+
+	if _, err := hero.RespecSkills(); err == nil {
+		t.Error("expected a second RespecSkills at the same difficulty to fail")
+	}
+}
+
+func TestRespecSkillsSucceedsAgainAtADifferentDifficulty(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+	hero.Difficulty = d2enum.DifficultyNormal
+
+	if _, err := hero.RespecSkills(); err != nil {
+		t.Fatalf("expected RespecSkills at Normal to succeed, got %v", err)
+	}
+
+	hero.Difficulty = d2enum.DifficultyNightmare
+
+	if _, err := hero.RespecSkills(); err != nil {
+		t.Errorf("expected RespecSkills at Nightmare to succeed independently of Normal, got %v", err)
 	}
 }

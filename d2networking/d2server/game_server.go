@@ -700,10 +700,10 @@ func (g *GameServer) resolveLearnSkill(packet d2netpacket.NetPacket) {
 
 // resolveRespecSkills unmarshals a RespecSkillsRequestPacket and forgets
 // every skill the caster has learned (HeroState.RespecSkills -- "Respec
-// partiel"), broadcasting their refunded SkillPoints. Unlike
-// resolveLearnSkill/resolveUsePotion, RespecSkills has no failure mode of
-// its own (forgetting zero skills is a valid no-op) -- the only way this
-// silently does nothing is an unresolved caster.
+// partiel"), broadcasting their refunded SkillPoints. Correction (août
+// 2026): this used to say RespecSkills had no failure mode of its own --
+// it now does, since it enforces the design's "1 fois par difficulté"
+// limit (RespecPartielUsedAt).
 func (g *GameServer) resolveRespecSkills(packet d2netpacket.NetPacket) {
 	requestPacket, err := d2netpacket.UnmarshalRespecSkillsRequest(packet.PacketData)
 	if err != nil {
@@ -716,7 +716,9 @@ func (g *GameServer) resolveRespecSkills(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	state.RespecSkills()
+	if _, err := state.RespecSkills(); err != nil {
+		return
+	}
 
 	respecedPacket, err := d2netpacket.CreateSkillsRespecedPacket(
 		requestPacket.SourceEntityID, state.Stats.SkillPoints, state.Stats.StatsPoints,

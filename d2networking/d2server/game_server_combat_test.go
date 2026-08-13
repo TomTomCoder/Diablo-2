@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
@@ -1105,6 +1106,32 @@ func TestResolveRespecSkillsUnknownPlayerNoop(t *testing.T) {
 
 	// must not panic when the caster isn't a connected/resolved player.
 	server.resolveRespecSkills(packet)
+}
+
+// TestResolveRespecSkillsAlreadyUsedAtThisDifficultyIsNoop is a regression
+// test for the design's "1 fois par difficulté" limit on Respec partiel.
+func TestResolveRespecSkillsAlreadyUsedAtThisDifficultyIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:               &d2hero.HeroStatsState{SkillPoints: 0},
+		Skills:              map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {SkillPoints: 1}},
+		RespecPartielUsedAt: map[d2enum.DifficultyType]bool{d2enum.DifficultyNormal: true},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSkillsRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSkillsRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSkills(packet)
+
+	if len(state.Skills) != 1 {
+		t.Errorf("expected Skills untouched (already used this difficulty), got %d entries", len(state.Skills))
+	}
+
+	if state.Stats.SkillPoints != 0 {
+		t.Errorf("expected no refund, got %d", state.Stats.SkillPoints)
+	}
 }
 
 func TestResolveRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
