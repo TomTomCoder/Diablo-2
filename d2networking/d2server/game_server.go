@@ -341,7 +341,12 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	// resistances actually mitigate something.
 	damage := d2hero.MitigateDamage(monsterAttackDamage, d2hero.CapResistance(state.Stats.FireResist))
 
-	if state.Stats.ArmureDeGlaceActive {
+	switch {
+	case state.Stats.IsMagicImmune(now):
+		// Éveil du Nexus: full immunity overrides everything else below,
+		// including Armure de glace's partial reduction.
+		damage = 0
+	case state.Stats.ArmureDeGlaceActive:
 		damage = damage * (100 - armureDeGlaceDamageReductionPercent) / 100
 
 		if attacker := g.npcByID(npcID); attacker != nil {
@@ -449,6 +454,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 
 	if castPacket.SkillID == d2hero.SkillArmureDeGlace {
 		g.resolveArmureDeGlaceHit(castPacket.SourceEntityID)
+		return
+	}
+
+	if castPacket.SkillID == d2hero.SkillEveilDuNexus {
+		g.resolveEveilDuNexusHit(castPacket.SourceEntityID)
 		return
 	}
 
@@ -786,6 +796,33 @@ func (g *GameServer) resolveArmureDeGlaceHit(sourceEntityID string) {
 	}
 
 	state.Stats.ArmureDeGlaceActive = !state.Stats.ArmureDeGlaceActive
+}
+
+// eveilDuNexusImmunityDuration is exactly what the design specifies
+// (devil_game_design_reference.md §7 Ésotérisme: "immunité magique pendant
+// 8 secondes") -- no guesswork needed, same as Distorsion temporelle's own
+// exact duration.
+const eveilDuNexusImmunityDuration = 8 * time.Second
+
+// eveilDuNexusHealPercent is how much of MaxHealth Éveil du Nexus restores
+// ("soigne le Mage").
+//
+// ponytail: the design names the heal but not an amount; 30% of MaxHealth
+// is a placeholder pending real balance numbers.
+const eveilDuNexusHealPercent = 30
+
+// resolveEveilDuNexusHit grants sourceEntityID's own HeroStatsState magic
+// immunity for eveilDuNexusImmunityDuration and heals them by
+// eveilDuNexusHealPercent of MaxHealth. A no-op if sourceEntityID isn't a
+// resolved connected player with stats.
+func (g *GameServer) resolveEveilDuNexusHit(sourceEntityID string) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.Stats.ApplyMagicImmunity(g.clock().Add(eveilDuNexusImmunityDuration))
+	state.Stats.Heal(state.Stats.MaxHealth * eveilDuNexusHealPercent / 100)
 }
 
 // resolveTelekinesieHit knocks every killable NPC within telekinesieRadiusSubtiles

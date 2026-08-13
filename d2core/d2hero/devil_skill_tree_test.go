@@ -299,6 +299,21 @@ func TestSkillArmureDeGlaceSharesTierWithArcaneTier2(t *testing.T) {
 	}
 }
 
+func TestSkillEveilDuNexusIsTheEsoterismeUltimate(t *testing.T) {
+	nexus := DevilSkills[SkillEveilDuNexus]
+
+	for id, def := range DevilSkills {
+		if id != SkillEveilDuNexus && def.Tree == TreeEsoterisme && def.RequiredLevel > nexus.RequiredLevel {
+			t.Errorf("expected Éveil du Nexus (%d) to be the highest-tier Ésotérisme skill, but %q requires %d",
+				nexus.RequiredLevel, def.Name, def.RequiredLevel)
+		}
+	}
+
+	if nexus.BaseSortDamage != 0 {
+		t.Errorf("expected Éveil du Nexus to deal no direct base_sort damage, got %d", nexus.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

@@ -1,6 +1,9 @@
 package d2hero
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestHeroStatsStateApplyDamage(t *testing.T) {
 	stats := &HeroStatsState{Health: 10, MaxHealth: 10}
@@ -23,6 +26,41 @@ func TestHeroStatsStateApplyDamage(t *testing.T) {
 
 	if died := stats.ApplyDamage(1); !died {
 		t.Error("applying damage to an already-dead hero should still report died=true")
+	}
+}
+
+func TestHeroStatsStateHeal(t *testing.T) {
+	stats := &HeroStatsState{Health: 4, MaxHealth: 10}
+
+	stats.Heal(3)
+
+	if stats.Health != 7 {
+		t.Errorf("expected HP 7 after healing 3, got %d", stats.Health)
+	}
+
+	stats.Heal(100)
+
+	if stats.Health != 10 {
+		t.Errorf("expected Heal to cap at MaxHealth (10), got %d", stats.Health)
+	}
+}
+
+func TestHeroStatsStateMagicImmunity(t *testing.T) {
+	stats := &HeroStatsState{}
+	now := time.Now()
+
+	if stats.IsMagicImmune(now) {
+		t.Fatal("a fresh hero should not start magic immune")
+	}
+
+	stats.ApplyMagicImmunity(now.Add(8 * time.Second))
+
+	if !stats.IsMagicImmune(now) {
+		t.Error("expected the hero to be magic immune immediately after ApplyMagicImmunity")
+	}
+
+	if stats.IsMagicImmune(now.Add(9 * time.Second)) {
+		t.Error("expected the immunity to have expired after its duration elapsed")
 	}
 }
 

@@ -179,6 +179,14 @@ const SkillBouclierDeMana = SkillApocalypse + 1
 // 0).
 const SkillArmureDeGlace = SkillBouclierDeMana + 1
 
+// SkillEveilDuNexus is Devil's own skill ID for "Éveil du Nexus"
+// (Ésotérisme, devil_game_design_reference.md §7): "Ultime défensif :
+// immunité magique pendant 8 secondes, soigne le Mage". Ésotérisme's
+// ultimate -- see resolveEveilDuNexusHit in game_server.go and
+// HeroStatsState.ApplyMagicImmunity/IsMagicImmune/Heal. Deals no direct
+// damage (BaseSortDamage 0).
+const SkillEveilDuNexus = SkillArmureDeGlace + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -328,6 +336,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 6, // tier 2, per the design's level table
 		ManaCost:      6,
+	},
+	SkillEveilDuNexus: {
+		ID:            SkillEveilDuNexus,
+		Name:          "Éveil du Nexus",
+		Tree:          TreeEsoterisme,
+		RequiredLevel: 30, // tier 6, per the design's level table -- Devil's highest-tier Ésotérisme skill
+		ManaCost:      16, // costly defensive ultimate
 	},
 }
 

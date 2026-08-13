@@ -506,6 +506,46 @@ func TestNpcByIDNoMapEnginesReturnsNil(t *testing.T) {
 	}
 }
 
+func TestResolveEveilDuNexusHitGrantsImmunityAndHeals(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 2, MaxHealth: 10}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	server.resolveEveilDuNexusHit("p")
+
+	if !stats.IsMagicImmune(now) {
+		t.Error("expected Éveil du Nexus to grant immediate magic immunity")
+	}
+
+	if want := 2 + 10*eveilDuNexusHealPercent/100; stats.Health != want {
+		t.Errorf("expected Health %d after the heal, got %d", want, stats.Health)
+	}
+}
+
+func TestTryMonsterAttackSkipsDamageWhenMagicImmune(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	server.resolveEveilDuNexusHit("p")
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health != 10 {
+		t.Errorf("expected magic immunity to block all damage, got HP %d", stats.Health)
+	}
+}
+
+func TestResolveEveilDuNexusHitUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveEveilDuNexusHit("nobody")
+}
+
 func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
 	// Trait de feu has its own base_sort (6), distinct from the flat
 	// fallback (4) -- proves per-skill data actually takes effect.

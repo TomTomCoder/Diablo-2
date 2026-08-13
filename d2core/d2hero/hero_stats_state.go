@@ -1,6 +1,8 @@
 package d2hero
 
 import (
+	"time"
+
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 )
@@ -45,6 +47,11 @@ type HeroStatsState struct {
 	// damage and slows the attacking NPC. Toggled by casting
 	// SkillArmureDeGlace, see GameServer.resolveArmureDeGlaceHit.
 	ArmureDeGlaceActive bool `json:"armureDeGlaceActive"`
+
+	// MagicImmuneUntil is when the hero's magic immunity (Éveil du Nexus,
+	// Ésotérisme's ultimate: "immunité magique pendant 8 secondes") expires.
+	// Zero value means not immune. See ApplyMagicImmunity/IsMagicImmune.
+	MagicImmuneUntil time.Time `json:"-"`
 
 	// values which are not saved/loaded(computed)
 	NextLevelExp int `json:"-"`
@@ -168,9 +175,7 @@ func (s *HeroStatsState) ApplyDamage(amount int) (died bool) {
 // to Health via ApplyDamage.
 //
 // ponytail: 1:1 absorption (1 damage drains 1 mana) -- the design names the
-// mechanic (§6/§7) but doesn't specify a ratio. No duration or real
-// cast/toggle exists yet either; something else sets ManaShieldActive
-// directly (ROADMAP.md Phase 2).
+// mechanic (§7) but doesn't specify a ratio.
 func (s *HeroStatsState) ApplyDamageWithManaShield(amount int) (died bool) {
 	if !s.ManaShieldActive || s.Mana <= 0 {
 		return s.ApplyDamage(amount)
@@ -188,4 +193,26 @@ func (s *HeroStatsState) ApplyDamageWithManaShield(amount int) (died bool) {
 	}
 
 	return s.Health <= 0
+}
+
+// Heal increases Health by amount, capped at MaxHealth. The inverse of
+// ApplyDamage.
+func (s *HeroStatsState) Heal(amount int) {
+	s.Health += amount
+
+	if s.Health > s.MaxHealth {
+		s.Health = s.MaxHealth
+	}
+}
+
+// ApplyMagicImmunity marks the hero as immune to damage (see IsMagicImmune)
+// until the given time. Devil's "Éveil du Nexus" ultimate (Ésotérisme §7).
+func (s *HeroStatsState) ApplyMagicImmunity(until time.Time) {
+	s.MagicImmuneUntil = until
+}
+
+// IsMagicImmune reports whether the hero's magic immunity is still active
+// at now.
+func (s *HeroStatsState) IsMagicImmune(now time.Time) bool {
+	return now.Before(s.MagicImmuneUntil)
 }
