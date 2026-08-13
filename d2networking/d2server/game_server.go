@@ -164,6 +164,19 @@ const (
 	monsterAttackDamage        = 3
 )
 
+// armureDeGlaceDamageReductionPercent/armureDeGlaceSlowDuration: while
+// Armure de glace is active (HeroStatsState.ArmureDeGlaceActive), incoming
+// monster attacks are reduced by this percent and the attacking NPC is
+// slowed for this long (devil_game_design_reference.md §7 Ésotérisme:
+// "Réduit les dégâts reçus et ralentit les attaquants au contact").
+//
+// ponytail: flat placeholder numbers -- the design doesn't specify exact
+// values.
+const (
+	armureDeGlaceDamageReductionPercent = 30
+	armureDeGlaceSlowDuration           = 3 * time.Second
+)
+
 // eclatDeGlaceSlowDuration is how long a hit NPC's movement speed stays
 // reduced (d2mapentity.NPC.ApplySlow) after being hit by Éclat de glace.
 //
@@ -327,6 +340,15 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	// element data exists yet (ROADMAP.md Phase 4). Enough to prove
 	// resistances actually mitigate something.
 	damage := d2hero.MitigateDamage(monsterAttackDamage, d2hero.CapResistance(state.Stats.FireResist))
+
+	if state.Stats.ArmureDeGlaceActive {
+		damage = damage * (100 - armureDeGlaceDamageReductionPercent) / 100
+
+		if attacker := g.npcByID(npcID); attacker != nil {
+			attacker.ApplySlow(now.Add(armureDeGlaceSlowDuration))
+		}
+	}
+
 	died := state.Stats.ApplyDamageWithManaShield(damage)
 
 	packet, err := d2netpacket.CreatePlayerDamagedPacket(playerID, state.Stats.Health, died)
@@ -425,6 +447,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillArmureDeGlace {
+		g.resolveArmureDeGlaceHit(castPacket.SourceEntityID)
+		return
+	}
+
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
 	if radius, ok := aoeAtTargetRadiusSubtiles[castPacket.SkillID]; ok {
@@ -508,6 +535,24 @@ func (g *GameServer) nearestKillableNPC(from d2vector.Position, radiusSubtiles f
 	}
 
 	return nearest
+}
+
+// npcByID returns the live NPC entity with the given ID, or nil if none
+// matches (including when there's no map engine at all). Unlike
+// nearestKillableNPC, this doesn't filter by killable/HP -- callers that
+// need a killable NPC should check IsKillable() themselves.
+func (g *GameServer) npcByID(id string) *d2mapentity.NPC {
+	if len(g.mapEngines) == 0 {
+		return nil
+	}
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		if npc, ok := entity.(*d2mapentity.NPC); ok && npc.ID() == id {
+			return npc
+		}
+	}
+
+	return nil
 }
 
 // applyHit resolves a single hit against npc using resolveAttackDamage's
@@ -728,6 +773,19 @@ func (g *GameServer) resolveBouclierDeManaHit(sourceEntityID string) {
 	}
 
 	state.Stats.ManaShieldActive = !state.Stats.ManaShieldActive
+}
+
+// resolveArmureDeGlaceHit toggles sourceEntityID's own
+// HeroStatsState.ArmureDeGlaceActive. The damage reduction and attacker slow
+// it enables are applied in tryMonsterAttack. A no-op if sourceEntityID
+// isn't a resolved connected player with stats.
+func (g *GameServer) resolveArmureDeGlaceHit(sourceEntityID string) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.Stats.ArmureDeGlaceActive = !state.Stats.ArmureDeGlaceActive
 }
 
 // resolveTelekinesieHit knocks every killable NPC within telekinesieRadiusSubtiles

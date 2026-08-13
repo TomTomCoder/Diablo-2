@@ -451,6 +451,61 @@ func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	}
 }
 
+func TestTryMonsterAttackWithArmureDeGlaceReducesDamage(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10, ArmureDeGlaceActive: true}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	server.tryMonsterAttack("npc-1", "p")
+
+	reduced := monsterAttackDamage * (100 - armureDeGlaceDamageReductionPercent) / 100
+	if got, want := 10-stats.Health, reduced; got != want {
+		t.Errorf("expected Armure de glace to reduce damage to %d, got %d", want, got)
+	}
+
+	if reduced >= monsterAttackDamage {
+		t.Fatal("test is meaningless if the reduction doesn't actually reduce anything")
+	}
+}
+
+func TestResolveBouclierDeManaHitAndArmureDeGlaceAreIndependentToggles(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}
+	server := serverWithConnection(state)
+
+	server.resolveArmureDeGlaceHit("p")
+
+	if !state.Stats.ArmureDeGlaceActive {
+		t.Error("expected first cast to turn ArmureDeGlaceActive on")
+	}
+
+	if state.Stats.ManaShieldActive {
+		t.Error("expected Armure de glace to not affect ManaShieldActive")
+	}
+
+	server.resolveArmureDeGlaceHit("p")
+
+	if state.Stats.ArmureDeGlaceActive {
+		t.Error("expected second cast to turn ArmureDeGlaceActive back off")
+	}
+}
+
+func TestResolveArmureDeGlaceHitUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveArmureDeGlaceHit("nobody")
+}
+
+func TestNpcByIDNoMapEnginesReturnsNil(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	if got := server.npcByID("npc-1"); got != nil {
+		t.Errorf("expected nil with no map engines, got %v", got)
+	}
+}
+
 func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
 	// Trait de feu has its own base_sort (6), distinct from the flat
 	// fallback (4) -- proves per-skill data actually takes effect.

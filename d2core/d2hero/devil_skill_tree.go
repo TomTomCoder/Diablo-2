@@ -171,6 +171,14 @@ const SkillApocalypse = SkillDistorsionTemporelle + 1
 // direct damage (BaseSortDamage 0).
 const SkillBouclierDeMana = SkillApocalypse + 1
 
+// SkillArmureDeGlace is Devil's own skill ID for "Armure de glace"
+// (Ésotérisme, devil_game_design_reference.md §7): "Réduit les dégâts
+// reçus et ralentit les attaquants au contact". A toggle, same shape as
+// Bouclier de mana -- see resolveArmureDeGlaceHit in game_server.go and
+// HeroStatsState.ArmureDeGlaceActive. Deals no direct damage (BaseSortDamage
+// 0).
+const SkillArmureDeGlace = SkillBouclierDeMana + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -313,6 +321,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 1,
 		ManaCost:      4, // cheap toggle -- the real cost is the mana drained per hit absorbed, not the cast itself
+	},
+	SkillArmureDeGlace: {
+		ID:            SkillArmureDeGlace,
+		Name:          "Armure de glace",
+		Tree:          TreeEsoterisme,
+		RequiredLevel: 6, // tier 2, per the design's level table
+		ManaCost:      6,
 	},
 }
 

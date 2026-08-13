@@ -283,6 +283,22 @@ func TestSkillBouclierDeManaIsDevilsFirstEsoterismeSkill(t *testing.T) {
 	}
 }
 
+func TestSkillArmureDeGlaceSharesTierWithArcaneTier2(t *testing.T) {
+	shield := DevilSkills[SkillArmureDeGlace]
+
+	if shield.Tree != TreeEsoterisme {
+		t.Errorf("expected Armure de glace to belong to Ésotérisme, got tree %v", shield.Tree)
+	}
+
+	if shield.RequiredLevel <= DevilSkills[SkillBouclierDeMana].RequiredLevel {
+		t.Error("expected Armure de glace to require a higher level than the tier-1 Ésotérisme skill")
+	}
+
+	if shield.BaseSortDamage != 0 {
+		t.Errorf("expected Armure de glace to deal no direct base_sort damage, got %d", shield.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

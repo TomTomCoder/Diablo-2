@@ -33,11 +33,18 @@ type HeroStatsState struct {
 	LightningResist int `json:"lightningResist"`
 	ShadowResist    int `json:"shadowResist"`
 
-	// ManaShieldActive is Devil's "Bouclier de mana" (Ésotérisme, §6/§7)
+	// ManaShieldActive is Devil's "Bouclier de mana" (Ésotérisme §7)
 	// defensive spell -- while true, ApplyDamageWithManaShield drains Mana
-	// before touching Health. Not yet driven by an actual cast/toggle
-	// (ROADMAP.md Phase 2); set directly for now.
+	// before touching Health. Toggled by casting SkillBouclierDeMana, see
+	// GameServer.resolveBouclierDeManaHit.
 	ManaShieldActive bool `json:"manaShieldActive"`
+
+	// ArmureDeGlaceActive is Devil's "Armure de glace" (Ésotérisme §7)
+	// defensive spell: "Réduit les dégâts reçus et ralentit les attaquants
+	// au contact". While true, GameServer.tryMonsterAttack reduces incoming
+	// damage and slows the attacking NPC. Toggled by casting
+	// SkillArmureDeGlace, see GameServer.resolveArmureDeGlaceHit.
+	ArmureDeGlaceActive bool `json:"armureDeGlaceActive"`
 
 	// values which are not saved/loaded(computed)
 	NextLevelExp int `json:"-"`
