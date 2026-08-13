@@ -1148,13 +1148,29 @@ func (g *GameServer) resolveChampStatiqueHit(sourceEntityID string, skillID int)
 		return
 	}
 
+	state := g.playerStateOf(sourceEntityID)
+
 	for _, entity := range g.mapEngines[0].Entities() {
 		npc, ok := entity.(*d2mapentity.NPC)
 		if !ok || !npc.IsKillable() || npc.HP <= 0 {
 			continue
 		}
 
-		g.applyResolvedDamage(npc, sourceEntityID, skillID, npc.HP*champStatiqueDamagePercent/100)
+		damage := npc.HP * champStatiqueDamagePercent / 100
+
+		// Correction (août 2026): Champ statique bypasses resolveAttackDamage
+		// entirely (it deals a % of current HP, not the base_sort/Energy
+		// formula), so it never consumed Résonance magique's bonus even
+		// though it's squarely an Arcane skill the synergy is meant to
+		// reach. state can be nil here (unresolved caster) where
+		// resolveAttackDamage would already have bailed out earlier.
+		if state != nil && state.Stats != nil {
+			if percent := g.resonanceMagiqueBonusPercent(state, skillID); percent > 0 {
+				damage += (damage * percent) / 100
+			}
+		}
+
+		g.applyResolvedDamage(npc, sourceEntityID, skillID, damage)
 	}
 }
 
@@ -1444,19 +1460,34 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 		}
 	}
 
-	// Résonance magique's synergy only reaches Élémentalisme/Arcane
-	// ("tous les sorts actifs des arbres I et II", §7 "Synergies") --
-	// consuming the bonus is gated on `learned` first so a caster who never
-	// took the passive never touches (or clears) the armed timer.
-	if def, ok := d2hero.DevilSkills[skillID]; ok && (def.Tree == d2hero.TreeElementalisme || def.Tree == d2hero.TreeArcane) {
-		if resonance, learned := state.Skills[d2hero.SkillResonanceMagique]; learned && state.Stats.ConsumeResonanceMagiqueBonus(g.clock()) {
-			if percent := d2hero.ResonanceMagiqueDamagePercent(resonance.SkillPoints); percent > 0 {
-				damage += (damage * percent) / 100
-			}
-		}
+	if percent := g.resonanceMagiqueBonusPercent(state, skillID); percent > 0 {
+		damage += (damage * percent) / 100
 	}
 
 	return damage
+}
+
+// resonanceMagiqueBonusPercent returns the damage bonus percent Résonance
+// magique grants this cast of skillID, consuming the caster's armed bonus
+// (HeroStatsState.ConsumeResonanceMagiqueBonus) in the process. 0 (and the
+// armed bonus left untouched) if skillID isn't Élémentalisme/Arcane
+// ("tous les sorts actifs des arbres I et II", §7 "Synergies") or the
+// caster hasn't learned the passive -- checked first so a caster who never
+// took it never touches (or clears) the armed timer. Shared by
+// resolveAttackDamage and resolveChampStatiqueHit, the only two damage
+// paths a Devil skill can take.
+func (g *GameServer) resonanceMagiqueBonusPercent(state *d2hero.HeroState, skillID int) int {
+	def, ok := d2hero.DevilSkills[skillID]
+	if !ok || (def.Tree != d2hero.TreeElementalisme && def.Tree != d2hero.TreeArcane) {
+		return 0
+	}
+
+	resonance, learned := state.Skills[d2hero.SkillResonanceMagique]
+	if !learned || !state.Stats.ConsumeResonanceMagiqueBonus(g.clock()) {
+		return 0
+	}
+
+	return d2hero.ResonanceMagiqueDamagePercent(resonance.SkillPoints)
 }
 
 var (

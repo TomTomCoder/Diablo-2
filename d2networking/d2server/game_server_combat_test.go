@@ -1407,3 +1407,27 @@ func TestResolveAttackDamageResonanceMagiqueDoesNotAffectEsoterisme(t *testing.T
 		t.Errorf("expected an Ésotérisme skill unaffected by Résonance magique (%d), got %d", want, got)
 	}
 }
+
+// TestResonanceMagiqueBonusPercentReachesChampStatique is a regression
+// test: Champ statique deals a % of the target's current HP via its own
+// resolveChampStatiqueHit, bypassing resolveAttackDamage entirely -- so it
+// never consumed Résonance magique's armed bonus even though it's squarely
+// an Arcane "sort actif" the synergy is meant to reach
+// (devil_game_design_reference.md §7 "Synergies": "tous les sorts actifs
+// des arbres I et II"). resonanceMagiqueBonusPercent is the helper both
+// paths now share.
+func TestResonanceMagiqueBonusPercentReachesChampStatique(t *testing.T) {
+	const points = 2
+
+	server := serverWithConnection(nil)
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{ResonanceMagiqueBonusUntil: time.Now().Add(time.Minute)},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillResonanceMagique: {SkillPoints: points}},
+	}
+
+	want := d2hero.ResonanceMagiqueDamagePercent(points)
+
+	if got := server.resonanceMagiqueBonusPercent(state, d2hero.SkillChampStatique); got != want {
+		t.Errorf("expected Champ statique to consume the armed bonus (%d), got %d", want, got)
+	}
+}
