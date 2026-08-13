@@ -463,6 +463,7 @@ func (g *GameClient) handlePlayerDamagedPacket(packet d2netpacket.NetPacket) err
 	}
 
 	player.Stats.Health = hit.HP
+	player.Stats.Mana = hit.Mana
 
 	return nil
 }

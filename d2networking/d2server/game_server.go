@@ -465,7 +465,7 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 		died = false
 	}
 
-	packet, err := d2netpacket.CreatePlayerDamagedPacket(playerID, state.Stats.Health, died)
+	packet, err := d2netpacket.CreatePlayerDamagedPacket(playerID, state.Stats.Health, state.Stats.Mana, died)
 	if err != nil {
 		g.Errorf("CreatePlayerDamagedPacket: %v", err)
 		return
@@ -1384,7 +1384,7 @@ func (g *GameServer) resolveEveilDuNexusHit(sourceEntityID string) {
 	// reuses PlayerDamagedPacket (it just carries the player's current HP,
 	// not a damage delta, so it doubles fine for a heal) rather than adding
 	// a redundant packet type.
-	healedPacket, err := d2netpacket.CreatePlayerDamagedPacket(sourceEntityID, state.Stats.Health, false)
+	healedPacket, err := d2netpacket.CreatePlayerDamagedPacket(sourceEntityID, state.Stats.Health, state.Stats.Mana, false)
 	if err != nil {
 		g.Errorf("CreatePlayerDamagedPacket: %v", err)
 		return

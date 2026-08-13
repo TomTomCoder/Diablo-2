@@ -8,18 +8,26 @@ import (
 
 // PlayerDamagedPacket contains the result of a hit resolved against a
 // player. It is sent by the server so clients can update the player's HP.
+//
+// Mana included too, not just HP -- correction (août 2026): Bouclier de
+// mana (HeroStatsState.ApplyDamageWithManaShield) drains Mana instead of
+// Health while active, as a direct side effect of the same hit this packet
+// already reports, but the client never learned about it since only HP was
+// ever carried.
 type PlayerDamagedPacket struct {
 	PlayerID string `json:"playerId"`
 	HP       int    `json:"hp"`
+	Mana     int    `json:"mana"`
 	Died     bool   `json:"died"`
 }
 
 // CreatePlayerDamagedPacket returns a NetPacket which declares a
-// PlayerDamagedPacket with the given hit result.
-func CreatePlayerDamagedPacket(playerID string, hp int, died bool) (NetPacket, error) {
+// PlayerDamagedPacket with the given hit result and current Mana.
+func CreatePlayerDamagedPacket(playerID string, hp, mana int, died bool) (NetPacket, error) {
 	playerDamagedPacket := PlayerDamagedPacket{
 		PlayerID: playerID,
 		HP:       hp,
+		Mana:     mana,
 		Died:     died,
 	}
 

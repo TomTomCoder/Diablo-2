@@ -223,10 +223,14 @@ func TestHandlePotionUsedPacketUpdatesMana(t *testing.T) {
 	}
 }
 
+// TestHandlePlayerDamagedPacketUpdatesHealth also covers Mana: a regression
+// test for Bouclier de mana draining Mana instead of Health on the same
+// hit this packet reports, which the client previously never learned about
+// since only HP was ever carried.
 func TestHandlePlayerDamagedPacketUpdatesHealth(t *testing.T) {
-	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{Health: 50}})
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{Health: 50, Mana: 20}})
 
-	packet, err := d2netpacket.CreatePlayerDamagedPacket("p", 30, false)
+	packet, err := d2netpacket.CreatePlayerDamagedPacket("p", 30, 5, false)
 	if err != nil {
 		t.Fatalf("test setup: CreatePlayerDamagedPacket failed: %v", err)
 	}
@@ -237,6 +241,10 @@ func TestHandlePlayerDamagedPacketUpdatesHealth(t *testing.T) {
 
 	if client.Players["p"].Stats.Health != 30 {
 		t.Errorf("expected Health=30, got %d", client.Players["p"].Stats.Health)
+	}
+
+	if client.Players["p"].Stats.Mana != 5 {
+		t.Errorf("expected Mana=5, got %d", client.Players["p"].Stats.Mana)
 	}
 }
 

@@ -626,6 +626,44 @@ func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	}
 }
 
+// TestTryMonsterAttackWithManaShieldBroadcastsDrainedMana is a regression
+// test: Bouclier de mana drains Mana instead of Health while active
+// (HeroStatsState.ApplyDamageWithManaShield), but the broadcast packet
+// only ever carried HP -- the client's own Mana never learned it was
+// drained.
+func TestTryMonsterAttackWithManaShieldBroadcastsDrainedMana(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10, Mana: 20, MaxMana: 20, ManaShieldActive: true}
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: stats}}
+	server := &GameServer{
+		connections:         map[string]ClientConnection{"p": conn},
+		lastMonsterAttackAt: make(map[string]time.Time),
+		clock:               time.Now,
+	}
+
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health != 10 {
+		t.Fatalf("expected Health untouched while Bouclier de mana absorbs the hit, got %d", stats.Health)
+	}
+
+	if stats.Mana != 20-monsterAttackDamage {
+		t.Fatalf("expected Mana drained by the hit, got %d", stats.Mana)
+	}
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	damaged, err := d2netpacket.UnmarshalPlayerDamaged(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerDamagedPacket: %v", err)
+	}
+
+	if damaged.Mana != stats.Mana {
+		t.Errorf("expected the broadcast to carry the drained Mana (%d), got %d", stats.Mana, damaged.Mana)
+	}
+}
+
 func TestTryMonsterAttackWithArmureDeGlaceReducesDamage(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10, ArmureDeGlaceActive: true}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
