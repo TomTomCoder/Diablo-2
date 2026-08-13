@@ -204,6 +204,14 @@ const SkillAbsorptionEnergie = SkillEveilDuNexus + 1
 // (BaseSortDamage 0), never cast (ManaCost 0).
 const SkillTranscendance = SkillAbsorptionEnergie + 1
 
+// SkillTempeteDeLames is Devil's own skill ID for "Tempête de lames"
+// (Ésotérisme, devil_game_design_reference.md §7): "Invoque des lames de
+// mana orbitant autour du Mage". Same self-centered-AoE shape as Nova de
+// givre (see resolveSelfCenteredAoeHit in game_server.go) -- the
+// "orbiting/periodic" part isn't modeled, same simplification as Tempête
+// statique's missing "persistante" zone.
+const SkillTempeteDeLames = SkillTranscendance + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -374,6 +382,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 18, // tier 4, per the design's level table
 		ManaCost:      0,  // passive -- never cast, always on once learned
+	},
+	SkillTempeteDeLames: {
+		ID:             SkillTempeteDeLames,
+		Name:           "Tempête de lames",
+		Tree:           TreeEsoterisme,
+		RequiredLevel:  24, // tier 5, per the design's level table
+		BaseSortDamage: 8,
+		ManaCost:       12,
 	},
 }
 

@@ -195,11 +195,26 @@ const (
 	eclairEnChaineChainRadius  = 6
 )
 
-// novaDeGivreRadiusSubtiles: Nova de givre hits every killable NPC within
-// this many subtiles of the caster (devil_game_design_reference.md §7:
-// "Explosion de froid en zone autour du Mage") -- centered on the caster,
-// not on the cast's targeted position like every other Élémentalisme spell.
-const novaDeGivreRadiusSubtiles = 5
+// novaDeGivreRadiusSubtiles/tempeteDeLamesRadiusSubtiles: how many subtiles
+// around the caster these self-centered AoE spells hit
+// (devil_game_design_reference.md §7: "Explosion de froid en zone autour du
+// Mage" / "Invoque des lames de mana orbitant autour du Mage" -- the
+// "orbiting/periodic" part of Tempête de lames isn't modeled, same
+// simplification as Tempête statique's missing "persistante" zone) --
+// centered on the caster, not the cast's targeted position.
+const (
+	novaDeGivreRadiusSubtiles    = 5
+	tempeteDeLamesRadiusSubtiles = 4
+)
+
+// selfCenteredAoeRadiusSubtiles maps each self-centered-AoE skill to its
+// radius, so resolveMeleeHit can dispatch to resolveSelfCenteredAoeHit
+// without a growing if-chain -- mirrors aoeAtTargetRadiusSubtiles below for
+// the target-centered equivalent.
+var selfCenteredAoeRadiusSubtiles = map[int]float64{
+	d2hero.SkillNovaDeGivre:    novaDeGivreRadiusSubtiles,
+	d2hero.SkillTempeteDeLames: tempeteDeLamesRadiusSubtiles,
+}
 
 // bouleDeFeuRadiusSubtiles/tempeteStatiqueRadiusSubtiles/orbeGlacialeRadiusSubtiles/meteoreRadiusSubtiles:
 // how many subtiles around the cast's targeted position these
@@ -500,8 +515,8 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if castPacket.SkillID == d2hero.SkillNovaDeGivre {
-		g.resolveNovaHit(castPacket.SourceEntityID, castPacket.SkillID)
+	if radius, ok := selfCenteredAoeRadiusSubtiles[castPacket.SkillID]; ok {
+		g.resolveSelfCenteredAoeHit(castPacket.SourceEntityID, castPacket.SkillID, radius)
 		return
 	}
 
@@ -712,23 +727,25 @@ func (g *GameServer) resolveChainHit(first *d2mapentity.NPC, sourceEntityID stri
 	}
 }
 
-// resolveNovaHit resolves Nova de givre: hits every killable NPC within
-// novaDeGivreRadiusSubtiles of the caster's own position (read off their
-// HeroState -- the server has no map-entity for players, see nearestPlayer).
-// A no-op if sourceEntityID isn't a resolved connected player.
+// resolveSelfCenteredAoeHit hits every killable NPC within radiusSubtiles of
+// sourceEntityID's own position (read off their HeroState -- the server has
+// no map-entity for players, see nearestPlayer). Shared by any spell
+// centered on the caster rather than a targeted position -- Nova de givre
+// and Tempête de lames both funnel through this. A no-op if sourceEntityID
+// isn't a resolved connected player.
 //
 // Limite de test connue (same as resolveChainHit): exercising the actual
 // multi-NPC AoE path needs live d2mapentity.NPC instances in a map engine,
 // whose fields are private outside their own package -- only the no-op path
 // is unit-tested here.
-func (g *GameServer) resolveNovaHit(sourceEntityID string, skillID int) {
+func (g *GameServer) resolveSelfCenteredAoeHit(sourceEntityID string, skillID int, radiusSubtiles float64) {
 	state := g.playerStateOf(sourceEntityID)
 	if state == nil {
 		return
 	}
 
 	center := d2vector.NewPosition(state.X, state.Y)
-	g.resolveAoeHit(center, sourceEntityID, skillID, novaDeGivreRadiusSubtiles)
+	g.resolveAoeHit(center, sourceEntityID, skillID, radiusSubtiles)
 }
 
 // resolveAoeHit hits every killable NPC within radiusSubtiles of center.

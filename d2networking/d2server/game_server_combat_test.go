@@ -280,11 +280,11 @@ func TestAwardExperienceNoStatsNoop(t *testing.T) {
 	server.awardExperience("p")
 }
 
-func TestResolveNovaHitUnknownPlayerNoop(t *testing.T) {
+func TestResolveSelfCenteredAoeHitUnknownPlayerNoop(t *testing.T) {
 	server := serverWithConnection(nil)
 
 	// must not panic when the caster isn't a connected/resolved player.
-	server.resolveNovaHit("nobody", d2hero.SkillNovaDeGivre)
+	server.resolveSelfCenteredAoeHit("nobody", d2hero.SkillNovaDeGivre, novaDeGivreRadiusSubtiles)
 }
 
 func TestKillableNPCsWithinNoMapEnginesReturnsNil(t *testing.T) {
@@ -412,6 +412,14 @@ func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique, d2hero.SkillOrbeGlaciale, d2hero.SkillMeteore} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {
 			t.Errorf("expected skill %d to be dispatched via aoeAtTargetRadiusSubtiles", skillID)
+		}
+	}
+}
+
+func TestSelfCenteredAoeRadiusSubtilesHasEverySelfCenteredAoeSkill(t *testing.T) {
+	for _, skillID := range []int{d2hero.SkillNovaDeGivre, d2hero.SkillTempeteDeLames} {
+		if _, ok := selfCenteredAoeRadiusSubtiles[skillID]; !ok {
+			t.Errorf("expected skill %d to be dispatched via selfCenteredAoeRadiusSubtiles", skillID)
 		}
 	}
 }

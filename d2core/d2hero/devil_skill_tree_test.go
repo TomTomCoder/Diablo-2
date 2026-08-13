@@ -346,6 +346,18 @@ func TestSkillTranscendanceHasHigherTierThanAbsorptionEnergie(t *testing.T) {
 	}
 }
 
+func TestSkillTempeteDeLamesHasHigherTierThanTranscendance(t *testing.T) {
+	skill := DevilSkills[SkillTempeteDeLames]
+
+	if skill.Tree != TreeEsoterisme {
+		t.Errorf("expected Tempête de lames to belong to Ésotérisme, got tree %v", skill.Tree)
+	}
+
+	if skill.RequiredLevel <= DevilSkills[SkillTranscendance].RequiredLevel {
+		t.Error("expected Tempête de lames to require a higher level than the tier-4 Ésotérisme skill")
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 
