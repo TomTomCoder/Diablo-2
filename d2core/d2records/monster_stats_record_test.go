@@ -34,3 +34,27 @@ func TestHPRangeForDifficulty(t *testing.T) {
 		}
 	}
 }
+
+func TestMagicResistanceForDifficulty(t *testing.T) {
+	record := &MonStatRecord{
+		ResistanceMagicNormal:    10,
+		ResistanceMagicNightmare: 30,
+		ResistanceMagicHell:      50,
+	}
+
+	cases := []struct {
+		name       string
+		difficulty d2enum.DifficultyType
+		want       int
+	}{
+		{"Normal", d2enum.DifficultyNormal, 10},
+		{"Nightmare", d2enum.DifficultyNightmare, 30},
+		{"Hell", d2enum.DifficultyHell, 50},
+	}
+
+	for _, c := range cases {
+		if got := record.MagicResistanceForDifficulty(c.difficulty); got != c.want {
+			t.Errorf("%s: expected %d, got %d", c.name, c.want, got)
+		}
+	}
+}

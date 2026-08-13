@@ -699,3 +699,28 @@ func (r *MonStatRecord) HPRangeForDifficulty(difficulty d2enum.DifficultyType) (
 		return r.MinHPNormal, r.MaxHPNormal
 	}
 }
+
+// MagicResistanceForDifficulty returns this monster's magic resistance
+// percent for the given difficulty (monstats.txt's ResMa/ResMa(N)/ResMa(H)
+// columns -- devil_game_design_reference.md §3: "Chaque région est
+// rejouable en trois niveaux de difficulté [...] leurs résistances
+// augmentent modérément").
+//
+// ponytail: d2mapentity.NPC.MagicResistancePercent currently always uses
+// ResistanceMagicNormal regardless of the actual game difficulty -- this
+// method exists so that can be fixed the same way HPRangeForDifficulty
+// was, but wiring it in means threading a difficulty value through
+// NPC.MagicResistancePercent and its call site in
+// GameServer.applyResolvedDamage, which this environment can't visually
+// verify without running the actual game -- same risk boundary as
+// HPRangeForDifficulty. See ROADMAP.md.
+func (r *MonStatRecord) MagicResistanceForDifficulty(difficulty d2enum.DifficultyType) int {
+	switch difficulty {
+	case d2enum.DifficultyNightmare:
+		return r.ResistanceMagicNightmare
+	case d2enum.DifficultyHell:
+		return r.ResistanceMagicHell
+	default:
+		return r.ResistanceMagicNormal
+	}
+}
