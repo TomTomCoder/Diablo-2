@@ -104,17 +104,25 @@ func TestSkillTempeteStatiqueSharesTierWithBouleDeFeu(t *testing.T) {
 	}
 }
 
-func TestSkillChampStatiqueIsDevilsFirstArcaneSkill(t *testing.T) {
-	champ := DevilSkills[SkillChampStatique]
+func TestSkillChampStatiqueIsArcane(t *testing.T) {
+	if DevilSkills[SkillChampStatique].Tree != TreeArcane {
+		t.Error("expected Champ statique to belong to Arcane")
+	}
+}
 
-	if champ.Tree != TreeArcane {
-		t.Errorf("expected Champ statique to belong to Arcane, got tree %v", champ.Tree)
+func TestSkillTelekinesieIsArcaneWithNoDamage(t *testing.T) {
+	tk := DevilSkills[SkillTelekinesie]
+
+	if tk.Tree != TreeArcane {
+		t.Error("expected Télékinésie to belong to Arcane")
 	}
 
-	for id, def := range DevilSkills {
-		if id != SkillChampStatique && def.Tree == TreeArcane {
-			t.Errorf("expected Champ statique to be the only Arcane entry, but %q is also Arcane", def.Name)
-		}
+	if tk.RequiredLevel != 1 {
+		t.Errorf("expected Télékinésie to be a tier-1 skill, got RequiredLevel %d", tk.RequiredLevel)
+	}
+
+	if tk.BaseSortDamage != 0 {
+		t.Errorf("expected Télékinésie to deal no direct base_sort damage, got %d", tk.BaseSortDamage)
 	}
 }
 

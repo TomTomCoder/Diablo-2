@@ -309,6 +309,13 @@ func TestResolveChampStatiqueHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolveChampStatiqueHit("p", d2hero.SkillChampStatique)
 }
 
+func TestResolveTelekinesieHitUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveTelekinesieHit("nobody", d2vector.NewPosition(0, 0))
+}
+
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {

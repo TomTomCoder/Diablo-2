@@ -114,6 +114,25 @@ func (v *NPC) IsSlowed(now time.Time) bool {
 	return now.Before(v.SlowedUntil)
 }
 
+// Knockback instantly displaces this NPC distanceSubtiles further away from
+// source, along the line from source through its current position. Falls
+// back to pushing along +X if source and the NPC's position coincide
+// (nothing to normalize a direction from).
+//
+// ponytail: an instant teleport-away, not real push-back physics -- no
+// animation, and no collision check against walls or other entities. Good
+// enough for Télékinésie's design ("repousse les entités") until real
+// knockback exists.
+func (v *NPC) Knockback(source d2vector.Position, distanceSubtiles float64) {
+	direction := v.Position.Clone().Subtract(&source.Vector)
+	if direction.IsZero() {
+		direction = d2vector.VectorRight()
+	}
+
+	direction.SetLength(distanceSubtiles)
+	v.Position.Set(v.Position.X()+direction.X(), v.Position.Y()+direction.Y())
+}
+
 // Render renders this entity's animated composite.
 func (v *NPC) Render(target d2interface.Surface) {
 	renderOffset := v.Position.RenderOffset()

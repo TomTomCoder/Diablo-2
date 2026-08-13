@@ -207,6 +207,15 @@ var aoeAtTargetRadiusSubtiles = map[int]float64{
 	d2hero.SkillTempeteStatique: tempeteStatiqueRadiusSubtiles,
 }
 
+// telekinesieRadiusSubtiles/telekinesieKnockbackDistance: Télékinésie finds
+// every killable NPC within this many subtiles of the cast's targeted
+// position, and pushes each away from the caster by this many subtiles
+// (devil_game_design_reference.md §7 Arcane: "Repousse les entités").
+const (
+	telekinesieRadiusSubtiles    = 3
+	telekinesieKnockbackDistance = 4
+)
+
 // runMonsterAILoop periodically advances monster AI. Meant to be started as
 // a goroutine; returns once the server is stopped.
 func (g *GameServer) runMonsterAILoop() {
@@ -402,6 +411,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillTelekinesie {
+		g.resolveTelekinesieHit(castPacket.SourceEntityID, target)
+		return
+	}
+
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
 	if nearest == nil {
 		return
@@ -579,6 +593,30 @@ func (g *GameServer) resolveChampStatiqueHit(sourceEntityID string, skillID int)
 		}
 
 		g.applyResolvedDamage(npc, sourceEntityID, skillID, npc.HP*champStatiqueDamagePercent/100)
+	}
+}
+
+// resolveTelekinesieHit knocks every killable NPC within telekinesieRadiusSubtiles
+// of target away from sourceEntityID's own position, via d2mapentity.NPC.Knockback.
+// A no-op (besides the position scan) if sourceEntityID isn't a resolved
+// connected player.
+//
+// ponytail: no NPCMoved/position-broadcast packet exists yet, so this is
+// server-authoritative only -- clients won't see the knocked-back NPC move
+// until such a packet is added (same shape as NPCHit, but for position
+// instead of HP). Deals no damage: only the knockback half of "Repousse les
+// entités, interaction avec les objets à distance" is modeled -- the object-
+// interaction half needs Phase 5's item system.
+func (g *GameServer) resolveTelekinesieHit(sourceEntityID string, target d2vector.Position) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil {
+		return
+	}
+
+	casterPos := d2vector.NewPosition(state.X, state.Y)
+
+	for _, npc := range g.killableNPCsWithin(target, telekinesieRadiusSubtiles) {
+		npc.Knockback(casterPos, telekinesieKnockbackDistance)
 	}
 }
 

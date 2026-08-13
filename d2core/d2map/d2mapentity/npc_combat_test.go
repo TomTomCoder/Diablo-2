@@ -1,6 +1,7 @@
 package d2mapentity
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -95,6 +96,48 @@ func TestNPCChasePlayerRespectsSlow(t *testing.T) {
 	if got, want := slowedSpeed, normalSpeed*npcSlowedSpeedMultiplier; got != want {
 		t.Errorf("expected slowed speed %v, got %v", want, got)
 	}
+}
+
+func TestNPCKnockbackPushesAwayAlongSourceLine(t *testing.T) {
+	npc := killableNPC(10)
+	npc.Position = d2vector.NewPosition(5, 5)
+	source := d2vector.NewPosition(0, 5) // due "left" of the NPC
+
+	npc.Knockback(source, 3)
+
+	// pushed further along the same +X line, distance from source unchanged
+	// in Y, up by exactly 3 in X.
+	if got, want := npc.Position.X(), 8.0; math.Abs(got-want) > 0.001 {
+		t.Errorf("expected X=%v after knockback, got %v", want, got)
+	}
+
+	if got, want := npc.Position.Y(), 5.0; math.Abs(got-want) > 0.001 {
+		t.Errorf("expected Y unchanged at %v, got %v", want, got)
+	}
+}
+
+func TestNPCKnockbackIncreasesDistanceFromSource(t *testing.T) {
+	npc := killableNPC(10)
+	npc.Position = d2vector.NewPosition(5, 5)
+	source := d2vector.NewPosition(2, 3)
+
+	before := npc.Position.Distance(&source.Vector)
+	npc.Knockback(source, 3)
+	after := npc.Position.Distance(&source.Vector)
+
+	if after <= before {
+		t.Errorf("expected knockback to increase distance from source, before=%v after=%v", before, after)
+	}
+}
+
+func TestNPCKnockbackFromSamePositionDoesNotPanic(t *testing.T) {
+	npc := killableNPC(10)
+	npc.Position = d2vector.NewPosition(5, 5)
+
+	// source coincides with the NPC's own position -- no direction to
+	// normalize; must fall back rather than panic (e.g. on SetLength of a
+	// zero-length vector).
+	npc.Knockback(npc.Position, 3)
 }
 
 func TestNPCApplyDamageNotKillable(t *testing.T) {

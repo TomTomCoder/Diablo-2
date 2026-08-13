@@ -78,6 +78,14 @@ const SkillTempeteStatique = SkillBouleDeFeu + 1
 // it. See resolveChampStatiqueHit in game_server.go.
 const SkillChampStatique = SkillTempeteStatique + 1
 
+// SkillTelekinesie is Devil's own skill ID for "Télékinésie" (Arcane,
+// devil_game_design_reference.md §7): "Repousse les entités, interaction
+// avec les objets à distance". Only the knockback half is modeled --
+// see resolveTelekinesieHit in game_server.go and d2mapentity.NPC.Knockback.
+// The "interaction avec les objets à distance" half needs the item/ground-
+// interaction system, which doesn't exist yet (ROADMAP.md Phase 5).
+const SkillTelekinesie = SkillChampStatique + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -140,6 +148,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 1,
 		ManaCost:      12, // costliest tier-1 spell -- it hits every killable NPC on the map, not just one
+	},
+	SkillTelekinesie: {
+		ID:            SkillTelekinesie,
+		Name:          "Télékinésie",
+		Tree:          TreeArcane,
+		RequiredLevel: 1,
+		ManaCost:      5, // cheap utility/control spell -- no direct damage
 	},
 }
 
