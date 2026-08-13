@@ -175,6 +175,31 @@ func (v *NPC) Knockback(source d2vector.Position, distanceSubtiles float64) {
 	v.Position.Set(v.Position.X()+direction.X(), v.Position.Y()+direction.Y())
 }
 
+// Pull instantly displaces this NPC distanceSubtiles closer to target, along
+// the line from its current position to target -- Knockback's inverse.
+// Clamped so it never overshoots past target itself. A no-op if the NPC is
+// already at target (nothing to normalize a direction from).
+//
+// ponytail: an instant teleport-closer, not real pull physics -- no
+// animation, and no collision check against walls or other entities. Good
+// enough for Vortex's design ("aspire ... vers un point") until real pull
+// physics exist.
+func (v *NPC) Pull(target d2vector.Position, distanceSubtiles float64) {
+	direction := target.Clone().Subtract(&v.Position.Vector)
+
+	dist := direction.Length()
+	if dist == 0 {
+		return
+	}
+
+	if distanceSubtiles > dist {
+		distanceSubtiles = dist
+	}
+
+	direction.SetLength(distanceSubtiles)
+	v.Position.Set(v.Position.X()+direction.X(), v.Position.Y()+direction.Y())
+}
+
 // Render renders this entity's animated composite.
 func (v *NPC) Render(target d2interface.Surface) {
 	renderOffset := v.Position.RenderOffset()

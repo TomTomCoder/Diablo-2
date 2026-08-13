@@ -123,6 +123,13 @@ const SkillTeleportation = SkillAmplification + 1
 // no direct damage (BaseSortDamage 0).
 const SkillPrisonDeGlace = SkillTeleportation + 1
 
+// SkillVortex is Devil's own skill ID for "Vortex" (Arcane,
+// devil_game_design_reference.md §7): "Aspire toutes les entités proches
+// vers un point". Knockback's inverse -- see resolveVortexHit in
+// game_server.go and d2mapentity.NPC.Pull. Deals no direct damage
+// (BaseSortDamage 0).
+const SkillVortex = SkillPrisonDeGlace + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -228,6 +235,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 18, // tier 4, per the design's level table
 		ManaCost:      13, // costliest Arcane spell so far -- full immobilization over an area
+	},
+	SkillVortex: {
+		ID:            SkillVortex,
+		Name:          "Vortex",
+		Tree:          TreeArcane,
+		RequiredLevel: 24, // tier 5, per the design's level table
+		ManaCost:      12,
 	},
 }
 

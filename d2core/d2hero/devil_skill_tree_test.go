@@ -208,6 +208,22 @@ func TestSkillPrisonDeGlaceHasHigherTierThanTeleportation(t *testing.T) {
 	}
 }
 
+func TestSkillVortexHasHigherTierThanPrisonDeGlace(t *testing.T) {
+	vortex := DevilSkills[SkillVortex]
+
+	if vortex.RequiredLevel <= DevilSkills[SkillPrisonDeGlace].RequiredLevel {
+		t.Error("expected Vortex to require a higher level than the tier-4 Arcane spells")
+	}
+
+	if vortex.Tree != TreeArcane {
+		t.Error("expected Vortex to belong to Arcane")
+	}
+
+	if vortex.BaseSortDamage != 0 {
+		t.Errorf("expected Vortex to deal no direct base_sort damage, got %d", vortex.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

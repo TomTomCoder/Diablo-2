@@ -358,6 +358,13 @@ func TestResolvePrisonDeGlaceHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolvePrisonDeGlaceHit(d2vector.NewPosition(0, 0))
 }
 
+func TestResolveVortexHitNoMapEnginesDoesNotPanic(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when there's no map engine to scan.
+	server.resolveVortexHit(d2vector.NewPosition(0, 0))
+}
+
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique, d2hero.SkillOrbeGlaciale} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {

@@ -207,6 +207,52 @@ func TestNPCKnockbackFromSamePositionDoesNotPanic(t *testing.T) {
 	npc.Knockback(npc.Position, 3)
 }
 
+func TestNPCPullMovesTowardTarget(t *testing.T) {
+	npc := killableNPC(10)
+	npc.Position = d2vector.NewPosition(10, 5)
+	target := d2vector.NewPosition(0, 5)
+
+	npc.Pull(target, 3)
+
+	// pulled 3 subtiles closer along the same -X line toward target
+	if got, want := npc.Position.X(), 7.0; math.Abs(got-want) > 0.001 {
+		t.Errorf("expected X=%v after pull, got %v", want, got)
+	}
+
+	if got, want := npc.Position.Y(), 5.0; math.Abs(got-want) > 0.001 {
+		t.Errorf("expected Y unchanged at %v, got %v", want, got)
+	}
+}
+
+func TestNPCPullClampsAtTarget(t *testing.T) {
+	npc := killableNPC(10)
+	npc.Position = d2vector.NewPosition(2, 5)
+	target := d2vector.NewPosition(0, 5)
+
+	npc.Pull(target, 10) // far more than the actual distance (2)
+
+	if got, want := npc.Position.X(), 0.0; math.Abs(got-want) > 0.001 {
+		t.Errorf("expected pull to clamp exactly at target X=%v, got %v", want, got)
+	}
+
+	if got, want := npc.Position.Y(), 5.0; math.Abs(got-want) > 0.001 {
+		t.Errorf("expected Y unchanged at %v, got %v", want, got)
+	}
+}
+
+func TestNPCPullAtTargetIsNoop(t *testing.T) {
+	npc := killableNPC(10)
+	npc.Position = d2vector.NewPosition(5, 5)
+
+	// already at target -- no direction to normalize; must no-op rather
+	// than panic.
+	npc.Pull(npc.Position, 3)
+
+	if npc.Position.X() != 5 || npc.Position.Y() != 5 {
+		t.Errorf("expected position unchanged, got (%v, %v)", npc.Position.X(), npc.Position.Y())
+	}
+}
+
 func TestNPCApplyDamageNotKillable(t *testing.T) {
 	townNPC := &NPC{
 		mapEntity:     newMapEntity(0, 0),

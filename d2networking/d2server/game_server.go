@@ -434,6 +434,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillVortex {
+		g.resolveVortexHit(target)
+		return
+	}
+
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
 	if nearest == nil {
 		return
@@ -712,6 +717,25 @@ func (g *GameServer) resolvePrisonDeGlaceHit(target d2vector.Position) {
 
 	for _, npc := range g.killableNPCsWithin(target, prisonDeGlaceRadiusSubtiles) {
 		npc.ApplyImmobilize(until)
+	}
+}
+
+// vortexRadiusSubtiles/vortexPullDistance: Vortex pulls every killable NPC
+// within this many subtiles of the cast's targeted position that many
+// subtiles closer to it (devil_game_design_reference.md §7 Arcane: "Aspire
+// toutes les entités proches vers un point").
+const (
+	vortexRadiusSubtiles = 6
+	vortexPullDistance   = 4
+)
+
+// resolveVortexHit pulls (d2mapentity.NPC.Pull) every killable NPC within
+// vortexRadiusSubtiles of target that many subtiles closer to it. Deals no
+// damage, and (like Télékinésie's own position change) doesn't broadcast a
+// position update yet -- no NPCMoved packet exists.
+func (g *GameServer) resolveVortexHit(target d2vector.Position) {
+	for _, npc := range g.killableNPCsWithin(target, vortexRadiusSubtiles) {
+		npc.Pull(target, vortexPullDistance)
 	}
 }
 
