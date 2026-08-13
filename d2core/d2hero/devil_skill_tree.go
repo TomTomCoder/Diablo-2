@@ -71,6 +71,13 @@ const SkillBouleDeFeu = SkillNovaDeGivre + 1
 // aiTickInterval until it lapses.
 const SkillTempeteStatique = SkillBouleDeFeu + 1
 
+// SkillChampStatique is Devil's own skill ID for "Champ statique" (Arcane,
+// devil_game_design_reference.md §7): "Réduit la vie de toutes les entités à
+// l'écran d'un % fixe". Devil's first Arcane skill -- percent-of-current-HP
+// damage rather than base_sort scaling, so BaseSortDamage is unused (0) for
+// it. See resolveChampStatiqueHit in game_server.go.
+const SkillChampStatique = SkillTempeteStatique + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -126,6 +133,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  12, // tier 3, alongside Boule de feu
 		BaseSortDamage: 6,  // lightning-family: between Éclair en chaîne and Boule de feu
 		ManaCost:       9,
+	},
+	SkillChampStatique: {
+		ID:            SkillChampStatique,
+		Name:          "Champ statique",
+		Tree:          TreeArcane,
+		RequiredLevel: 1,
+		ManaCost:      12, // costliest tier-1 spell -- it hits every killable NPC on the map, not just one
 	},
 }
 

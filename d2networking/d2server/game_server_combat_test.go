@@ -302,6 +302,13 @@ func TestResolveAoeHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolveAoeHit(d2vector.NewPosition(0, 0), "p", d2hero.SkillBouleDeFeu, bouleDeFeuRadiusSubtiles)
 }
 
+func TestResolveChampStatiqueHitNoMapEnginesDoesNotPanic(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when there's no map engine to scan.
+	server.resolveChampStatiqueHit("p", d2hero.SkillChampStatique)
+}
+
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {

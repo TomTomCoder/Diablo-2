@@ -390,6 +390,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillChampStatique {
+		g.resolveChampStatiqueHit(castPacket.SourceEntityID, castPacket.SkillID)
+		return
+	}
+
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
 	if radius, ok := aoeAtTargetRadiusSubtiles[castPacket.SkillID]; ok {
@@ -441,11 +446,19 @@ func (g *GameServer) nearestKillableNPC(from d2vector.Position, radiusSubtiles f
 	return nearest
 }
 
-// applyHit resolves a single hit against npc: damage, death/gold-award,
-// Éclat de glace's slow, and the NPCHit broadcast. Shared by
-// resolveMeleeHit's single-target path and resolveChainHit.
+// applyHit resolves a single hit against npc using resolveAttackDamage's
+// Energy-scaled damage. Shared by resolveMeleeHit's single-target path and
+// resolveChainHit.
 func (g *GameServer) applyHit(npc *d2mapentity.NPC, sourceEntityID string, skillID int) {
-	damage := g.resolveAttackDamage(sourceEntityID, skillID)
+	g.applyResolvedDamage(npc, sourceEntityID, skillID, g.resolveAttackDamage(sourceEntityID, skillID))
+}
+
+// applyResolvedDamage applies an already-computed damage amount to npc:
+// death/gold-award/XP-award, Éclat de glace's slow, and the NPCHit
+// broadcast. Factored out of applyHit so skills whose damage isn't
+// resolveAttackDamage's Energy-scaled formula -- e.g. Champ statique's
+// percent-of-current-HP -- can still share the death/broadcast plumbing.
+func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID string, skillID, damage int) {
 	died := npc.ApplyDamage(damage)
 
 	if died {
@@ -536,6 +549,37 @@ func (g *GameServer) killableNPCsWithin(center d2vector.Position, radiusSubtiles
 	}
 
 	return found
+}
+
+// champStatiqueDamagePercent is the % of an NPC's own current HP that
+// Champ statique removes from every killable NPC on the map
+// (devil_game_design_reference.md §7 Arcane: "Réduit la vie de toutes les
+// entités à l'écran d'un % fixe").
+//
+// ponytail: "toutes les entités à l'écran" is modeled as every killable NPC
+// on the map, not an actual per-client screen/viewport query -- the server
+// has no concept of what's currently visible to a given client. Upgrade
+// path: filter killableNPCsWithin by a real screen-radius constant, once
+// one exists, instead of scanning every NPC.
+const champStatiqueDamagePercent = 20
+
+// resolveChampStatiqueHit applies champStatiqueDamagePercent of current HP
+// to every killable NPC on the map, via applyResolvedDamage (so each still
+// dies/awards gold+XP/broadcasts normally -- only the damage source
+// differs from resolveAttackDamage's Energy scaling).
+func (g *GameServer) resolveChampStatiqueHit(sourceEntityID string, skillID int) {
+	if len(g.mapEngines) == 0 {
+		return
+	}
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		npc, ok := entity.(*d2mapentity.NPC)
+		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+			continue
+		}
+
+		g.applyResolvedDamage(npc, sourceEntityID, skillID, npc.HP*champStatiqueDamagePercent/100)
+	}
 }
 
 // resolveAttackDamage returns the damage a cast of skillID from

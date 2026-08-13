@@ -104,6 +104,20 @@ func TestSkillTempeteStatiqueSharesTierWithBouleDeFeu(t *testing.T) {
 	}
 }
 
+func TestSkillChampStatiqueIsDevilsFirstArcaneSkill(t *testing.T) {
+	champ := DevilSkills[SkillChampStatique]
+
+	if champ.Tree != TreeArcane {
+		t.Errorf("expected Champ statique to belong to Arcane, got tree %v", champ.Tree)
+	}
+
+	for id, def := range DevilSkills {
+		if id != SkillChampStatique && def.Tree == TreeArcane {
+			t.Errorf("expected Champ statique to be the only Arcane entry, but %q is also Arcane", def.Name)
+		}
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 
