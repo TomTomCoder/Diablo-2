@@ -318,6 +318,29 @@ func (g *GameServer) awardGold(playerID string) {
 	g.sendPacketToClients(packet)
 }
 
+// awardExperience rolls an experience drop (d2hero.RollExperienceDrop),
+// grants it to playerID (possibly leveling them up -- see
+// d2hero.HeroStatsState.GrantExperience), and broadcasts their new
+// experience/level state. A no-op if playerID isn't a resolved connected
+// player or has no stats.
+func (g *GameServer) awardExperience(playerID string) {
+	state := g.playerStateOf(playerID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.Stats.GrantExperience(d2hero.RollExperienceDrop())
+
+	packet, err := d2netpacket.CreateExperienceAwardedPacket(
+		playerID, state.Stats.Experience, state.Stats.Level, state.Stats.SkillPoints, state.Stats.StatsPoints)
+	if err != nil {
+		g.Errorf("CreateExperienceAwardedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(packet)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -393,6 +416,7 @@ func (g *GameServer) applyHit(npc *d2mapentity.NPC, sourceEntityID string, skill
 	if died {
 		g.mapEngines[0].RemoveEntity(npc)
 		g.awardGold(sourceEntityID)
+		g.awardExperience(sourceEntityID)
 	} else if skillID == d2hero.SkillEclatDeGlace {
 		npc.ApplySlow(g.clock().Add(eclatDeGlaceSlowDuration))
 	}

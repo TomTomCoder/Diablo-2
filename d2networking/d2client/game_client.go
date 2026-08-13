@@ -158,6 +158,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleGoldAwardedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.ExperienceAwarded:
+		if err := g.handleExperienceAwardedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -344,6 +348,27 @@ func (g *GameClient) handleGoldAwardedPacket(packet d2netpacket.NetPacket) error
 	}
 
 	player.Gold = awarded.Gold
+
+	return nil
+}
+
+// handleExperienceAwardedPacket applies a server-resolved experience/level
+// state to the local copy of the given player's stats.
+func (g *GameClient) handleExperienceAwardedPacket(packet d2netpacket.NetPacket) error {
+	awarded, err := d2netpacket.UnmarshalExperienceAwarded(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[awarded.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	player.Stats.Experience = awarded.Experience
+	player.Stats.Level = awarded.Level
+	player.Stats.SkillPoints = awarded.SkillPoints
+	player.Stats.StatsPoints = awarded.StatsPoints
 
 	return nil
 }

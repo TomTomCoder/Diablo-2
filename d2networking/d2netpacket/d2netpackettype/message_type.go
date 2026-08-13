@@ -34,6 +34,7 @@ const (
 	NPCHit                                               // Sent by the server, an NPC took damage (and possibly died)
 	PlayerDamaged                                        // Sent by the server, a player took damage (and possibly died)
 	GoldAwarded                                          // Sent by the server, a player's gold total changed
+	ExperienceAwarded                                    // Sent by the server, a player gained experience (and possibly leveled up)
 
 	UnknownPacketType = 666
 )
@@ -56,6 +57,7 @@ func (n NetPacketType) String() string {
 		NPCHit:                          "NPCHit",
 		PlayerDamaged:                   "PlayerDamaged",
 		GoldAwarded:                     "GoldAwarded",
+		ExperienceAwarded:               "ExperienceAwarded",
 	}
 
 	return strings[n]

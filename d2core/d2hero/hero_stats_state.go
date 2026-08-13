@@ -69,6 +69,44 @@ func (f *HeroStateFactory) CreateHeroStatsState(heroClass d2enum.Hero, classStat
 	return &result
 }
 
+// skillPointsPerLevel/statsPointsPerLevel: what each level grants, per
+// "À chaque montée de niveau : 5 points d'attributs à répartir librement +
+// 1 point de compétence" (devil_game_design_reference.md §5).
+const (
+	skillPointsPerLevel = 1
+	statsPointsPerLevel = 5
+)
+
+// experienceForLevel returns the experience needed to advance from level
+// to level+1.
+//
+// ponytail: a flat placeholder curve (100 * level) -- no real Devil
+// experience table exists yet. Doesn't reuse Diablo 2's own
+// GetExperienceBreakpoint (used for the very first threshold in
+// CreateHeroStatsState below): that table only has real values once the
+// player's own MPQ files are loaded, so it can't be exercised in tests
+// without them, and it's per-D2-class data that doesn't necessarily fit
+// Devil's single-Mage design anyway.
+func experienceForLevel(level int) int {
+	return level * 100
+}
+
+// GrantExperience adds amount to Experience, leveling up (possibly more
+// than once, if amount clears several thresholds) while there's enough to
+// cross NextLevelExp. Each level grants skillPointsPerLevel/
+// statsPointsPerLevel and moves NextLevelExp to the next threshold.
+func (s *HeroStatsState) GrantExperience(amount int) {
+	s.Experience += amount
+
+	for s.Experience >= s.NextLevelExp {
+		s.Experience -= s.NextLevelExp
+		s.Level++
+		s.SkillPoints += skillPointsPerLevel
+		s.StatsPoints += statsPointsPerLevel
+		s.NextLevelExp = experienceForLevel(s.Level)
+	}
+}
+
 // resistanceCap is the maximum any elemental resistance can reach; unlike
 // Diablo 2, resistances here can never go negative either (see
 // CapResistance) -- devil_game_design_reference.md §6/§12.

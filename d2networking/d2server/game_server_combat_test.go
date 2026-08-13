@@ -254,6 +254,31 @@ func TestAwardGoldUnknownPlayerNoop(t *testing.T) {
 	server.awardGold("nobody")
 }
 
+func TestAwardExperienceCreditsThePlayer(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Experience: 0, NextLevelExp: 1000}}
+	server := serverWithConnection(state)
+
+	server.awardExperience("p")
+
+	if state.Stats.Experience <= 0 {
+		t.Errorf("expected awardExperience to credit some experience, got %d", state.Stats.Experience)
+	}
+}
+
+func TestAwardExperienceUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the player isn't a connected/resolved state.
+	server.awardExperience("nobody")
+}
+
+func TestAwardExperienceNoStatsNoop(t *testing.T) {
+	server := serverWithConnection(&d2hero.HeroState{Stats: nil})
+
+	// must not panic when the connected player has no Stats yet.
+	server.awardExperience("p")
+}
+
 func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
