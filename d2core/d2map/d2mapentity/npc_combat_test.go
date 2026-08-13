@@ -50,6 +50,29 @@ func TestNPCMonsterKey(t *testing.T) {
 	}
 }
 
+func TestNPCMagicResistancePercent(t *testing.T) {
+	resistant := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{ResistanceMagicNormal: 50},
+	}
+	if got, want := resistant.MagicResistancePercent(), 50; got != want {
+		t.Errorf("expected MagicResistancePercent %d, got %d", want, got)
+	}
+
+	vulnerable := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{ResistanceMagicNormal: -50},
+	}
+	if got, want := vulnerable.MagicResistancePercent(), -50; got != want {
+		t.Errorf("expected negative MagicResistancePercent %d (takes more damage), got %d", want, got)
+	}
+
+	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
+	if got := noMonstat.MagicResistancePercent(); got != 0 {
+		t.Errorf("expected MagicResistancePercent 0 with no monstat record, got %d", got)
+	}
+}
+
 func TestNPCApplyDamage(t *testing.T) {
 	npc := killableNPC(10)
 
@@ -179,6 +202,25 @@ func TestNPCApplyAmplification(t *testing.T) {
 
 	if npc.IsAmplified(now.Add(2 * time.Second)) {
 		t.Error("expected the amplification to have expired after its duration elapsed")
+	}
+}
+
+func TestNPCApplyResistanceStrip(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	if npc.IsResistanceStripped(now) {
+		t.Fatal("a fresh NPC should not start resistance-stripped")
+	}
+
+	npc.ApplyResistanceStrip(now.Add(time.Second))
+
+	if !npc.IsResistanceStripped(now) {
+		t.Error("expected the NPC to be resistance-stripped immediately after ApplyResistanceStrip")
+	}
+
+	if npc.IsResistanceStripped(now.Add(2 * time.Second)) {
+		t.Error("expected the resistance strip to have expired after its duration elapsed")
 	}
 }
 

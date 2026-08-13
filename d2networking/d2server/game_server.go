@@ -776,12 +776,23 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillRuptureArcane {
+		nearest.ApplyResistanceStrip(g.clock().Add(ruptureArcaneDuration))
+		return
+	}
+
 	g.applyHit(nearest, castPacket.SourceEntityID, castPacket.SkillID)
 }
 
 // amplificationDuration is how long Amplification's debuff lasts on the
 // NPC it's cast on.
 const amplificationDuration = 4 * time.Second
+
+// ruptureArcaneDuration is how long Rupture arcane's resistance removal
+// lasts on the NPC it's cast on -- same placeholder duration as
+// Amplification, the other tier-appropriate single-target Arcane debuff, in
+// the absence of a design-specified number.
+const ruptureArcaneDuration = 4 * time.Second
 
 // nearestKillableNPC returns the closest killable, living NPC to from
 // within radiusSubtiles, skipping any NPC ID present in exclude (nil is a
@@ -866,6 +877,13 @@ func amplifiedDamage(damage int, amplified bool) int {
 // death/broadcast plumbing.
 func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID string, skillID, damage int) {
 	damage = amplifiedDamage(damage, npc.IsAmplified(g.clock()))
+
+	resistance := npc.MagicResistancePercent()
+	if npc.IsResistanceStripped(g.clock()) {
+		resistance = 0 // Rupture arcane: "supprime les résistances d'une cible"
+	}
+
+	damage = d2hero.MitigateDamage(damage, resistance)
 
 	died := npc.ApplyDamage(damage)
 

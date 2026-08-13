@@ -212,6 +212,14 @@ const SkillTranscendance = SkillAbsorptionEnergie + 1
 // statique's missing "persistante" zone.
 const SkillTempeteDeLames = SkillTranscendance + 1
 
+// SkillRuptureArcane is Devil's own skill ID for "Rupture arcane" (Arcane,
+// devil_game_design_reference.md §7): "Projectile qui supprime les
+// résistances d'une cible". A single-target debuff, same tier as
+// Téléportation -- see resolveRuptureArcaneHit in game_server.go and
+// d2mapentity.NPC.ApplyResistanceStrip/IsResistanceStripped. Deals no direct
+// damage itself (BaseSortDamage 0).
+const SkillRuptureArcane = SkillTempeteDeLames + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -390,6 +398,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  24, // tier 5, per the design's level table
 		BaseSortDamage: 8,
 		ManaCost:       12,
+	},
+	SkillRuptureArcane: {
+		ID:            SkillRuptureArcane,
+		Name:          "Rupture arcane",
+		Tree:          TreeArcane,
+		RequiredLevel: 12, // tier 3, alongside Téléportation
+		ManaCost:      7,  // single-target debuff -- between Amplification's 6 (tier 2) and Téléportation's 8 (tier 3 utility)
 	},
 }
 

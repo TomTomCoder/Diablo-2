@@ -45,6 +45,12 @@ type NPC struct {
 	// immobilized NPC's ChasePlayer speed is forced to zero. See
 	// ApplyImmobilize/IsImmobilized.
 	ImmobilizedUntil time.Time
+
+	// ResistanceStrippedUntil is when this NPC's magic resistance removal
+	// (Rupture arcane, "Projectile qui supprime les résistances d'une
+	// cible") expires. Zero value means resistance isn't stripped. See
+	// ApplyResistanceStrip/IsResistanceStripped/MagicResistancePercent.
+	ResistanceStrippedUntil time.Time
 }
 
 const (
@@ -86,6 +92,30 @@ func (v *NPC) MonsterKey() string {
 	}
 
 	return v.monstatRecord.Key
+}
+
+// MagicResistancePercent returns this NPC's magic resistance (monstats.txt's
+// ResMa column, d2records.MonStatRecord.ResistanceMagicNormal), or 0 if it
+// has no monstat record. Can be negative (takes more damage) or >=100
+// (immune) -- real D2 semantics that d2hero.MitigateDamage already handles.
+//
+// Unlike the player's own resistances, this is NOT run through
+// d2hero.CapResistance: that "never negative, capped at 75%" rule is stated
+// in devil_game_design_reference.md §6 specifically for the Mage's own
+// defense, not for the monsters Devil's world throws at them.
+//
+// Doesn't account for Rupture arcane's resistance removal itself -- callers
+// combine this with IsResistanceStripped (mirroring how amplifiedDamage
+// combines a base value with IsAmplified in game_server.go).
+//
+// ponytail: always Normal-difficulty, same limitation as
+// MonStatRecord.HPRangeForDifficulty -- see that method's doc comment.
+func (v *NPC) MagicResistancePercent() int {
+	if v.monstatRecord == nil {
+		return 0
+	}
+
+	return v.monstatRecord.ResistanceMagicNormal
 }
 
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.
@@ -161,6 +191,18 @@ func (v *NPC) IsAmplified(now time.Time) bool {
 // until the given time.
 func (v *NPC) ApplyImmobilize(until time.Time) {
 	v.ImmobilizedUntil = until
+}
+
+// ApplyResistanceStrip marks this NPC's magic resistance as removed (see
+// IsResistanceStripped/MagicResistancePercent) until the given time.
+func (v *NPC) ApplyResistanceStrip(until time.Time) {
+	v.ResistanceStrippedUntil = until
+}
+
+// IsResistanceStripped reports whether this NPC's magic resistance removal
+// is still active at now.
+func (v *NPC) IsResistanceStripped(now time.Time) bool {
+	return now.Before(v.ResistanceStrippedUntil)
 }
 
 // IsImmobilized reports whether this NPC's immobilization is still active

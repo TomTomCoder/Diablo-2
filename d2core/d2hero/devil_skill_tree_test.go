@@ -358,6 +358,23 @@ func TestSkillTempeteDeLamesHasHigherTierThanTranscendance(t *testing.T) {
 	}
 }
 
+func TestSkillRuptureArcaneSharesTierWithTeleportation(t *testing.T) {
+	rupture, tp := DevilSkills[SkillRuptureArcane], DevilSkills[SkillTeleportation]
+
+	if rupture.RequiredLevel != tp.RequiredLevel {
+		t.Errorf("expected Rupture arcane and Téléportation to share tier 3's RequiredLevel, got %d vs %d",
+			rupture.RequiredLevel, tp.RequiredLevel)
+	}
+
+	if rupture.Tree != TreeArcane {
+		t.Error("expected Rupture arcane to belong to Arcane")
+	}
+
+	if rupture.BaseSortDamage != 0 {
+		t.Errorf("expected Rupture arcane to deal no direct base_sort damage, got %d", rupture.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 
