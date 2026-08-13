@@ -155,6 +155,145 @@ func TestHandleItemCraftedPacketUpdatesWeaponAndGold(t *testing.T) {
 	}
 }
 
+func TestHandleSkillLearnedPacketAddsSkillAndUpdatesPoints(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{SkillPoints: 2}})
+
+	packet, err := d2netpacket.CreateSkillLearnedPacket("p", d2hero.SkillTraitDeFeu, 1)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillLearnedPacket failed: %v", err)
+	}
+
+	if err := client.handleSkillLearnedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if _, known := player.Skills[d2hero.SkillTraitDeFeu]; !known {
+		t.Error("expected Trait de feu added to Skills")
+	}
+
+	if player.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints=1, got %d", player.Stats.SkillPoints)
+	}
+}
+
+func TestHandleSingleSkillRespecedPacketRemovesSkill(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Stats:  &d2hero.HeroStatsState{SkillPoints: 0},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {}, d2hero.SkillEclatDeGlace: {}},
+	})
+
+	packet, err := d2netpacket.CreateSingleSkillRespecedPacket("p", d2hero.SkillTraitDeFeu, 1)
+	if err != nil {
+		t.Fatalf("test setup: CreateSingleSkillRespecedPacket failed: %v", err)
+	}
+
+	if err := client.handleSingleSkillRespecedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if _, known := player.Skills[d2hero.SkillTraitDeFeu]; known {
+		t.Error("expected Trait de feu forgotten")
+	}
+
+	if _, known := player.Skills[d2hero.SkillEclatDeGlace]; !known {
+		t.Error("expected Éclat de glace to remain learned")
+	}
+
+	if player.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints=1, got %d", player.Stats.SkillPoints)
+	}
+}
+
+func TestHandlePotionUsedPacketUpdatesMana(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{Mana: 0}})
+
+	packet, err := d2netpacket.CreatePotionUsedPacket("p", 15)
+	if err != nil {
+		t.Fatalf("test setup: CreatePotionUsedPacket failed: %v", err)
+	}
+
+	if err := client.handlePotionUsedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if client.Players["p"].Stats.Mana != 15 {
+		t.Errorf("expected Mana=15, got %d", client.Players["p"].Stats.Mana)
+	}
+}
+
+func TestHandlePlayerDamagedPacketUpdatesHealth(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{Health: 50}})
+
+	packet, err := d2netpacket.CreatePlayerDamagedPacket("p", 30, false)
+	if err != nil {
+		t.Fatalf("test setup: CreatePlayerDamagedPacket failed: %v", err)
+	}
+
+	if err := client.handlePlayerDamagedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if client.Players["p"].Stats.Health != 30 {
+		t.Errorf("expected Health=30, got %d", client.Players["p"].Stats.Health)
+	}
+}
+
+func TestHandleGoldAwardedPacketUpdatesGold(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Gold: 0})
+
+	packet, err := d2netpacket.CreateGoldAwardedPacket("p", 15)
+	if err != nil {
+		t.Fatalf("test setup: CreateGoldAwardedPacket failed: %v", err)
+	}
+
+	if err := client.handleGoldAwardedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if client.Players["p"].Gold != 15 {
+		t.Errorf("expected Gold=15, got %d", client.Players["p"].Gold)
+	}
+}
+
+func TestHandleExperienceAwardedPacketUpdatesLevelState(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{}})
+
+	packet, err := d2netpacket.CreateExperienceAwardedPacket("p", 350, 3, 2, 10)
+	if err != nil {
+		t.Fatalf("test setup: CreateExperienceAwardedPacket failed: %v", err)
+	}
+
+	if err := client.handleExperienceAwardedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	stats := client.Players["p"].Stats
+	if stats.Experience != 350 || stats.Level != 3 || stats.SkillPoints != 2 || stats.StatsPoints != 10 {
+		t.Errorf("expected Experience=350 Level=3 SkillPoints=2 StatsPoints=10, got Experience=%d Level=%d SkillPoints=%d StatsPoints=%d",
+			stats.Experience, stats.Level, stats.SkillPoints, stats.StatsPoints)
+	}
+}
+
+func TestHandlePlayerTeleportedPacketMovesPlayer(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreatePlayerTeleportedPacket("p", 10, 20)
+	if err != nil {
+		t.Fatalf("test setup: CreatePlayerTeleportedPacket failed: %v", err)
+	}
+
+	if err := client.handlePlayerTeleportedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	pos := client.Players["p"].GetPosition()
+	if pos.X() != 10 || pos.Y() != 20 {
+		t.Errorf("expected position (10, 20), got (%v, %v)", pos.X(), pos.Y())
+	}
+}
+
 func TestHandleSkillPointInvestedPacketUpdatesInvestedPoints(t *testing.T) {
 	client := clientWithPlayer("p", &d2mapentity.Player{
 		Stats:  &d2hero.HeroStatsState{SkillPoints: 1},
