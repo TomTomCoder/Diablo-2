@@ -41,15 +41,37 @@ const (
 // validate the hit-resolution pipeline end to end; see ROADMAP.md Phase 1.
 const meleeHitRadiusSubtiles = 3
 
-// baseSortDamage is a placeholder for the currently-cast skill's base
-// damage, used as both the fallback (no connection/stats resolved) and the
-// unscaled base in resolveAttackDamage's formula.
-//
-// ponytail: Devil has no per-skill damage data yet (ROADMAP.md Phase 2) --
-// every cast deals the same base damage regardless of which skill was
-// used. Replace with a lookup by SkillID once skills carry their own
-// base_sort value.
+// baseSortDamage is the fallback base_sort damage used when the cast
+// skill isn't in skillBaseSortDamage (or no connection/stats resolved).
 const baseSortDamage = 4
+
+// skillTraitDeFeu is Devil's own skill ID for "Trait de feu" (Élémentalisme,
+// devil_game_design_reference.md §7) -- the first skill given real combat
+// data instead of the flat baseSortDamage placeholder.
+//
+// ponytail: deliberately numbered well above any Diablo 2 skills.txt ID
+// range (D2's own skill IDs are loaded at runtime from the player's MPQ
+// files and top out in the low hundreds) so a real skill cast from the
+// original game's data can never collide with a Devil-specific ID here.
+// Devil's own skill data model (30 skills/3 trees, ROADMAP.md Phase 2)
+// will replace this constant with a proper data table.
+const skillTraitDeFeu = 1000
+
+// skillBaseSortDamage holds base_sort damage for skills that have their own
+// combat data. Everything else falls back to baseSortDamage.
+var skillBaseSortDamage = map[int]int{
+	skillTraitDeFeu: 6,
+}
+
+// baseSortDamageFor returns the given skill's base_sort damage, or the flat
+// fallback if it isn't in skillBaseSortDamage.
+func baseSortDamageFor(skillID int) int {
+	if dmg, ok := skillBaseSortDamage[skillID]; ok {
+		return dmg
+	}
+
+	return baseSortDamage
+}
 
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
@@ -88,7 +110,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	damage := g.resolveAttackDamage(castPacket.SourceEntityID)
+	damage := g.resolveAttackDamage(castPacket.SourceEntityID, castPacket.SkillID)
 	died := nearest.ApplyDamage(damage)
 
 	if died {
@@ -104,33 +126,36 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(hitPacket)
 }
 
-// resolveAttackDamage returns the damage a cast from sourceEntityID deals,
-// per the design's magic damage formula (devil_game_design_reference.md
-// §6): base spell damage scaled by the caster's Energy --
+// resolveAttackDamage returns the damage a cast of skillID from
+// sourceEntityID deals, per the design's magic damage formula
+// (devil_game_design_reference.md §6): base spell damage scaled by the
+// caster's Energy --
 //
 //	Dégâts = base_sort × (1 + Energy / 100)
 //
+// base_sort comes from baseSortDamageFor(skillID) -- see skillBaseSortDamage.
 // Falls back to the unscaled base damage if the attacker isn't a connected
 // player or has no stats resolved.
 //
-// ponytail: base_sort is a flat placeholder (see baseSortDamage), not the
-// damage of the actual skill cast. No elemental type, no gear modifiers
-// (e.g. the "+10% dégâts Feu" a staff can grant), no attack rating. See
-// ROADMAP.md Phase 1/2 for the rest of the combat formula.
-func (g *GameServer) resolveAttackDamage(sourceEntityID string) int {
+// ponytail: no elemental type, no gear modifiers (e.g. the "+10% dégâts
+// Feu" a staff can grant), no attack rating. See ROADMAP.md Phase 1/2 for
+// the rest of the combat formula.
+func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int {
+	baseSort := baseSortDamageFor(skillID)
+
 	connection, ok := g.connections[sourceEntityID]
 	if !ok {
-		return baseSortDamage
+		return baseSort
 	}
 
 	state := connection.GetPlayerState()
 	if state == nil || state.Stats == nil {
-		return baseSortDamage
+		return baseSort
 	}
 
 	energy := state.Stats.Energy
 
-	return baseSortDamage + (baseSortDamage*energy)/100
+	return baseSort + (baseSort*energy)/100
 }
 
 var (

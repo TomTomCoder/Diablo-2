@@ -31,6 +31,10 @@ func serverWithConnection(state *d2hero.HeroState) *GameServer {
 	return server
 }
 
+// unknownSkillID is any ID not present in skillBaseSortDamage, so tests
+// that aren't about per-skill data get the flat baseSortDamage fallback.
+const unknownSkillID = -1
+
 func TestResolveAttackDamageFallbacks(t *testing.T) {
 	cases := map[string]*d2hero.HeroState{
 		"no connection at all": nil,
@@ -40,7 +44,7 @@ func TestResolveAttackDamageFallbacks(t *testing.T) {
 	for name, state := range cases {
 		server := serverWithConnection(state)
 
-		if got := server.resolveAttackDamage("p"); got != baseSortDamage {
+		if got := server.resolveAttackDamage("p", unknownSkillID); got != baseSortDamage {
 			t.Errorf("%s: expected fallback %d, got %d", name, baseSortDamage, got)
 		}
 	}
@@ -61,8 +65,27 @@ func TestResolveAttackDamageEnergyScaling(t *testing.T) {
 	for _, c := range cases {
 		server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: c.energy}})
 
-		if got := server.resolveAttackDamage("p"); got != c.expected {
+		if got := server.resolveAttackDamage("p", unknownSkillID); got != c.expected {
 			t.Errorf("energy=%d: expected %d, got %d", c.energy, c.expected, got)
 		}
+	}
+}
+
+func TestResolveAttackDamageTraitDeFeu(t *testing.T) {
+	// Trait de feu has its own base_sort (6), distinct from the flat
+	// fallback (4) -- proves per-skill data actually takes effect.
+	const traitDeFeuBase = 6
+
+	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 0}})
+
+	if got := server.resolveAttackDamage("p", skillTraitDeFeu); got != traitDeFeuBase {
+		t.Errorf("expected Trait de feu base damage %d, got %d", traitDeFeuBase, got)
+	}
+
+	// and it still scales with Energy on top of its own base
+	server = serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: 100}})
+
+	if got := server.resolveAttackDamage("p", skillTraitDeFeu); got != traitDeFeuBase*2 {
+		t.Errorf("expected Trait de feu at 100 Energy to be %d, got %d", traitDeFeuBase*2, got)
 	}
 }
