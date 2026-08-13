@@ -153,10 +153,13 @@ func (g *GameServer) dexterityOf(sourceEntityID string) int {
 // aiTickInterval is how often the monster AI loop reevaluates.
 const aiTickInterval = 200 * time.Millisecond
 
-// ponytail: flat numbers for every monster (aggro/attack range, damage,
-// attack cooldown) instead of per-monster data -- no monster combat data
-// exists yet (ROADMAP.md Phase 4). Same placeholder shape as the player's
-// own combat constants above.
+// monsterAggroRadiusSubtiles/monsterAttackRangeSubtiles/monsterAttackCooldown/
+// monsterAttackDamage are the fallback values used for any monster whose
+// key isn't in d2hero.MonsterArchetypes -- true for every monster today, no
+// Devil monster data exists yet (ROADMAP.md Phase 4). advanceMonsterAI/
+// tryMonsterAttack already look up d2hero.MonsterArchetypes first, so
+// registering a real archetype there overrides these per monster type
+// without any further server-side changes.
 const (
 	monsterAggroRadiusSubtiles = 8
 	monsterAttackRangeSubtiles = 2
@@ -290,12 +293,13 @@ func (g *GameServer) advanceMonsterAI() {
 		}
 
 		dist := npcPos.Distance(&playerPos.Vector)
+		monsterKey := npc.MonsterKey()
 
-		if dist > monsterAggroRadiusSubtiles {
+		if dist > d2hero.MonsterAggroRadiusSubtiles(monsterKey, monsterAggroRadiusSubtiles) {
 			continue
 		}
 
-		if dist > monsterAttackRangeSubtiles {
+		if dist > d2hero.MonsterAttackRangeSubtiles(monsterKey, monsterAttackRangeSubtiles) {
 			npc.ChasePlayer(playerPos, g.clock())
 			continue
 		}
@@ -330,10 +334,17 @@ func (g *GameServer) nearestPlayer(from d2vector.Position) (playerID string, pos
 func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	now := g.clock()
 
+	var monsterKey string
+	if npc := g.npcByID(npcID); npc != nil {
+		monsterKey = npc.MonsterKey()
+	}
+
+	cooldown := d2hero.MonsterAttackCooldown(monsterKey, monsterAttackCooldown)
+
 	g.Lock()
 	last, attacked := g.lastMonsterAttackAt[npcID]
 
-	if attacked && now.Sub(last) < monsterAttackCooldown {
+	if attacked && now.Sub(last) < cooldown {
 		g.Unlock()
 		return
 	}
@@ -354,7 +365,8 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	// ponytail: every monster attack treated as Fire damage -- no per-monster
 	// element data exists yet (ROADMAP.md Phase 4). Enough to prove
 	// resistances actually mitigate something.
-	damage := d2hero.MitigateDamage(monsterAttackDamage, d2hero.CapResistance(state.Stats.FireResist))
+	damage := d2hero.MitigateDamage(
+		d2hero.MonsterAttackDamage(monsterKey, monsterAttackDamage), d2hero.CapResistance(state.Stats.FireResist))
 
 	switch {
 	case state.Stats.IsMagicImmune(now):

@@ -75,6 +75,19 @@ func (v *NPC) IsKillable() bool {
 	return v.monstatRecord != nil && v.monstatRecord.IsKillable
 }
 
+// MonsterKey returns this NPC's stable monster-type identifier
+// (d2records.MonStatRecord.Key, "Id" in monstats.txt), or "" if it has no
+// monstat record. Meant as a lookup key into a per-monster-type data
+// registry (e.g. d2hero.MonsterArchetypes) -- see
+// GameServer.advanceMonsterAI/tryMonsterAttack.
+func (v *NPC) MonsterKey() string {
+	if v.monstatRecord == nil {
+		return ""
+	}
+
+	return v.monstatRecord.Key
+}
+
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.
 // No-op (and never dies) for NPCs that aren't killable.
 func (v *NPC) ApplyDamage(amount int) (died bool) {

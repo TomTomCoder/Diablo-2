@@ -33,6 +33,23 @@ func TestNPCIsKillable(t *testing.T) {
 	}
 }
 
+func TestNPCMonsterKey(t *testing.T) {
+	npc := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{IsKillable: true, Key: "fallen1"},
+		HP:            10,
+	}
+
+	if got, want := npc.MonsterKey(), "fallen1"; got != want {
+		t.Errorf("expected MonsterKey %q, got %q", want, got)
+	}
+
+	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
+	if got := noMonstat.MonsterKey(); got != "" {
+		t.Errorf("expected empty MonsterKey with no monstat record, got %q", got)
+	}
+}
+
 func TestNPCApplyDamage(t *testing.T) {
 	npc := killableNPC(10)
 
