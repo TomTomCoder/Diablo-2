@@ -11,7 +11,7 @@ type NetPacketType uint32
 // (Except NetPacket which declares a NetPacketType to specify the packet body
 // type. See d2netpackettype.NetPacket.)
 //
-// Warning
+// # Warning
 //
 // Do NOT re-arrange the order of these packet values unless you want to
 // break compatibility between clients of slightly different versions.
@@ -31,6 +31,7 @@ const (
 	SpawnItem                                            // Sent by server
 	SavePlayer                                           // Sent by the client, saves the player
 	ServerFull                                           // Sent by server when server has reached max connections
+	NPCHit                                               // Sent by the server, an NPC took damage (and possibly died)
 
 	UnknownPacketType = 666
 )
@@ -50,6 +51,7 @@ func (n NetPacketType) String() string {
 		SpawnItem:                       "SpawnItem",
 		SavePlayer:                      "SavePlayer",
 		ServerFull:                      "ServerFull",
+		NPCHit:                          "NPCHit",
 	}
 
 	return strings[n]

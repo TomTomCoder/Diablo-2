@@ -155,6 +155,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleSpawnItemPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.NPCHit:
+		if err := g.handleNPCHitPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -273,6 +277,33 @@ func (g *GameClient) handleMovePlayerPacket(packet d2netpacket.NetPacket) error 
 				g.Errorf(fmtStr, player.ID(), err)
 			}
 		})
+	}
+
+	return nil
+}
+
+// handleNPCHitPacket applies a server-resolved hit to the local copy of the
+// NPC: updates its HP, and removes it from the map if it died.
+func (g *GameClient) handleNPCHitPacket(packet d2netpacket.NetPacket) error {
+	hit, err := d2netpacket.UnmarshalNPCHit(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	entity, found := g.MapEngine.Entities()[hit.EntityID]
+	if !found {
+		return nil
+	}
+
+	npc, ok := entity.(*d2mapentity.NPC)
+	if !ok {
+		return nil
+	}
+
+	npc.HP = hit.HP
+
+	if hit.Died {
+		g.MapEngine.RemoveEntity(npc)
 	}
 
 	return nil

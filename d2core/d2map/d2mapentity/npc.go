@@ -26,6 +26,7 @@ type NPC struct {
 	monstatEx     *d2records.MonStat2Record
 	HasPaths      bool
 	isDone        bool
+	HP            int
 }
 
 const (
@@ -48,6 +49,28 @@ func selectEquip(slice []string) string {
 // ID returns the NPC uuid
 func (v *NPC) ID() string {
 	return v.mapEntity.uuid
+}
+
+// IsKillable reports whether this NPC can take damage and die (matches
+// monstats.txt's `killable` column -- town NPCs like Deckard Cain are not).
+func (v *NPC) IsKillable() bool {
+	return v.monstatRecord != nil && v.monstatRecord.IsKillable
+}
+
+// ApplyDamage reduces the NPC's HP by amount and reports whether it died.
+// No-op (and never dies) for NPCs that aren't killable.
+func (v *NPC) ApplyDamage(amount int) (died bool) {
+	if !v.IsKillable() || v.HP <= 0 {
+		return v.IsKillable() && v.HP <= 0
+	}
+
+	v.HP -= amount
+
+	if v.HP < 0 {
+		v.HP = 0
+	}
+
+	return v.HP == 0
 }
 
 // Render renders this entity's animated composite.

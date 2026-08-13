@@ -2,6 +2,7 @@ package d2mapentity
 
 import (
 	"fmt"
+	"math/rand"
 
 	"github.com/google/uuid"
 
@@ -21,6 +22,17 @@ const (
 	retailFps             = 25.0
 	millisecondsPerSecond = 1000.0
 )
+
+// randomBetween returns a random int in [min, max], inclusive. Falls back to
+// min if the range is empty or inverted (bad data shouldn't panic here).
+func randomBetween(min, max int) int {
+	if max <= min {
+		return min
+	}
+
+	// nolint:gosec // not concerned with crypto-strong randomness
+	return min + rand.Intn(max-min+1)
+}
 
 // NewMapEntityFactory creates a MapEntityFactory instance with the given asset manager
 func NewMapEntityFactory(asset *d2asset.AssetManager) (*MapEntityFactory, error) {
@@ -187,6 +199,10 @@ func (f *MapEntityFactory) NewNPC(x, y int, monstat *d2records.MonStatRecord, di
 		HasPaths:      false,
 		monstatRecord: monstat,
 		monstatEx:     f.asset.Records.Monster.Stats2[monstat.ExtraDataKey],
+	}
+
+	if monstat.IsKillable {
+		result.HP = randomBetween(monstat.MinHPNormal, monstat.MaxHPNormal)
 	}
 
 	var equipment [16]string

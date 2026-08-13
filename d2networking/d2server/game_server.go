@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math"
+	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -12,10 +14,12 @@ import (
 	"github.com/robertkrimen/otto"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapengine"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapgen"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2netpacket"
@@ -32,6 +36,69 @@ const (
 	subtilesPerTile        = 5
 	middleOfTileOffset     = 3
 )
+
+// ponytail: flat hit radius and damage range instead of real per-skill reach
+// and weapon/skill damage. Enough to validate the hit-resolution pipeline
+// end to end; replace with actual skill/weapon data once those are wired.
+const (
+	meleeHitRadiusSubtiles = 3
+	minAttackDamage        = 2
+	maxAttackDamage        = 6
+)
+
+// resolveMeleeHit checks for a killable NPC near the cast's target position
+// and, if one is found within range, applies damage and broadcasts the
+// result. Targeting is purely proximity-based for now -- see the constants
+// above and ROADMAP.md Phase 1.
+func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
+	if len(g.mapEngines) == 0 {
+		return
+	}
+
+	castPacket, err := d2netpacket.UnmarshalCast(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveMeleeHit: %v", err)
+		return
+	}
+
+	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
+
+	var nearest *d2mapentity.NPC
+
+	nearestDist := math.MaxFloat64
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		npc, ok := entity.(*d2mapentity.NPC)
+		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+			continue
+		}
+
+		pos := npc.GetPosition()
+		if dist := pos.Distance(&target.Vector); dist < nearestDist {
+			nearest, nearestDist = npc, dist
+		}
+	}
+
+	if nearest == nil || nearestDist > meleeHitRadiusSubtiles {
+		return
+	}
+
+	// nolint:gosec // not concerned with crypto-strong randomness
+	damage := minAttackDamage + rand.Intn(maxAttackDamage-minAttackDamage+1)
+	died := nearest.ApplyDamage(damage)
+
+	if died {
+		g.mapEngines[0].RemoveEntity(nearest)
+	}
+
+	hitPacket, err := d2netpacket.CreateNPCHitPacket(nearest.ID(), nearest.HP, died)
+	if err != nil {
+		g.Errorf("CreateNPCHitPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(hitPacket)
+}
 
 var (
 	errPlayerAlreadyExists = errors.New("player already exists")
@@ -464,7 +531,10 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		playerState.Y = movePacket.DestY
 
 		g.sendPacketToClients(packet)
-	case d2netpackettype.CastSkill, d2netpackettype.SpawnItem:
+	case d2netpackettype.CastSkill:
+		g.resolveMeleeHit(packet)
+		g.sendPacketToClients(packet)
+	case d2netpackettype.SpawnItem:
 		g.sendPacketToClients(packet)
 	case d2netpackettype.SavePlayer:
 		savePacket, err := d2netpacket.UnmarshalSavePlayer(packet.PacketData)
