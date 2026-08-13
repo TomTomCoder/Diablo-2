@@ -73,6 +73,24 @@ func TestNPCMagicResistancePercent(t *testing.T) {
 	}
 }
 
+func TestNPCAttackDamageRange(t *testing.T) {
+	npc := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{DamageMinA1Normal: 3, DamageMaxA1Normal: 7},
+	}
+
+	gotMin, gotMax := npc.AttackDamageRange()
+	if gotMin != 3 || gotMax != 7 {
+		t.Errorf("expected AttackDamageRange (3, 7), got (%d, %d)", gotMin, gotMax)
+	}
+
+	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
+	gotMin, gotMax = noMonstat.AttackDamageRange()
+	if gotMin != 0 || gotMax != 0 {
+		t.Errorf("expected AttackDamageRange (0, 0) with no monstat record, got (%d, %d)", gotMin, gotMax)
+	}
+}
+
 func TestNPCApplyDamage(t *testing.T) {
 	npc := killableNPC(10)
 

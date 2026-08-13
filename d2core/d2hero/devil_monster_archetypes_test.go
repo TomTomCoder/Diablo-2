@@ -53,3 +53,22 @@ func TestMonsterArchetypeLookupsUseRegisteredOverride(t *testing.T) {
 		t.Errorf("expected overridden damage %d, got %d", want, got)
 	}
 }
+
+func TestRollDamageInRangeStaysWithinBounds(t *testing.T) {
+	for i := 0; i < 50; i++ {
+		got := RollDamageInRange(3, 7, 99)
+		if got < 3 || got > 7 {
+			t.Fatalf("expected a roll within [3, 7], got %d", got)
+		}
+	}
+}
+
+func TestRollDamageInRangeFallsBackForEmptyRange(t *testing.T) {
+	if got, want := RollDamageInRange(0, 0, 5), 5; got != want {
+		t.Errorf("expected fallback %d for an empty (0, 0) range, got %d", want, got)
+	}
+
+	if got, want := RollDamageInRange(5, 3, 5), 5; got != want {
+		t.Errorf("expected fallback %d when min > max, got %d", want, got)
+	}
+}

@@ -1,6 +1,9 @@
 package d2hero
 
-import "time"
+import (
+	"math/rand"
+	"time"
+)
 
 // MonsterArchetypeDef overrides the flat per-monster combat placeholders
 // (aggro radius, attack range, damage, attack cooldown) for a specific
@@ -67,4 +70,25 @@ func MonsterAttackDamage(key string, fallback int) int {
 	}
 
 	return fallback
+}
+
+// RollDamageInRange returns a random amount in [min, max], or fallback if
+// the range is empty (max <= 0 -- e.g. d2mapentity.NPC.AttackDamageRange's
+// (0, 0) for an NPC with no monstat record loaded). Correction (août
+// 2026): a real per-monster damage range (monstats.txt's A1MinD/A1MaxD)
+// was already loaded on MonStatRecord but never read anywhere -- every
+// killable monster dealt the exact same flat monsterAttackDamage
+// regardless of type, same class of bug as the earlier
+// HPRangeForDifficulty/MagicResistancePercent finds. See
+// GameServer.tryMonsterAttack for the call site: this only ever replaces
+// the *fallback* passed to MonsterAttackDamage, so a Devil-specific
+// MonsterArchetypeDef override still wins first.
+//
+// nolint:gosec // not concerned with crypto-strong randomness
+func RollDamageInRange(min, max, fallback int) int {
+	if max <= 0 || min > max {
+		return fallback
+	}
+
+	return min + rand.Intn(max-min+1)
 }

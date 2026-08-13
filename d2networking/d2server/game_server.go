@@ -407,12 +407,24 @@ func (g *GameServer) nearestPlayer(from d2vector.Position) (playerID string, pos
 
 // tryMonsterAttack applies monsterAttackDamage to playerID's HP and
 // broadcasts the result, unless npcID is still on its own attack cooldown.
+//
+// Correction (août 2026): the damage dealt used to always be the flat
+// monsterAttackDamage placeholder, even for a monster with a real
+// per-monster damage range loaded (d2mapentity.NPC.AttackDamageRange) --
+// now rolled within that range when available, still overridden first by
+// a Devil-specific MonsterArchetypeDef if one exists for this monster key.
 func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	now := g.clock()
 
 	var monsterKey string
+
+	fallbackDamage := monsterAttackDamage
+
 	if npc := g.npcByID(npcID); npc != nil {
 		monsterKey = npc.MonsterKey()
+
+		damageMin, damageMax := npc.AttackDamageRange()
+		fallbackDamage = d2hero.RollDamageInRange(damageMin, damageMax, monsterAttackDamage)
 	}
 
 	cooldown := d2hero.MonsterAttackCooldown(monsterKey, monsterAttackCooldown)
@@ -442,7 +454,7 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	// element data exists yet (ROADMAP.md Phase 4). Enough to prove
 	// resistances actually mitigate something.
 	damage := d2hero.MitigateDamage(
-		d2hero.MonsterAttackDamage(monsterKey, monsterAttackDamage), d2hero.CapResistance(state.Stats.FireResist))
+		d2hero.MonsterAttackDamage(monsterKey, fallbackDamage), d2hero.CapResistance(state.Stats.FireResist))
 
 	switch {
 	case state.Stats.IsMagicImmune(now):

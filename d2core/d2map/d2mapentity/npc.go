@@ -118,6 +118,24 @@ func (v *NPC) MagicResistancePercent() int {
 	return v.monstatRecord.ResistanceMagicNormal
 }
 
+// AttackDamageRange returns this NPC's primary melee attack's damage range
+// (monstats.txt's A1MinD/A1MaxD columns, d2records.MonStatRecord.
+// DamageMinA1Normal/DamageMaxA1Normal), or (0, 0) if it has no monstat
+// record. Only the "A1" (first melee attack) columns are read -- Devil's
+// own tryMonsterAttack deals a single flat amount per hit already, not
+// modeling per-monster secondary attacks ("A2") or skill-based ones
+// ("S1"), so reading more than one column here would have nowhere to go.
+//
+// ponytail: always Normal-difficulty, same limitation as
+// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
+func (v *NPC) AttackDamageRange() (min, max int) {
+	if v.monstatRecord == nil {
+		return 0, 0
+	}
+
+	return v.monstatRecord.DamageMinA1Normal, v.monstatRecord.DamageMaxA1Normal
+}
+
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.
 // No-op (and never dies) for NPCs that aren't killable.
 func (v *NPC) ApplyDamage(amount int) (died bool) {
