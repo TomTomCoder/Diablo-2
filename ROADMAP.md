@@ -58,14 +58,14 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 
 **Simplifications volontaires qui restent acceptables pour l'instant** (documentées en commentaire `ponytail:` dans le code) : ciblage par proximité au lieu de clic-sur-cible, pas de jet de précision, une seule cible par sort (pas de zone d'effet même pour les sorts qui devraient en avoir un).
 
-## Phase 2 — Arbres de compétences du Mage
-*Après qu'un sort fonctionne réellement en Phase 1.*
+## Phase 2 — Arbres de compétences du Mage 🚧
+*Démarrée — 2/10 sorts d'Élémentalisme.*
 
 Le design définit **30 compétences en 3 arbres de 10** (`devil_game_design_reference.md` §7) : Élémentalisme (dégâts directs), Arcane (contrôle/amplification), Ésotérisme (défense/survie/invocations), avec synergies inter-arbres et un système de palier (`niveau requis`) qui débloque les compétences supérieures à condition d'avoir investi dans les inférieures.
 
-- ✅ **Modèle de données** : `d2core/d2hero/devil_skill_tree.go` — `DevilSkillDef` (arbre, palier, `base_sort`, coût en mana, cible/pourcentage de synergie) et le registre `DevilSkills`, plus `CanLearnSkill` pour le palier. Remplace les deux maps ad-hoc de `game_server.go` par une seule source de vérité. Une seule entrée réelle (Trait de feu) pour l'instant — ce commit valide que le modèle fonctionne, il ne le remplit pas. Les champs de synergie existent mais rien ne les exploite encore (Trait de feu n'a pas de cible de synergie). Commit `1f1275c0`.
-- Implémenter d'abord l'arbre **Élémentalisme** en entier (10 sorts) : c'est l'arbre offensif direct, le plus proche du pipeline de dégâts déjà posé en Phase 1. Le deuxième sort (Éclat de glace) devra soit avoir un vrai effet distinctif (ralentissement — rien à ralentir de significatif tant que l'IA de monstre n'est pas plus riche que la Phase 4 actuelle), soit être ajouté uniquement pour peupler le modèle de données, à décider au moment venu.
-- Arcane et Ésotérisme ensuite — Arcane demande du contrôle de groupe (ralentissement, immobilisation) qui n'existe pas encore dans le moteur ; Ésotérisme demande des invocations (Familier, Golem arcane) qui réutilisent le système `d2mapentity.NPC` mais côté allié, pas ennemi.
+- ✅ **Modèle de données** : `d2core/d2hero/devil_skill_tree.go` — `DevilSkillDef` (arbre, palier, `base_sort`, coût en mana, cible/pourcentage de synergie) et le registre `DevilSkills`, plus `CanLearnSkill` pour le palier. Remplace les deux maps ad-hoc de `game_server.go` par une seule source de vérité. Commit `1f1275c0`.
+- ✅ **Éclat de glace** (2e sort d'Élémentalisme) : `base_sort` plus faible que Trait de feu (4 contre 6, coût en mana plus élevé) mais un vrai effet de ralentissement — `NPC.ApplySlow`/`IsSlowed`, `ChasePlayer` réduit sa vitesse de moitié pendant l'effet. Rendu possible par l'IA de monstre de la Phase 4 (avant ça, rien n'aurait consommé un ralentissement de façon significative). Commit `43c26f4a`.
+- Reste 8 sorts d'Élémentalisme, puis Arcane et Ésotérisme ensuite — Arcane demande du contrôle de groupe (ralentissement, immobilisation) qui n'existe pas encore dans le moteur ; Ésotérisme demande des invocations (Familier, Golem arcane) qui réutilisent le système `d2mapentity.NPC` mais côté allié, pas ennemi.
 - Respec : implémenter les 3 méthodes du design (respec partiel par quête, glyphe d'oubli ciblé, respec complet via essences de boss) une fois qu'il y a des builds à corriger.
 
 **Pourquoi Élémentalisme en premier :** c'est l'arbre qui valide le plus directement la formule de dégâts déjà posée en Phase 1, sans dépendre de mécaniques qui n'existent pas encore (contrôle de groupe, invocations alliées).
