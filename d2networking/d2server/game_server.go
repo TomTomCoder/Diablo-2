@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"math"
-	"math/rand"
 	"net"
 	"sync"
 	"time"
@@ -42,13 +41,15 @@ const (
 // validate the hit-resolution pipeline end to end; see ROADMAP.md Phase 1.
 const meleeHitRadiusSubtiles = 3
 
-// unarmedMinDamage/unarmedMaxDamage are used when the attacker has no
-// weapon equipped (or their weapon/item data can't be resolved), matching
-// the fallback the rest of the client uses for an empty weapon slot.
-const (
-	unarmedMinDamage = 1
-	unarmedMaxDamage = 2
-)
+// baseSortDamage is a placeholder for the currently-cast skill's base
+// damage, used as both the fallback (no connection/stats resolved) and the
+// unscaled base in resolveAttackDamage's formula.
+//
+// ponytail: Devil has no per-skill damage data yet (ROADMAP.md Phase 2) --
+// every cast deals the same base damage regardless of which skill was
+// used. Replace with a lookup by SkillID once skills carry their own
+// base_sort value.
+const baseSortDamage = 4
 
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
@@ -87,9 +88,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	minDmg, maxDmg := g.resolveAttackDamage(castPacket.SourceEntityID)
-	// nolint:gosec // not concerned with crypto-strong randomness
-	damage := minDmg + rand.Intn(maxDmg-minDmg+1)
+	damage := g.resolveAttackDamage(castPacket.SourceEntityID)
 	died := nearest.ApplyDamage(damage)
 
 	if died {
@@ -105,47 +104,33 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(hitPacket)
 }
 
-// resolveAttackDamage returns the min/max damage range for the given
-// attacker's equipped weapon, falling back to unarmed damage if the
-// attacker isn't a connected player, has nothing equipped, or the equipped
-// weapon's item data can't be resolved.
+// resolveAttackDamage returns the damage a cast from sourceEntityID deals,
+// per the design's magic damage formula (devil_game_design_reference.md
+// §6): base spell damage scaled by the caster's Energy --
 //
-// ponytail: no attack rating, no skill damage bonuses, no elemental/magic
-// damage, no strength-scaling -- just the weapon's base physical range.
-// See ROADMAP.md Phase 1 for the rest of the combat formula.
-func (g *GameServer) resolveAttackDamage(sourceEntityID string) (minDmg, maxDmg int) {
+//	Dégâts = base_sort × (1 + Energy / 100)
+//
+// Falls back to the unscaled base damage if the attacker isn't a connected
+// player or has no stats resolved.
+//
+// ponytail: base_sort is a flat placeholder (see baseSortDamage), not the
+// damage of the actual skill cast. No elemental type, no gear modifiers
+// (e.g. the "+10% dégâts Feu" a staff can grant), no attack rating. See
+// ROADMAP.md Phase 1/2 for the rest of the combat formula.
+func (g *GameServer) resolveAttackDamage(sourceEntityID string) int {
 	connection, ok := g.connections[sourceEntityID]
 	if !ok {
-		return unarmedMinDamage, unarmedMaxDamage
+		return baseSortDamage
 	}
 
-	equipment := connection.GetPlayerState().Equipment
-
-	weapon := equipment.RightHand
-	if weapon.GetItemCode() == "" {
-		weapon = equipment.LeftHand
+	state := connection.GetPlayerState()
+	if state == nil || state.Stats == nil {
+		return baseSortDamage
 	}
 
-	if weapon.GetItemCode() == "" {
-		return unarmedMinDamage, unarmedMaxDamage
-	}
+	energy := state.Stats.Energy
 
-	record, ok := g.asset.Records.Item.Weapons[weapon.GetItemCode()]
-	if !ok {
-		return unarmedMinDamage, unarmedMaxDamage
-	}
-
-	minDmg, maxDmg = record.MinDamage, record.MaxDamage
-	if minDmg == 0 && maxDmg == 0 {
-		// one-handed range is empty: this is a two-handed-only weapon
-		minDmg, maxDmg = record.Min2HandDamage, record.Max2HandDamage
-	}
-
-	if maxDmg <= minDmg {
-		return unarmedMinDamage, unarmedMaxDamage
-	}
-
-	return minDmg, maxDmg
+	return baseSortDamage + (baseSortDamage*energy)/100
 }
 
 var (

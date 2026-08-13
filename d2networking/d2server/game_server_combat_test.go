@@ -3,11 +3,7 @@ package d2server
 import (
 	"testing"
 
-	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
-	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
-	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
-	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2netpacket"
 )
@@ -26,90 +22,47 @@ func (f *fakeClientConnection) SendPacketToClient(_ d2netpacket.NetPacket) error
 func (f *fakeClientConnection) GetPlayerState() *d2hero.HeroState                { return f.state }
 func (f *fakeClientConnection) SetPlayerState(state *d2hero.HeroState)           { f.state = state }
 
-func serverWithWeapons(t *testing.T, weapons d2records.CommonItems) *GameServer {
-	t.Helper()
-
-	assetManager, err := d2asset.NewAssetManager(d2util.LogLevelDefault)
-	if err != nil {
-		t.Fatalf("NewAssetManager: %v", err)
+func serverWithConnection(state *d2hero.HeroState) *GameServer {
+	server := &GameServer{connections: make(map[string]ClientConnection)}
+	if state != nil {
+		server.connections["p"] = &fakeClientConnection{state: state}
 	}
 
-	assetManager.Records.Item.Weapons = weapons
-
-	return &GameServer{asset: assetManager, connections: make(map[string]ClientConnection)}
+	return server
 }
 
-func TestResolveAttackDamageUnarmedFallbacks(t *testing.T) {
-	server := serverWithWeapons(t, d2records.CommonItems{})
-
+func TestResolveAttackDamageFallbacks(t *testing.T) {
 	cases := map[string]*d2hero.HeroState{
-		"no connection at all": nil, // handled by not registering a connection
-		"empty equipment":      {Equipment: d2inventory.CharacterEquipment{}},
-		"weapon code not in records": {Equipment: d2inventory.CharacterEquipment{
-			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: "nonexistent"},
-		}},
+		"no connection at all": nil,
+		"nil stats":            {Stats: nil},
 	}
 
 	for name, state := range cases {
-		if state != nil {
-			server.connections["p"] = &fakeClientConnection{state: state}
-		}
+		server := serverWithConnection(state)
 
-		minDmg, maxDmg := server.resolveAttackDamage("p")
-		if minDmg != unarmedMinDamage || maxDmg != unarmedMaxDamage {
-			t.Errorf("%s: expected unarmed damage (%d,%d), got (%d,%d)",
-				name, unarmedMinDamage, unarmedMaxDamage, minDmg, maxDmg)
+		if got := server.resolveAttackDamage("p"); got != baseSortDamage {
+			t.Errorf("%s: expected fallback %d, got %d", name, baseSortDamage, got)
 		}
 	}
 }
 
-func TestResolveAttackDamageOneHanded(t *testing.T) {
-	server := serverWithWeapons(t, d2records.CommonItems{
-		"shortsword": {MinDamage: 3, MaxDamage: 7},
-	})
-	server.connections["p"] = &fakeClientConnection{state: &d2hero.HeroState{
-		Equipment: d2inventory.CharacterEquipment{
-			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: "shortsword"},
-		},
-	}}
-
-	minDmg, maxDmg := server.resolveAttackDamage("p")
-	if minDmg != 3 || maxDmg != 7 {
-		t.Errorf("expected (3,7), got (%d,%d)", minDmg, maxDmg)
+func TestResolveAttackDamageEnergyScaling(t *testing.T) {
+	// Dégâts = base_sort × (1 + Energy / 100), integer division.
+	cases := []struct {
+		energy   int
+		expected int
+	}{
+		{energy: 0, expected: baseSortDamage},                              // no scaling
+		{energy: 100, expected: baseSortDamage * 2},                        // double damage
+		{energy: 50, expected: baseSortDamage + (baseSortDamage*50)/100},   // +50%
+		{energy: 200, expected: baseSortDamage + (baseSortDamage*200)/100}, // +200%
 	}
-}
 
-func TestResolveAttackDamageTwoHandedFallback(t *testing.T) {
-	// A weapon with no one-handed range should fall back to its two-handed
-	// range rather than reporting (0,0).
-	server := serverWithWeapons(t, d2records.CommonItems{
-		"greatsword": {Min2HandDamage: 10, Max2HandDamage: 20},
-	})
-	server.connections["p"] = &fakeClientConnection{state: &d2hero.HeroState{
-		Equipment: d2inventory.CharacterEquipment{
-			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: "greatsword"},
-		},
-	}}
+	for _, c := range cases {
+		server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{Energy: c.energy}})
 
-	minDmg, maxDmg := server.resolveAttackDamage("p")
-	if minDmg != 10 || maxDmg != 20 {
-		t.Errorf("expected two-hand fallback (10,20), got (%d,%d)", minDmg, maxDmg)
-	}
-}
-
-func TestResolveAttackDamageLeftHandFallback(t *testing.T) {
-	// Empty right hand should fall back to the left hand weapon.
-	server := serverWithWeapons(t, d2records.CommonItems{
-		"dagger": {MinDamage: 1, MaxDamage: 4},
-	})
-	server.connections["p"] = &fakeClientConnection{state: &d2hero.HeroState{
-		Equipment: d2inventory.CharacterEquipment{
-			LeftHand: &d2inventory.InventoryItemWeapon{ItemCode: "dagger"},
-		},
-	}}
-
-	minDmg, maxDmg := server.resolveAttackDamage("p")
-	if minDmg != 1 || maxDmg != 4 {
-		t.Errorf("expected left-hand weapon (1,4), got (%d,%d)", minDmg, maxDmg)
+		if got := server.resolveAttackDamage("p"); got != c.expected {
+			t.Errorf("energy=%d: expected %d, got %d", c.energy, c.expected, got)
+		}
 	}
 }
