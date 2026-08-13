@@ -112,12 +112,11 @@ Construit la première tranche de contenu jouable racontée, sur la Région I (T
 - Post-traitement via les shaders Kage natifs d'ebiten (bloom, vignette) — bon candidat pour rendre les auras de compétences (voir plus haut) plutôt qu'un simple effet cosmétique.
 - Résolution interne fixée à 800×600 — support HiDPI à traiter avec le reste.
 
-## Phase 7 — Outillage de contenu
-*En parallèle, dès qu'il y a du contenu Devil (objets, monstres, cartes) à éditer.*
+## Phase 7 — Outillage de contenu 🚧
+*Démarrée.*
 
-- Finir la communication `abysswrapper` ↔ moteur pour un vrai aperçu live depuis HellSpawner.
-- Étendre les éditeurs HellSpawner existants (DC6/DCC/DS1/DT1/palettes) pour les nouveaux types de données Devil (compétences à 3 arbres avec synergies, monstres nommés uniques) plutôt que réutiliser les éditeurs D2 tels quels.
-- Documenter le format de mod une fois le scripting WASM (Phase 3) en place.
+- ✅ **Format de mod documenté** (`docs/modding.md`) : contrat hôte/invité, comment compiler un module Go avec le toolchain standard, la seule fonction hôte qui existe aujourd'hui, limites explicites (pas d'API quête/dialogue, types numériques/mémoire seulement, pas de sauvegarde côté script). Commit `4af83004`.
+- **Hors de portée ici** : finir la communication `abysswrapper` ↔ moteur, et étendre les éditeurs HellSpawner — les deux exigent le dépôt `hellspawner`/`AbyssEngine` séparé et une interface graphique (giu/ImGui) qui a besoin d'un display, indisponibles dans cet environnement — même nature de mur que la production d'assets visuels.
 
 ## Phase 8 — Packaging & diffusion
 *En dernier.*
