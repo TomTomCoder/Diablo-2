@@ -41,8 +41,11 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 - Une tranche verticale de combat de bout en bout — un monstre tuable a des PV, un cast de compétence proche de lui déclenche une résolution de dégâts côté serveur, le client reçoit et applique la mise à jour (PV ou suppression à la mort). Commits `0c9f823`, `1ebdbd3`.
 - ✅ **Corrigé** : `resolveAttackDamage` (`d2networking/d2server/game_server.go`) utilisait les dégâts d'une arme physique équipée — ne correspondait pas au design (pas de Strength, pas d'arme de corps-à-corps non magique). Réécrit avec la vraie formule : `Dégâts = base_sort × (1 + Energy / 100)`, où `Energy` vient de `HeroState.Stats` et `base_sort` est un placeholder à plat (`baseSortDamage`) en attendant de vraies données de compétence (Phase 2). Commit `e5cc5d82`.
 
+- ✅ **Trait de feu** a maintenant son propre `base_sort` (6, contre le placeholder à plat de 4) via une petite table `skillBaseSortDamage` indexée par un ID de compétence propre à Devil — délibérément numéroté loin de la plage des vrais ID de skills.txt de D2 (chargés à l'exécution depuis les MPQ du joueur, jamais présents dans ce dépôt) pour ne jamais entrer en collision. Commit `498d1fc0`.
+
+**⚠️ Limite connue :** ce mécanisme n'est pas encore atteignable en jeu — la création de personnage et l'UI de compétences assignent toujours les compétences d'origine de Diablo 2 (chargées depuis les MPQ), pas les compétences propres à Devil. La Phase 2 (arbre Élémentalisme complet) doit remplacer cette assignation.
+
 **Reste à faire :**
-- **`base_sort` par compétence** : aujourd'hui une seule constante pour tous les sorts — à remplacer par un lookup par `SkillID` une fois les données de compétences de la Phase 2 en place.
 - **Modificateurs d'équipement** : le bâton/orbe équipé (ex. `+10% dégâts Feu` du Bâton de l'Apprenti, `devil_mage_character_design.md` §5) doit s'appliquer comme *modificateur* sur la formule, pas comme source de dégâts de base.
 - **Stats dérivées** : `HeroStatsState` a Energy/Vitality/Dexterity bruts mais pas encore de vitesse d'incantation (Dexterity, avec breakpoints) ni de régénération de mana calculées.
 - **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif.
