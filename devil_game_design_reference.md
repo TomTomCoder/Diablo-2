@@ -2,12 +2,14 @@
 
 > **Basé sur** : mécanique Diablo 2 (Project Diablo 2 Wiki, *Reverse Design: Diablo 2* — Holleman, CRC Press 2018), adapté pour Devil
 > **Dernière mise à jour** : mai 2026
+>
+> **⚠️ Mise à jour août 2026 — Devil devient multi-classes.** Suite à la réception d'assets visuels pour une deuxième classe (le Warrior, combattant au corps-à-corps physique), Devil n'est plus un jeu à classe unique. Ce document a été rédigé pour un Mage seul et n'a **pas encore été révisé intégralement** pour refléter ce changement — les sections §1, §2, §5 et §8 ci-dessous contiennent des affirmations "classe unique"/"pas de Strength"/"aucune arme physique" qui ne s'appliquent désormais qu'**au Mage**, pas au jeu dans son ensemble. Voir `devil_warrior_character_design.md` §4 pour la liste de ce qui reste à concevoir côté Warrior (attributs, arbre de compétences, itémisation, formule de dégâts) — volontairement non inventé ici.
 
 ---
 
 ## 1. Concept et boucle de jeu principale
 
-**Devil** est un action-RPG solo dans lequel le joueur incarne un Mage (homme ou femme, choix à la création) qui doit monter en puissance pour affronter Devil — un mage corrompu par la magie noire, qui a créé des entités maléfiques recouvrant toute la planète.
+**Devil** est un action-RPG solo dans lequel le joueur incarne un héros — **Mage ou Warrior** (choix de classe à la création, voir §2) — qui doit monter en puissance pour affronter Devil, un mage corrompu par la magie noire qui a créé des entités maléfiques recouvrant toute la planète.
 
 La boucle principale repose sur trois piliers :
 
@@ -19,12 +21,14 @@ La boucle principale repose sur trois piliers :
 
 ## 2. Création du personnage
 
+> **⚠️ Section à réécrire** — ce qui suit décrivait l'ancien design à classe unique. Devil propose désormais un choix de classe (Mage / Warrior) à la création ; les détails exacts (attributs de départ du Warrior, équipement de départ, etc.) restent à définir — voir `devil_warrior_character_design.md` §4.
+
 À la création d'une nouvelle partie, le joueur choisit :
 
-- **Le genre** : Homme ou Femme (cosmétique, sans impact sur les stats)
-- **Le nom** du Mage
+- **La classe** : Mage ou Warrior (impact sur les stats, l'arbre de compétences et l'itémisation — voir `devil_mage_character_design.md` et `devil_warrior_character_design.md`)
+- **Le nom** du personnage
 
-Tous les personnages partagent le même archétype : le Mage. Il n'y a pas d'autres classes.
+Le Mage dispose de deux formes visuelles (Mage / Mage Divin, une progression de puissance plutôt qu'un choix cosmétique — voir `devil_mage_character_design.md` §1). Le Warrior n'a pas encore de variantes définies.
 
 ---
 
@@ -69,7 +73,9 @@ Le **Magic Find (MF)** reste l'attribut clé pour augmenter la probabilité d'ob
 
 ## 5. Attributs du Mage
 
-La force physique n'existant pas dans ce monde dominé par la magie, les attributs sont recentrés :
+> **⚠️ Spécifique au Mage.** Ce qui suit (suppression de Strength, mitigation 100% magique) ne s'applique plus qu'à la classe Mage. Les attributs du Warrior restent à définir — voir `devil_warrior_character_design.md` §4.
+
+La force physique n'existant pas dans ce monde dominé par la magie **pour le Mage**, ses attributs sont recentrés :
 
 | Attribut | Rôle |
 |----------|------|
@@ -79,7 +85,7 @@ La force physique n'existant pas dans ce monde dominé par la magie, les attribu
 
 À chaque montée de niveau : **5 points d'attributs** à répartir librement + **1 point de compétence**.
 
-> **Suppression** : l'attribut Strength n'existe pas dans Devil. La Défense physique non plus — toute mitigation de dégâts passe par les résistances magiques et les sorts défensifs.
+> **Suppression (Mage uniquement)** : l'attribut Strength n'existe pas pour le Mage. La Défense physique non plus — toute sa mitigation de dégâts passe par les résistances magiques et les sorts défensifs. Le Warrior a probablement besoin de Strength et/ou de Défense physique ; à concevoir séparément.
 
 ---
 
@@ -179,7 +185,7 @@ Le Mage dispose de **30 compétences** réparties en 3 arbres de 10 compétences
 | Unique | Doré | Affixes fixes prédéfinis |
 | Runeglyphe | Doré/Gris | Combinaison de glyphes dans des emplacements dédiés |
 
-Les objets sont orientés magie : bâtons, orbes, robes, amulettes, anneaux, grimoires. Aucune armure physique lourde, aucune arme de corps-à-corps non magique.
+**Pour le Mage** (règle historique, ne s'applique plus à la classe Warrior — voir `devil_warrior_character_design.md` §4) : les objets sont orientés magie : orbes/cristaux, robes, amulettes, anneaux, grimoires, aucune arme physique empoignée (les turnarounds reçus montrent le Mage lançant ses sorts à mains nues, sans bâton). Aucune armure physique lourde, aucune arme de corps-à-corps non magique. L'itémisation du Warrior (sabres, cuir/métal léger) reste à formaliser.
 
 ### Stockage
 
