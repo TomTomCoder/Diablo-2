@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2client/d2clientconnectiontype"
 	"github.com/OpenDiablo2/OpenDiablo2/d2networking/d2netpacket"
@@ -25,9 +26,10 @@ func (f *fakeClientConnection) SetPlayerState(state *d2hero.HeroState)          
 
 func serverWithConnection(state *d2hero.HeroState) *GameServer {
 	server := &GameServer{
-		connections: make(map[string]ClientConnection),
-		lastCastAt:  make(map[string]time.Time),
-		clock:       time.Now,
+		connections:         make(map[string]ClientConnection),
+		lastCastAt:          make(map[string]time.Time),
+		lastMonsterAttackAt: make(map[string]time.Time),
+		clock:               time.Now,
 	}
 	if state != nil {
 		server.connections["p"] = &fakeClientConnection{state: state}
@@ -199,6 +201,73 @@ func TestManaRegenPerSecondScalesWithEnergy(t *testing.T) {
 
 	if got := manaRegenPerSecond(50); got <= baseManaRegenPerSecond {
 		t.Errorf("higher Energy should regen faster than the base rate, got %v", got)
+	}
+}
+
+func TestNearestPlayerPicksClosest(t *testing.T) {
+	server := serverWithConnection(nil)
+	server.connections["far"] = &fakeClientConnection{
+		state: &d2hero.HeroState{X: 100, Y: 100, Stats: &d2hero.HeroStatsState{}},
+	}
+	server.connections["near"] = &fakeClientConnection{
+		state: &d2hero.HeroState{X: 1, Y: 1, Stats: &d2hero.HeroStatsState{}},
+	}
+
+	id, pos, found := server.nearestPlayer(d2vector.NewPosition(0, 0))
+	if !found {
+		t.Fatal("expected to find a nearest player")
+	}
+
+	if id != "near" {
+		t.Errorf("expected the closer connection 'near', got %q", id)
+	}
+
+	if pos.X() != 1 || pos.Y() != 1 {
+		t.Errorf("expected position (1,1), got (%v,%v)", pos.X(), pos.Y())
+	}
+}
+
+func TestNearestPlayerNoConnections(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	if _, _, found := server.nearestPlayer(d2vector.NewPosition(0, 0)); found {
+		t.Error("expected no nearest player with zero connections")
+	}
+}
+
+func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health != 10-monsterAttackDamage {
+		t.Errorf("expected HP %d after one attack, got %d", 10-monsterAttackDamage, stats.Health)
+	}
+
+	// same monster, still on cooldown: no second hit
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health != 10-monsterAttackDamage {
+		t.Errorf("expected no further damage while on cooldown, got HP %d", stats.Health)
+	}
+
+	// a different monster has its own independent cooldown
+	server.tryMonsterAttack("npc-2", "p")
+
+	if stats.Health != 10-2*monsterAttackDamage {
+		t.Errorf("expected a second monster's attack to land, got HP %d", stats.Health)
+	}
+
+	// after the cooldown elapses, npc-1 can attack again
+	server.clock = func() time.Time { return now.Add(monsterAttackCooldown) }
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health != 10-3*monsterAttackDamage {
+		t.Errorf("expected npc-1's attack to land after its cooldown elapsed, got HP %d", stats.Health)
 	}
 }
 

@@ -32,6 +32,7 @@ const (
 	SavePlayer                                           // Sent by the client, saves the player
 	ServerFull                                           // Sent by server when server has reached max connections
 	NPCHit                                               // Sent by the server, an NPC took damage (and possibly died)
+	PlayerDamaged                                        // Sent by the server, a player took damage (and possibly died)
 
 	UnknownPacketType = 666
 )
@@ -52,6 +53,7 @@ func (n NetPacketType) String() string {
 		SavePlayer:                      "SavePlayer",
 		ServerFull:                      "ServerFull",
 		NPCHit:                          "NPCHit",
+		PlayerDamaged:                   "PlayerDamaged",
 	}
 
 	return strings[n]

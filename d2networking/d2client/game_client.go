@@ -159,6 +159,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleNPCHitPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.PlayerDamaged:
+		if err := g.handlePlayerDamagedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -305,6 +309,28 @@ func (g *GameClient) handleNPCHitPacket(packet d2netpacket.NetPacket) error {
 	if hit.Died {
 		g.MapEngine.RemoveEntity(npc)
 	}
+
+	return nil
+}
+
+// handlePlayerDamagedPacket applies a server-resolved monster hit to the
+// local copy of the given player's stats (their HP bar, wherever the HUD
+// reads it, follows automatically since it's the same *HeroStatsState).
+//
+// ponytail: no death handling (no game-over screen, no respawn) -- Health
+// just floors at 0. See ROADMAP.md Phase 4.
+func (g *GameClient) handlePlayerDamagedPacket(packet d2netpacket.NetPacket) error {
+	hit, err := d2netpacket.UnmarshalPlayerDamaged(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[hit.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	player.Stats.Health = hit.HP
 
 	return nil
 }

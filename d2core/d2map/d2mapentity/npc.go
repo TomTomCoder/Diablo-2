@@ -73,6 +73,22 @@ func (v *NPC) ApplyDamage(amount int) (died bool) {
 	return v.HP == 0
 }
 
+// npcChaseSpeed is the movement speed a killable NPC uses while chasing a
+// player. ponytail: one flat speed for every monster -- no per-monster
+// speed data exists yet (ROADMAP.md Phase 4).
+const npcChaseSpeed = 6.0
+
+// ChasePlayer starts this NPC moving directly toward pos.
+//
+// ponytail: straight-line movement (setTarget), not real pathfinding --
+// an NPC will walk straight through obstacles between it and the player
+// rather than routing around them. Fine for open areas; see ROADMAP.md
+// Phase 4 for routing around walls.
+func (v *NPC) ChasePlayer(pos d2vector.Position) {
+	v.SetSpeed(npcChaseSpeed)
+	v.setTarget(pos, nil)
+}
+
 // Render renders this entity's animated composite.
 func (v *NPC) Render(target d2interface.Surface) {
 	renderOffset := v.Position.RenderOffset()

@@ -191,6 +191,132 @@ func (g *GameServer) dexterityOf(sourceEntityID string) int {
 	return state.Stats.Dexterity
 }
 
+// aiTickInterval is how often the monster AI loop reevaluates.
+const aiTickInterval = 200 * time.Millisecond
+
+// ponytail: flat numbers for every monster (aggro/attack range, damage,
+// attack cooldown) instead of per-monster data -- no monster combat data
+// exists yet (ROADMAP.md Phase 4). Same placeholder shape as the player's
+// own combat constants above.
+const (
+	monsterAggroRadiusSubtiles = 8
+	monsterAttackRangeSubtiles = 2
+	monsterAttackCooldown      = 1200 * time.Millisecond
+	monsterAttackDamage        = 3
+)
+
+// runMonsterAILoop periodically advances monster AI. Meant to be started as
+// a goroutine; returns once the server is stopped.
+func (g *GameServer) runMonsterAILoop() {
+	ticker := time.NewTicker(aiTickInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-g.ctx.Done():
+			return
+		case <-ticker.C:
+			g.advanceMonsterAI()
+		}
+	}
+}
+
+// advanceMonsterAI gives every killable, living NPC on the map a chance to
+// notice and react to the nearest connected player: chase if aggroed but
+// out of attack range, or attack if in range (subject to its own cooldown,
+// see tryMonsterAttack). NPCs with no player within monsterAggroRadiusSubtiles
+// are left alone entirely.
+func (g *GameServer) advanceMonsterAI() {
+	if len(g.mapEngines) == 0 {
+		return
+	}
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		npc, ok := entity.(*d2mapentity.NPC)
+		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+			continue
+		}
+
+		npcPos := npc.GetPosition()
+
+		playerID, playerPos, found := g.nearestPlayer(npcPos)
+		if !found {
+			continue
+		}
+
+		dist := npcPos.Distance(&playerPos.Vector)
+
+		if dist > monsterAggroRadiusSubtiles {
+			continue
+		}
+
+		if dist > monsterAttackRangeSubtiles {
+			npc.ChasePlayer(playerPos)
+			continue
+		}
+
+		g.tryMonsterAttack(npc.ID(), playerID)
+	}
+}
+
+// nearestPlayer returns the connected player closest to from, reading live
+// position off their PlayerState (the server has no map-entity for
+// players -- see GameServer.connections).
+func (g *GameServer) nearestPlayer(from d2vector.Position) (playerID string, pos d2vector.Position, found bool) {
+	nearestDist := math.MaxFloat64
+
+	for id, connection := range g.connections {
+		state := connection.GetPlayerState()
+		if state == nil {
+			continue
+		}
+
+		candidate := d2vector.NewPosition(state.X, state.Y)
+		if dist := from.Distance(&candidate.Vector); dist < nearestDist {
+			playerID, pos, nearestDist, found = id, candidate, dist, true
+		}
+	}
+
+	return playerID, pos, found
+}
+
+// tryMonsterAttack applies monsterAttackDamage to playerID's HP and
+// broadcasts the result, unless npcID is still on its own attack cooldown.
+func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
+	now := g.clock()
+
+	g.Lock()
+	last, attacked := g.lastMonsterAttackAt[npcID]
+
+	if attacked && now.Sub(last) < monsterAttackCooldown {
+		g.Unlock()
+		return
+	}
+
+	g.lastMonsterAttackAt[npcID] = now
+	g.Unlock()
+
+	connection, ok := g.connections[playerID]
+	if !ok {
+		return
+	}
+
+	state := connection.GetPlayerState()
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	died := state.Stats.ApplyDamage(monsterAttackDamage)
+
+	packet, err := d2netpacket.CreatePlayerDamagedPacket(playerID, state.Stats.Health, died)
+	if err != nil {
+		g.Errorf("CreatePlayerDamagedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(packet)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -284,20 +410,21 @@ var (
 // It can accept connections from localhost as well remote clients. It can also be started in a standalone mode.
 type GameServer struct {
 	sync.RWMutex
-	connections       map[string]ClientConnection
-	listener          net.Listener
-	networkServer     bool
-	ctx               context.Context
-	cancel            context.CancelFunc
-	asset             *d2asset.AssetManager
-	mapEngines        []*d2mapengine.MapEngine
-	scriptEngine      *d2script.ScriptEngine
-	seed              int64
-	maxConnections    int
-	packetManagerChan chan ReceivedPacket
-	heroStateFactory  *d2hero.HeroStateFactory
-	lastCastAt        map[string]time.Time
-	clock             func() time.Time // overridden in tests; defaults to time.Now
+	connections         map[string]ClientConnection
+	listener            net.Listener
+	networkServer       bool
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	asset               *d2asset.AssetManager
+	mapEngines          []*d2mapengine.MapEngine
+	scriptEngine        *d2script.ScriptEngine
+	seed                int64
+	maxConnections      int
+	packetManagerChan   chan ReceivedPacket
+	heroStateFactory    *d2hero.HeroStateFactory
+	lastCastAt          map[string]time.Time
+	lastMonsterAttackAt map[string]time.Time
+	clock               func() time.Time // overridden in tests; defaults to time.Now
 
 	*d2util.Logger
 }
@@ -331,19 +458,20 @@ func NewGameServer(asset *d2asset.AssetManager,
 	ctx, cancel := context.WithCancel(context.Background())
 
 	gameServer := &GameServer{
-		ctx:               ctx,
-		cancel:            cancel,
-		asset:             asset,
-		connections:       make(map[string]ClientConnection),
-		networkServer:     networkServer,
-		maxConnections:    maxConnections[0],
-		packetManagerChan: make(chan ReceivedPacket),
-		mapEngines:        make([]*d2mapengine.MapEngine, 0),
-		scriptEngine:      d2script.CreateScriptEngine(),
-		seed:              time.Now().UnixNano(),
-		heroStateFactory:  heroStateFactory,
-		lastCastAt:        make(map[string]time.Time),
-		clock:             time.Now,
+		ctx:                 ctx,
+		cancel:              cancel,
+		asset:               asset,
+		connections:         make(map[string]ClientConnection),
+		networkServer:       networkServer,
+		maxConnections:      maxConnections[0],
+		packetManagerChan:   make(chan ReceivedPacket),
+		mapEngines:          make([]*d2mapengine.MapEngine, 0),
+		scriptEngine:        d2script.CreateScriptEngine(),
+		seed:                time.Now().UnixNano(),
+		heroStateFactory:    heroStateFactory,
+		lastCastAt:          make(map[string]time.Time),
+		lastMonsterAttackAt: make(map[string]time.Time),
+		clock:               time.Now,
 	}
 
 	gameServer.Logger = d2util.NewLogger()
@@ -392,6 +520,7 @@ func (g *GameServer) Start() error {
 	g.listener = l
 
 	go g.packetManager()
+	go g.runMonsterAILoop()
 
 	go func() {
 		for {

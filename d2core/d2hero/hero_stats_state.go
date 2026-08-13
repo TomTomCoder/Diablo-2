@@ -54,3 +54,20 @@ func (f *HeroStateFactory) CreateHeroStatsState(heroClass d2enum.Hero, classStat
 
 	return &result
 }
+
+// ApplyDamage reduces Health by amount and reports whether the hero died.
+// Mirrors d2mapentity.NPC.ApplyDamage -- floors at 0, and further damage
+// to an already-dead hero is a no-op that still reports died=true.
+func (s *HeroStatsState) ApplyDamage(amount int) (died bool) {
+	if s.Health <= 0 {
+		return true
+	}
+
+	s.Health -= amount
+
+	if s.Health < 0 {
+		s.Health = 0
+	}
+
+	return s.Health == 0
+}
