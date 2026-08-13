@@ -25,7 +25,6 @@ func (a *App) initTerminalCommands() {
 		{"timescale", "set scalar for elapsed time", []string{"float"}, a.setTimeScale},
 		{"quit", "exits the game", nil, a.quitGame},
 		{"screen-gui", "enters the gui playground screen", nil, a.enterGuiPlayground},
-		{"js", "eval JS scripts", []string{"code"}, a.evalJS},
 	}
 
 	for _, cmd := range terminalCommands {
@@ -54,18 +53,6 @@ func (a *App) dumpHeap([]string) error {
 	if err := fileOut.Close(); err != nil {
 		a.Fatal(err.Error())
 	}
-
-	return nil
-}
-
-func (a *App) evalJS(args []string) error {
-	val, err := a.scriptEngine.Eval(args[0])
-	if err != nil {
-		a.terminal.Errorf(err.Error())
-		return nil
-	}
-
-	a.Info("%s" + val)
 
 	return nil
 }

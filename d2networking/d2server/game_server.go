@@ -10,8 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/robertkrimen/otto"
-
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
@@ -456,12 +454,14 @@ func NewGameServer(asset *d2asset.AssetManager,
 
 	gameServer.mapEngines = append(gameServer.mapEngines, mapEngine)
 
-	gameServer.scriptEngine.AddFunction("getMapEngines", func(call otto.FunctionCall) otto.Value {
-		val, err := gameServer.scriptEngine.ToValue(gameServer.mapEngines)
-		if err != nil {
-			gameServer.Error(err.Error())
-		}
-		return val
+	// ponytail: exposes just a count, not the map engines themselves --
+	// unlike otto, a WASM guest can't hold a live reference to a Go object
+	// graph. The old getMapEngines hook returned the whole []*MapEngine
+	// slice, which doesn't translate; nothing exercises this today, so it's
+	// a placeholder proving the host-function mechanism works, not a
+	// designed script API. See ROADMAP.md Phase 3/2 for the real one.
+	gameServer.scriptEngine.AddFunction("mapEngineCount", func() uint32 {
+		return uint32(len(gameServer.mapEngines))
 	})
 
 	return gameServer, nil

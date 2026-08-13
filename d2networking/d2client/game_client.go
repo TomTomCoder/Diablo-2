@@ -102,21 +102,12 @@ func Create(connectionType d2clientconnectiontype.ClientConnectionType,
 // If the client is remote it sends a PlayerConnectionRequestPacket to the
 // server (see d2netpacket).
 func (g *GameClient) Open(connectionString, saveFilePath string) error {
-	switch g.connectionType {
-	case d2clientconnectiontype.LANServer, d2clientconnectiontype.Local:
-		g.scriptEngine.AllowEval()
-	}
-
 	return g.clientConnection.Open(connectionString, saveFilePath)
 }
 
 // Close destroys the server if the client is local. For remote clients
 // it sends a DisconnectRequestPacket (see d2netpacket).
 func (g *GameClient) Close() error {
-	switch g.connectionType {
-	case d2clientconnectiontype.LANServer, d2clientconnectiontype.Local:
-		g.scriptEngine.DisallowEval()
-	}
 
 	return g.clientConnection.Close()
 }
