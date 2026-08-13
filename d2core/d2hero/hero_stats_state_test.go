@@ -80,6 +80,36 @@ func TestHeroStatsStateMagicImmunity(t *testing.T) {
 	}
 }
 
+func TestResonanceMagiqueBonusConsumedOnce(t *testing.T) {
+	stats := &HeroStatsState{}
+	now := time.Now()
+
+	if stats.ConsumeResonanceMagiqueBonus(now) {
+		t.Fatal("a fresh hero should have no bonus armed to consume")
+	}
+
+	stats.ApplyResonanceMagiqueBonus(now.Add(3 * time.Second))
+
+	if !stats.ConsumeResonanceMagiqueBonus(now) {
+		t.Error("expected the bonus to be active and consumable immediately after ApplyResonanceMagiqueBonus")
+	}
+
+	if stats.ConsumeResonanceMagiqueBonus(now) {
+		t.Error("expected the bonus to be gone after being consumed once")
+	}
+}
+
+func TestResonanceMagiqueBonusExpiresUnused(t *testing.T) {
+	stats := &HeroStatsState{}
+	now := time.Now()
+
+	stats.ApplyResonanceMagiqueBonus(now.Add(3 * time.Second))
+
+	if stats.ConsumeResonanceMagiqueBonus(now.Add(4 * time.Second)) {
+		t.Error("expected the bonus to have expired unused after its window elapsed")
+	}
+}
+
 func TestGrantExperienceNoLevelUp(t *testing.T) {
 	stats := &HeroStatsState{Level: 1, Experience: 0, NextLevelExp: 100}
 

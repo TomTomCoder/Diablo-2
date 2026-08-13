@@ -229,6 +229,27 @@ const SkillRuptureArcane = SkillTempeteDeLames + 1
 // MaitriseElementaireDamagePercent. Never cast (BaseSortDamage/ManaCost 0).
 const SkillMaitriseElementaire = SkillRuptureArcane + 1
 
+// SkillResonanceMagique is Devil's own skill ID for "Résonance magique"
+// (Arcane, devil_game_design_reference.md §7): "Synergie : chaque sort
+// lancé augmente les dégâts du suivant (+% temporaire)". Devil's second
+// multi-point-investment skill (see HeroState.InvestSkillPoint), same tier
+// as Prison de glace. Unlike Maîtrise élémentaire's permanent bonus, this
+// one is a temporary window armed by every cast and consumed by the next
+// eligible one -- see HeroStatsState.ApplyResonanceMagiqueBonus/
+// ConsumeResonanceMagiqueBonus and ResonanceMagiqueDamagePercent. §7
+// "Synergies": it amplifies "tous les sorts actifs des arbres I et II"
+// (Élémentalisme and Arcane only, not Ésotérisme). Never cast
+// (BaseSortDamage/ManaCost 0).
+const SkillResonanceMagique = SkillMaitriseElementaire + 1
+
+// SkillRegenerationAcceleree is Devil's own skill ID for "Régénération
+// accélérée" (Ésotérisme, devil_game_design_reference.md §7): "Augmente la
+// vitesse de régénération du mana". Same tier as Bouclier de mana, Devil's
+// third multi-point-investment skill -- see
+// GameServer.manaRegenPerSecond's call site in game_server.go and
+// RegenerationAccelereePercent. Never cast (BaseSortDamage/ManaCost 0).
+const SkillRegenerationAcceleree = SkillResonanceMagique + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -421,6 +442,20 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeElementalisme,
 		RequiredLevel: 18, // tier 4, alongside Orbe glaciale
 		ManaCost:      0,  // passive -- never cast, always on once learned
+	},
+	SkillResonanceMagique: {
+		ID:            SkillResonanceMagique,
+		Name:          "Résonance magique",
+		Tree:          TreeArcane,
+		RequiredLevel: 18, // tier 4, alongside Prison de glace
+		ManaCost:      0,  // passive -- never cast, always on once learned
+	},
+	SkillRegenerationAcceleree: {
+		ID:            SkillRegenerationAcceleree,
+		Name:          "Régénération accélérée",
+		Tree:          TreeEsoterisme,
+		RequiredLevel: 1, // tier 1, alongside Bouclier de mana
+		ManaCost:      0, // passive -- never cast, always on once learned
 	},
 }
 

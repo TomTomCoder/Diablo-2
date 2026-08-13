@@ -207,6 +207,45 @@ func TestManaRegenPerSecondScalesWithEnergy(t *testing.T) {
 	}
 }
 
+// TestCanCastNowRegenerationAccelereeSpeedsUpRegen is a regression test for
+// Régénération accélérée ("Augmente la vitesse de régénération du mana",
+// devil_game_design_reference.md §7). Uses a passive (ManaCost 0) as the
+// probe cast so canCastNow's own mana deduction doesn't muddy the regen
+// amount being checked.
+func TestCanCastNowRegenerationAccelereeSpeedsUpRegen(t *testing.T) {
+	const points = 2
+
+	stats := &d2hero.HeroStatsState{Energy: 0, Mana: 0, MaxMana: 100}
+	state := &d2hero.HeroState{
+		Stats:  stats,
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillRegenerationAcceleree: {SkillPoints: points}},
+	}
+	server := serverWithConnection(state)
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+	server.lastCastAt["p"] = now
+
+	const elapsedSeconds = 10.0
+	server.clock = func() time.Time { return now.Add(time.Duration(elapsedSeconds) * time.Second) }
+
+	baseRegen := int(manaRegenPerSecond(0) * elapsedSeconds)
+	percent := d2hero.RegenerationAccellereePercent(points)
+	boostedRegen := int(manaRegenPerSecond(0) * (1 + float64(percent)/100) * elapsedSeconds)
+
+	if boostedRegen <= baseRegen {
+		t.Fatal("test setup error: chosen points don't make the bonus visible after integer truncation")
+	}
+
+	if !server.canCastNow("p", d2hero.SkillMaitriseElementaire) {
+		t.Fatal("expected the (free, ManaCost 0) cast to succeed")
+	}
+
+	if stats.Mana != boostedRegen {
+		t.Errorf("expected Régénération accélérée's boosted regen of %d, got %d", boostedRegen, stats.Mana)
+	}
+}
+
 func TestNearestPlayerPicksClosest(t *testing.T) {
 	server := serverWithConnection(nil)
 	server.connections["far"] = &fakeClientConnection{
@@ -1195,5 +1234,89 @@ func TestResolveAttackDamageMaitriseElementaireDoesNotAffectOtherTrees(t *testin
 
 	if got := server.resolveAttackDamage("p", d2hero.SkillTempeteDeLames); got != want {
 		t.Errorf("expected an Ésotérisme skill to be unaffected by Maîtrise élémentaire (%d), got %d", want, got)
+	}
+}
+
+// TestResolveAttackDamageConsumesResonanceMagiqueBonus is a regression test
+// for Résonance magique ("chaque sort lancé augmente les dégâts du
+// suivant", devil_game_design_reference.md §7). The bonus itself is armed
+// by resolveMeleeHit on every cast (untestable here -- same map-engine/real
+// NPC gap as the rest of that function, see ROADMAP.md); this exercises
+// resolveAttackDamage's own consumption of an already-armed bonus.
+func TestResolveAttackDamageConsumesResonanceMagiqueBonus(t *testing.T) {
+	const points = 2
+
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{
+			Energy:                     0,
+			ResonanceMagiqueBonusUntil: time.Now().Add(time.Minute),
+		},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillResonanceMagique: {SkillPoints: points}},
+	})
+
+	traitDeFeuBase := d2hero.DevilSkills[d2hero.SkillTraitDeFeu].BaseSortDamage
+	percent := d2hero.ResonanceMagiqueDamagePercent(points)
+	want := traitDeFeuBase + (traitDeFeuBase*percent)/100
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != want {
+		t.Errorf("expected Résonance magique's armed bonus applied (%d), got %d", want, got)
+	}
+}
+
+// TestResolveAttackDamageResonanceMagiqueConsumedOnce checks that a second
+// cast right after the first no longer benefits -- the bonus is meant for
+// exactly one "next" cast.
+func TestResolveAttackDamageResonanceMagiqueConsumedOnce(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{
+			Energy:                     0,
+			ResonanceMagiqueBonusUntil: time.Now().Add(time.Minute),
+		},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillResonanceMagique: {SkillPoints: 2}},
+	}
+	server := serverWithConnection(state)
+
+	server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu)
+
+	traitDeFeuBase := d2hero.DevilSkills[d2hero.SkillTraitDeFeu].BaseSortDamage
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != traitDeFeuBase {
+		t.Errorf("expected the bonus already spent by the first cast, got %d instead of the base %d", got, traitDeFeuBase)
+	}
+}
+
+// TestResolveAttackDamageResonanceMagiqueRequiresTheSkillLearned checks that
+// an armed-but-unconsumed bonus does nothing for a caster who never learned
+// Résonance magique.
+func TestResolveAttackDamageResonanceMagiqueRequiresTheSkillLearned(t *testing.T) {
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{
+			Energy:                     0,
+			ResonanceMagiqueBonusUntil: time.Now().Add(time.Minute),
+		},
+		Skills: map[int]*d2hero.HeroSkill{},
+	})
+
+	traitDeFeuBase := d2hero.DevilSkills[d2hero.SkillTraitDeFeu].BaseSortDamage
+	if got := server.resolveAttackDamage("p", d2hero.SkillTraitDeFeu); got != traitDeFeuBase {
+		t.Errorf("expected no bonus without the skill learned, got %d instead of the base %d", got, traitDeFeuBase)
+	}
+}
+
+// TestResolveAttackDamageResonanceMagiqueDoesNotAffectEsoterisme checks the
+// tree gating: Résonance magique reaches Élémentalisme/Arcane, not
+// Ésotérisme.
+func TestResolveAttackDamageResonanceMagiqueDoesNotAffectEsoterisme(t *testing.T) {
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{
+			Energy:                     0,
+			ResonanceMagiqueBonusUntil: time.Now().Add(time.Minute),
+		},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillResonanceMagique: {SkillPoints: 3}},
+	})
+
+	want := d2hero.DevilSkills[d2hero.SkillTempeteDeLames].BaseSortDamage
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillTempeteDeLames); got != want {
+		t.Errorf("expected an Ésotérisme skill unaffected by Résonance magique (%d), got %d", want, got)
 	}
 }

@@ -392,6 +392,40 @@ func TestSkillMaitriseElementaireSharesTierWithOrbeGlaciale(t *testing.T) {
 	}
 }
 
+func TestSkillResonanceMagiqueSharesTierWithPrisonDeGlace(t *testing.T) {
+	resonance, prison := DevilSkills[SkillResonanceMagique], DevilSkills[SkillPrisonDeGlace]
+
+	if resonance.RequiredLevel != prison.RequiredLevel {
+		t.Errorf("expected Résonance magique and Prison de glace to share tier 4's RequiredLevel, got %d vs %d",
+			resonance.RequiredLevel, prison.RequiredLevel)
+	}
+
+	if resonance.Tree != TreeArcane {
+		t.Error("expected Résonance magique to belong to Arcane")
+	}
+
+	if resonance.BaseSortDamage != 0 {
+		t.Errorf("expected Résonance magique to deal no direct base_sort damage, got %d", resonance.BaseSortDamage)
+	}
+}
+
+func TestSkillRegenerationAccelereeSharesTierWithBouclierDeMana(t *testing.T) {
+	regen, bouclier := DevilSkills[SkillRegenerationAcceleree], DevilSkills[SkillBouclierDeMana]
+
+	if regen.RequiredLevel != bouclier.RequiredLevel {
+		t.Errorf("expected Régénération accélérée and Bouclier de mana to share tier 1's RequiredLevel, got %d vs %d",
+			regen.RequiredLevel, bouclier.RequiredLevel)
+	}
+
+	if regen.Tree != TreeEsoterisme {
+		t.Error("expected Régénération accélérée to belong to Ésotérisme")
+	}
+
+	if regen.BaseSortDamage != 0 {
+		t.Errorf("expected Régénération accélérée to deal no direct base_sort damage, got %d", regen.BaseSortDamage)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

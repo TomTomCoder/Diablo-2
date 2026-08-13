@@ -46,3 +46,33 @@ func TestMaitriseElementaireDamagePercent(t *testing.T) {
 		t.Errorf("expected the bonus to scale linearly with points invested (%d), got %d", one*3, got)
 	}
 }
+
+func TestResonanceMagiqueDamagePercent(t *testing.T) {
+	if got := ResonanceMagiqueDamagePercent(0); got != 0 {
+		t.Errorf("expected 0%% with no points invested, got %d", got)
+	}
+
+	one := ResonanceMagiqueDamagePercent(1)
+	if one <= 0 {
+		t.Fatalf("expected a positive bonus for 1 point invested, got %d", one)
+	}
+
+	if got := ResonanceMagiqueDamagePercent(3); got != one*3 {
+		t.Errorf("expected the bonus to scale linearly with points invested (%d), got %d", one*3, got)
+	}
+}
+
+func TestRegenerationAccellereePercent(t *testing.T) {
+	if got := RegenerationAccellereePercent(0); got != 0 {
+		t.Errorf("expected 0%% with no points invested, got %d", got)
+	}
+
+	one := RegenerationAccellereePercent(1)
+	if one <= 0 {
+		t.Fatalf("expected a positive bonus for 1 point invested, got %d", one)
+	}
+
+	if got := RegenerationAccellereePercent(3); got != one*3 {
+		t.Errorf("expected the bonus to scale linearly with points invested (%d), got %d", one*3, got)
+	}
+}

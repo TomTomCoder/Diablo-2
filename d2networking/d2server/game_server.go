@@ -111,7 +111,15 @@ func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 
 	if state := g.playerStateOf(sourceEntityID); state != nil && state.Stats != nil {
 		if hasCastBefore {
-			regen := int(manaRegenPerSecond(effectiveEnergy(state)) * now.Sub(last).Seconds())
+			regenPerSecond := manaRegenPerSecond(effectiveEnergy(state))
+
+			if accel, learned := state.Skills[d2hero.SkillRegenerationAcceleree]; learned {
+				if percent := d2hero.RegenerationAccellereePercent(accel.SkillPoints); percent > 0 {
+					regenPerSecond += regenPerSecond * float64(percent) / 100
+				}
+			}
+
+			regen := int(regenPerSecond * now.Sub(last).Seconds())
 			state.Stats.Mana = min(state.Stats.Mana+regen, state.Stats.MaxMana)
 		}
 
@@ -809,6 +817,14 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	// Résonance magique: "chaque sort lancé augmente les dégâts du suivant"
+	// -- every dispatched cast re-arms the bonus, regardless of which skill
+	// it is or whether the caster even knows Résonance magique (consuming
+	// it in resolveAttackDamage is what actually gates that).
+	if state := g.playerStateOf(castPacket.SourceEntityID); state != nil && state.Stats != nil {
+		state.Stats.ApplyResonanceMagiqueBonus(g.clock().Add(resonanceMagiqueWindow))
+	}
+
 	if radius, ok := selfCenteredAoeRadiusSubtiles[castPacket.SkillID]; ok {
 		g.resolveSelfCenteredAoeHit(castPacket.SourceEntityID, castPacket.SkillID, radius)
 		return
@@ -908,6 +924,12 @@ const amplificationDuration = 4 * time.Second
 // Amplification, the other tier-appropriate single-target Arcane debuff, in
 // the absence of a design-specified number.
 const ruptureArcaneDuration = 4 * time.Second
+
+// resonanceMagiqueWindow is how long Résonance magique's "dégâts du
+// suivant" bonus stays armed after a cast before going unused -- the
+// design says "temporaire" but gives no number, same placeholder practice
+// as amplificationDuration/ruptureArcaneDuration.
+const resonanceMagiqueWindow = 3 * time.Second
 
 // nearestKillableNPC returns the closest killable, living NPC to from
 // within radiusSubtiles, skipping any NPC ID present in exclude (nil is a
@@ -1374,6 +1396,18 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 	if def, ok := d2hero.DevilSkills[skillID]; ok && def.Tree == d2hero.TreeElementalisme {
 		if maitrise, learned := state.Skills[d2hero.SkillMaitriseElementaire]; learned {
 			if percent := d2hero.MaitriseElementaireDamagePercent(maitrise.SkillPoints); percent > 0 {
+				damage += (damage * percent) / 100
+			}
+		}
+	}
+
+	// Résonance magique's synergy only reaches Élémentalisme/Arcane
+	// ("tous les sorts actifs des arbres I et II", §7 "Synergies") --
+	// consuming the bonus is gated on `learned` first so a caster who never
+	// took the passive never touches (or clears) the armed timer.
+	if def, ok := d2hero.DevilSkills[skillID]; ok && (def.Tree == d2hero.TreeElementalisme || def.Tree == d2hero.TreeArcane) {
+		if resonance, learned := state.Skills[d2hero.SkillResonanceMagique]; learned && state.Stats.ConsumeResonanceMagiqueBonus(g.clock()) {
+			if percent := d2hero.ResonanceMagiqueDamagePercent(resonance.SkillPoints); percent > 0 {
 				damage += (damage * percent) / 100
 			}
 		}

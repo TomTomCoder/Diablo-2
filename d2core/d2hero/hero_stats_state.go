@@ -78,6 +78,14 @@ type HeroStatsState struct {
 	// Zero value means not immune. See ApplyMagicImmunity/IsMagicImmune.
 	MagicImmuneUntil time.Time `json:"-"`
 
+	// ResonanceMagiqueBonusUntil is when the temporary damage bonus armed by
+	// the hero's last cast (Résonance magique, Arcane §7: "chaque sort lancé
+	// augmente les dégâts du suivant") expires unused. Zero value means no
+	// bonus armed. Unlike the other *Until fields, this one is also cleared
+	// the moment it's used -- see ApplyResonanceMagiqueBonus/
+	// ConsumeResonanceMagiqueBonus.
+	ResonanceMagiqueBonusUntil time.Time `json:"-"`
+
 	// values which are not saved/loaded(computed)
 	NextLevelExp int `json:"-"`
 }
@@ -371,4 +379,22 @@ func (s *HeroStatsState) ApplyMagicImmunity(until time.Time) {
 // at now.
 func (s *HeroStatsState) IsMagicImmune(now time.Time) bool {
 	return now.Before(s.MagicImmuneUntil)
+}
+
+// ApplyResonanceMagiqueBonus arms the hero's next-cast damage bonus (see
+// ConsumeResonanceMagiqueBonus) until the given time. Devil's "Résonance
+// magique" (Arcane §7): every cast re-arms this, regardless of whether it
+// was already active.
+func (s *HeroStatsState) ApplyResonanceMagiqueBonus(until time.Time) {
+	s.ResonanceMagiqueBonusUntil = until
+}
+
+// ConsumeResonanceMagiqueBonus reports whether the hero's Résonance
+// magique bonus is still active at now, clearing it either way so it can
+// only ever benefit one cast.
+func (s *HeroStatsState) ConsumeResonanceMagiqueBonus(now time.Time) bool {
+	active := now.Before(s.ResonanceMagiqueBonusUntil)
+	s.ResonanceMagiqueBonusUntil = time.Time{}
+
+	return active
 }
