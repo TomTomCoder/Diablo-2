@@ -50,8 +50,8 @@ Avant d'ajouter du gameplay, s'assurer que ce qui existe ne casse pas silencieus
 
 **Reste à faire :**
 - **Modificateurs d'équipement** : le bâton/orbe équipé (ex. `+10% dégâts Feu` du Bâton de l'Apprenti, `devil_mage_character_design.md` §5) doit s'appliquer comme *modificateur* sur la formule, pas comme source de dégâts de base. L'équipement de départ Devil n'est pas encore assigné à la création de personnage — même chantier que *Trait de feu*, à traiter pareil (une compétence/un objet propre à Devil, un test qui garantit l'absence de crash).
-- **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif même en Apocalypse (contrairement à D2 où les résistances négatives punitives existent — décision de design explicite à respecter). Rien à mitiger encore : aucun monstre n'attaque le joueur (pas d'IA, voir Phase 4).
-- **Bouclier de mana** : mécanique défensive du design (§6) — absorbe les dégâts via la réserve de mana. Même dépendance : peu utile à tester avant que les monstres attaquent.
+- **Résistances** : remplacer toute logique de Defense/Armor par des résistances élémentaires (Feu/Froid/Foudre/Ombre), cap à 75%, jamais négatif même en Apocalypse (contrairement à D2 où les résistances négatives punitives existent — décision de design explicite à respecter). Débloqué : les monstres attaquent réellement le joueur depuis la Phase 4 (`tryMonsterAttack`), il y a maintenant quelque chose à mitiger.
+- **Bouclier de mana** : mécanique défensive du design (§6) — absorbe les dégâts via la réserve de mana. Même déblocage : `HeroStatsState.ApplyDamage` existe déjà, il reste à l'intercepter avant qu'elle réduise directement la Health.
 - **Sauvegarde** : format JSON maison pour commencer (pas la compatibilité `.d2s`, hors sujet puisque les stats/formats de personnage ne sont plus ceux de D2) — et voir la limite connue ci-dessus pour la résolution de compétence au chargement.
 
 **Simplifications volontaires qui restent acceptables pour l'instant** (documentées en commentaire `ponytail:` dans le code) : ciblage par proximité au lieu de clic-sur-cible, pas de jet de précision, une seule cible par sort (pas de zone d'effet même pour les sorts qui devraient en avoir un).
@@ -80,7 +80,8 @@ Le design définit **30 compétences en 3 arbres de 10** (`devil_game_design_ref
 
 Construit la première tranche de contenu jouable racontée, sur la Région I (Terres dévastées — "village natal de Devil, aujourd'hui méconnaissable", `devil_lore.md` §6).
 
-- **Gardien des Cendres** comme boss de fin de région : un monstre unique (pas une simple instance de monstat.txt générique), avec ses propres PV/résistances/comportement.
+- ✅ **IA de monstre minimale** : premier tick périodique côté serveur (`runMonsterAILoop`, 200ms — le serveur était jusqu'ici purement réactif aux paquets, n'avançait jamais rien de lui-même). Un monstre tuable détecte le joueur connecté le plus proche, le poursuit en ligne droite (`NPC.ChasePlayer`, pas de vrai pathfinding autour des obstacles), et l'attaque à portée avec son propre cooldown. Nouveau paquet `PlayerDamaged` pour synchroniser les PV du joueur au client. Chiffres à plat pour tous les monstres (portée, dégâts, cooldown) — pas encore de données par monstre. Commit `9e8fac4c`.
+- **Gardien des Cendres** comme boss de fin de région : un monstre unique (pas une simple instance de monstat.txt générique), avec ses propres PV/résistances/comportement — construit par-dessus l'IA minimale ci-dessus.
 - **Dialogues de Sage Wyn** (`devil_lore.md` §7) au démarrage et avant la salle du boss — premiers contenus scriptés via le pipeline WASM de la Phase 3.
 - **Narration à la mort du boss** — valide qu'un événement de gameplay (mort d'un monstre) peut déclencher un texte narratif, brique nécessaire pour la révélation finale du jeu plus tard.
 - **Une quête complète de bout en bout** sur cette région, pour valider tout le pipeline narratif avant d'en écrire pour les 4 autres régions.
