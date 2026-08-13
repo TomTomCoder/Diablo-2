@@ -47,9 +47,12 @@ var DevilCraftingRecipes = map[string]*DevilCraftingRecipe{
 
 // Craft attempts recipeID against h: the hero's own RightHand weapon must
 // match the recipe's input item code, and Gold must cover its cost. On
-// success, Gold is debited and the weapon's ItemCode becomes the recipe's
+// success, Gold is debited, the weapon's ItemCode becomes the recipe's
 // output -- resolveAttackDamage's existing ItemFireDamagePercent lookup
-// picks up the new item's bonuses automatically, no further wiring needed.
+// picks up the new item's bonuses automatically, no further wiring needed
+// -- and recipeID is marked discovered in h's Codex (DiscoverRecipe),
+// devil_game_design_reference.md §8's "chaque recette découverte (par
+// quête ou utilisation)".
 //
 // ponytail: only checks/mutates the equipped weapon slot, not a real
 // inventory/stash -- Devil doesn't have an inventory grid model yet
@@ -72,6 +75,7 @@ func (h *HeroState) Craft(recipeID string) error {
 
 	h.Gold -= recipe.InputGoldCost
 	h.Equipment.RightHand.ItemCode = recipe.OutputItemCode
+	h.DiscoverRecipe(recipeID)
 
 	return nil
 }

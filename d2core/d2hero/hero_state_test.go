@@ -264,3 +264,31 @@ func TestRespecSkillsWithNoSkillsIsNoop(t *testing.T) {
 		t.Errorf("expected SkillPoints unchanged at 3, got %d", hero.Stats.SkillPoints)
 	}
 }
+
+func TestDiscoverRecipeMarksItDiscoveredOnce(t *testing.T) {
+	hero := &HeroState{}
+
+	if hero.HasDiscoveredRecipe(RecipeUpgradeBatonApprenti) {
+		t.Fatal("a fresh hero should not start with any recipe discovered")
+	}
+
+	if !hero.DiscoverRecipe(RecipeUpgradeBatonApprenti) {
+		t.Error("expected the first discovery to report true")
+	}
+
+	if !hero.HasDiscoveredRecipe(RecipeUpgradeBatonApprenti) {
+		t.Error("expected the recipe to be discovered")
+	}
+
+	if hero.DiscoverRecipe(RecipeUpgradeBatonApprenti) {
+		t.Error("expected re-discovering an already-known recipe to report false")
+	}
+}
+
+func TestHasDiscoveredRecipeFalseForUnknownRecipe(t *testing.T) {
+	hero := &HeroState{}
+
+	if hero.HasDiscoveredRecipe("some-other-recipe") {
+		t.Error("expected false for a recipe never discovered")
+	}
+}

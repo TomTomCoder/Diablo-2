@@ -29,6 +29,16 @@ type HeroState struct {
 	// a d2inventory.CharacterEquipment field: it's slot *contents*, not an
 	// equipped item itself.
 	Belt []string `json:"belt"`
+
+	// DiscoveredRecipes tracks which Cube de Nexus recipe IDs (see
+	// devil_crafting.go's DevilCraftingRecipe.ID) h has ever crafted --
+	// devil_game_design_reference.md §8's "Codex progressif": "chaque
+	// recette découverte (par quête ou utilisation) est enregistrée et
+	// consultable à tout moment". Only "par utilisation" is modeled here
+	// (Craft marks a recipe discovered on success) -- "par quête" needs a
+	// quest system that doesn't exist yet. A value is only ever true;
+	// presence in the map is what DiscoverRecipe/HasDiscoveredRecipe check.
+	DiscoveredRecipes map[string]bool `json:"discoveredRecipes"`
 }
 
 // LearnSkill spends one skill point to add skillID to h.Skills, if h is
@@ -171,4 +181,26 @@ func (h *HeroState) RespecSingleAttributePoint(attr Attribute) error {
 	}
 
 	return h.Stats.RefundAttributePoint(attr)
+}
+
+// DiscoverRecipe marks recipeID as discovered in h's Codex
+// (DiscoveredRecipes), if it isn't already. Reports whether this was a new
+// discovery (false if recipeID was already known).
+func (h *HeroState) DiscoverRecipe(recipeID string) (newlyDiscovered bool) {
+	if h.DiscoveredRecipes == nil {
+		h.DiscoveredRecipes = make(map[string]bool)
+	}
+
+	if h.DiscoveredRecipes[recipeID] {
+		return false
+	}
+
+	h.DiscoveredRecipes[recipeID] = true
+
+	return true
+}
+
+// HasDiscoveredRecipe reports whether recipeID is in h's Codex.
+func (h *HeroState) HasDiscoveredRecipe(recipeID string) bool {
+	return h.DiscoveredRecipes[recipeID]
 }

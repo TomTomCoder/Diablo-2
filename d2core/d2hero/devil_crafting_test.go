@@ -29,6 +29,10 @@ func TestCraftUpgradesWeaponAndDeductsGold(t *testing.T) {
 	if want := 100 - 50; hero.Gold != want {
 		t.Errorf("expected Gold %d after crafting, got %d", want, hero.Gold)
 	}
+
+	if !hero.HasDiscoveredRecipe(RecipeUpgradeBatonApprenti) {
+		t.Error("expected the recipe marked discovered in the Codex after a successful craft")
+	}
 }
 
 func TestCraftFailsWithoutEnoughGold(t *testing.T) {
@@ -44,6 +48,10 @@ func TestCraftFailsWithoutEnoughGold(t *testing.T) {
 
 	if hero.Gold != 10 {
 		t.Errorf("expected Gold untouched after a failed craft, got %d", hero.Gold)
+	}
+
+	if hero.HasDiscoveredRecipe(RecipeUpgradeBatonApprenti) {
+		t.Error("expected a failed craft to not mark the recipe discovered")
 	}
 }
 

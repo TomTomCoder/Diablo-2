@@ -88,6 +88,7 @@ func TestSaveThenLoadRoundTripsARealDevilCharacter(t *testing.T) {
 			MaxHealth: 58, Health: 58,
 			ManaPerEne: 3,
 		},
+		DiscoveredRecipes: map[string]bool{RecipeUpgradeBatonApprenti: true},
 	}
 
 	// a second point invested in Maîtrise élémentaire, so SkillPoints != 1
@@ -146,6 +147,10 @@ func TestSaveThenLoadRoundTripsARealDevilCharacter(t *testing.T) {
 
 	if loaded.Stats.MaxHealth != 58 || loaded.Stats.Health != 58 {
 		t.Errorf("expected MaxHealth/Health to survive, got %d/%d", loaded.Stats.MaxHealth, loaded.Stats.Health)
+	}
+
+	if !loaded.HasDiscoveredRecipe(RecipeUpgradeBatonApprenti) {
+		t.Error("expected the Codex's discovered recipe to survive the round-trip")
 	}
 }
 
