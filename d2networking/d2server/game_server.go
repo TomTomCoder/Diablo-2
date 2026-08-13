@@ -150,17 +150,21 @@ func (g *GameServer) dexterityOf(sourceEntityID string) int {
 	return state.Stats.Dexterity
 }
 
-// effectiveEnergy returns state's own Energy plus its equipped RightHand
-// weapon's Energy bonus (d2hero.ItemEnergyBonus) -- e.g. Bâton de
-// l'Apprenti's "+5 Energy" (devil_mage_character_design.md §5), which
-// previously had no effect on gameplay: resolveAttackDamage and
-// manaRegenPerSecond both read state.Stats.Energy directly, ignoring it.
+// effectiveEnergy returns state's own Energy plus the Energy bonus
+// (d2hero.ItemEnergyBonus) of every equipped item that can carry one --
+// e.g. Bâton de l'Apprenti's "+5 Energy" and Pendentif Arcane's "+3 Energy"
+// (devil_mage_character_design.md §5), which previously had no effect on
+// gameplay: resolveAttackDamage and manaRegenPerSecond both read
+// state.Stats.Energy directly, ignoring equipment entirely.
 //
-// ponytail: only checks RightHand -- Devil has no other equipment slots
-// that could carry an Energy bonus yet (no amulet/ring slots exist on
-// d2inventory.CharacterEquipment). See ROADMAP.md Phase 5.
+// ponytail: only checks RightHand and Amulet -- Devil has no ring slots
+// yet (d2inventory.CharacterEquipment) to carry an Energy bonus from
+// Anneau du Début, which grants "+2 à tous les attributs" anyway, a shape
+// DevilItemDef doesn't model yet either. See ROADMAP.md Phase 5.
 func effectiveEnergy(state *d2hero.HeroState) int {
-	return state.Stats.Energy + d2hero.ItemEnergyBonus(state.Equipment.RightHand.GetItemCode())
+	return state.Stats.Energy +
+		d2hero.ItemEnergyBonus(state.Equipment.RightHand.GetItemCode()) +
+		d2hero.ItemEnergyBonus(state.Equipment.Amulet.GetItemCode())
 }
 
 // aiTickInterval is how often the monster AI loop reevaluates.

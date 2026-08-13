@@ -518,11 +518,17 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	playerState.Equipment = v.InventoryItemFactory.DefaultHeroItems[v.selectedHero]
 
 	// ponytail: overrides whatever D2 weapon DefaultHeroItems assigned --
-	// Devil's own starting gear isn't modeled beyond this one weapon yet
-	// (ROADMAP.md Phase 5).
+	// Devil's own starting gear isn't modeled beyond this weapon+amulet yet
+	// (ROADMAP.md Phase 5: no Robe du Novice/Ceinture de Cuir Runique/
+	// Anneau du Début equivalent -- Torso exists but nothing to put there
+	// yet, and there's no ring slot at all).
 	playerState.Equipment.RightHand = &d2inventory.InventoryItemWeapon{
 		ItemCode: d2hero.ItemBatonApprenti,
 		ItemName: d2hero.DevilItems[d2hero.ItemBatonApprenti].Name,
+	}
+	playerState.Equipment.Amulet = &d2inventory.InventoryItemMisc{
+		ItemCode: d2hero.ItemPendentifArcane,
+		ItemName: d2hero.DevilItems[d2hero.ItemPendentifArcane].Name,
 	}
 
 	v.navigator.ToCreateGame(playerState.FilePath, v.connectionType, v.connectionHost)

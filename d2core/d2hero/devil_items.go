@@ -15,6 +15,11 @@ const ItemBatonApprenti = "dvl_baton_apprenti"
 // See devil_crafting.go.
 const ItemBatonInitie = "dvl_baton_initie"
 
+// ItemPendentifArcane is Devil's own item code for "Pendentif Arcane"
+// (devil_mage_character_design.md §5: "+3 Energy"), one of the Mage's 5
+// starting items. Equips in the new CharacterEquipment.Amulet slot.
+const ItemPendentifArcane = "dvl_pendentif_arcane"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -32,9 +37,9 @@ type DevilItemDef struct {
 
 // DevilItems is the registry of Devil's own item data, keyed by code.
 //
-// ponytail: one entry (the starting staff) instead of the design's full
-// item set (§5, §8) -- this proves an equipped item can modify combat
-// damage at all, it doesn't fill in the item system.
+// ponytail: a handful of entries instead of the design's full item set
+// (§5, §8) -- this proves an equipped item can modify combat damage/Energy
+// at all, it doesn't fill in the item system.
 var DevilItems = map[string]*DevilItemDef{
 	ItemBatonApprenti: {
 		Code:              ItemBatonApprenti,
@@ -47,6 +52,11 @@ var DevilItems = map[string]*DevilItemDef{
 		Name:              "Bâton de l'Initié",
 		EnergyBonus:       8,  // better than Bâton de l'Apprenti's 5 -- it's an upgrade
 		FireDamagePercent: 15, // better than Bâton de l'Apprenti's 10
+	},
+	ItemPendentifArcane: {
+		Code:        ItemPendentifArcane,
+		Name:        "Pendentif Arcane",
+		EnergyBonus: 3,
 	},
 }
 

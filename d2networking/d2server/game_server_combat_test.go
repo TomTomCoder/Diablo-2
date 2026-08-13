@@ -694,6 +694,22 @@ func TestEffectiveEnergyWithNoWeaponIsJustBaseEnergy(t *testing.T) {
 	}
 }
 
+func TestEffectiveEnergyStacksWeaponAndAmuletBonuses(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats: &d2hero.HeroStatsState{Energy: 20},
+		Equipment: d2inventory.CharacterEquipment{
+			RightHand: &d2inventory.InventoryItemWeapon{ItemCode: d2hero.ItemBatonApprenti},
+			Amulet:    &d2inventory.InventoryItemMisc{ItemCode: d2hero.ItemPendentifArcane},
+		},
+	}
+
+	want := 20 + d2hero.ItemEnergyBonus(d2hero.ItemBatonApprenti) + d2hero.ItemEnergyBonus(d2hero.ItemPendentifArcane)
+
+	if got := effectiveEnergy(state); got != want {
+		t.Errorf("expected effective Energy %d (base + both equipped bonuses), got %d", want, got)
+	}
+}
+
 // TestResolveAttackDamageIncludesEquippedWeaponEnergyBonus is a regression
 // test: DevilItemDef.EnergyBonus (e.g. Bâton de l'Apprenti's declared
 // "+5 Energy", devil_mage_character_design.md §5) previously had zero
