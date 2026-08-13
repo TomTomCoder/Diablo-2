@@ -196,6 +196,14 @@ const SkillEveilDuNexus = SkillArmureDeGlace + 1
 // GameServer.restoreManaOnKill. Deals no direct damage (BaseSortDamage 0).
 const SkillAbsorptionEnergie = SkillEveilDuNexus + 1
 
+// SkillTranscendance is Devil's own skill ID for "Transcendance"
+// (Ésotérisme, devil_game_design_reference.md §7): "Au lieu de mourir, le
+// Mage se régénère une fois par zone (longue recharge)". A true passive
+// like Absorption d'énergie -- learned/not-learned is enough, no per-point
+// scaling needed. See GameServer.tryTranscend. Deals no direct damage
+// (BaseSortDamage 0), never cast (ManaCost 0).
+const SkillTranscendance = SkillAbsorptionEnergie + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: a handful of entries instead of the design's full 30 -- this
@@ -358,6 +366,13 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Name:          "Absorption d'énergie",
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 12, // tier 3, per the design's level table
+		ManaCost:      0,  // passive -- never cast, always on once learned
+	},
+	SkillTranscendance: {
+		ID:            SkillTranscendance,
+		Name:          "Transcendance",
+		Tree:          TreeEsoterisme,
+		RequiredLevel: 18, // tier 4, per the design's level table
 		ManaCost:      0,  // passive -- never cast, always on once learned
 	},
 }

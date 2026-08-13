@@ -30,6 +30,7 @@ func serverWithConnection(state *d2hero.HeroState) *GameServer {
 		connections:         make(map[string]ClientConnection),
 		lastCastAt:          make(map[string]time.Time),
 		lastMonsterAttackAt: make(map[string]time.Time),
+		lastTranscendanceAt: make(map[string]time.Time),
 		clock:               time.Now,
 	}
 	if state != nil {
@@ -467,6 +468,73 @@ func TestTryMonsterAttackWithArmureDeGlaceReducesDamage(t *testing.T) {
 
 	if reduced >= monsterAttackDamage {
 		t.Fatal("test is meaningless if the reduction doesn't actually reduce anything")
+	}
+}
+
+func TestTryMonsterAttackWithTranscendanceSavesFromDeath(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 1, MaxHealth: 10}
+	state := &d2hero.HeroState{
+		Stats:  stats,
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTranscendance: {}},
+	}
+	server := serverWithConnection(state)
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	// a hit that would otherwise kill (1 HP, more damage than that incoming)
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health <= 0 {
+		t.Fatalf("expected Transcendance to save the Mage from death, got HP %d", stats.Health)
+	}
+
+	if stats.Health != stats.MaxHealth*transcendanceHealPercent/100 {
+		t.Errorf("expected the death-save heal to restore %d%% of MaxHealth, got HP %d",
+			transcendanceHealPercent, stats.Health)
+	}
+}
+
+func TestTryMonsterAttackWithoutTranscendanceStillDies(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 1, MaxHealth: 10}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health != 0 {
+		t.Errorf("expected no death-save without the skill learned, got HP %d", stats.Health)
+	}
+}
+
+func TestTryTranscendGatesOnCooldown(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 1, MaxHealth: 10}
+	state := &d2hero.HeroState{
+		Stats:  stats,
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTranscendance: {}},
+	}
+	server := serverWithConnection(state)
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	if !server.tryTranscend("p", state) {
+		t.Fatal("expected the first transcend to succeed")
+	}
+
+	stats.Health = 0 // simulate dying again immediately
+
+	if server.tryTranscend("p", state) {
+		t.Error("expected a second transcend to be gated by its own cooldown")
+	}
+
+	if stats.Health != 0 {
+		t.Error("expected no heal from a transcend attempt blocked by cooldown")
+	}
+
+	server.clock = func() time.Time { return now.Add(transcendanceCooldown) }
+
+	if !server.tryTranscend("p", state) {
+		t.Error("expected transcend to succeed again once its cooldown elapsed")
 	}
 }
 

@@ -330,6 +330,22 @@ func TestSkillAbsorptionEnergieIsAFreePassive(t *testing.T) {
 	}
 }
 
+func TestSkillTranscendanceHasHigherTierThanAbsorptionEnergie(t *testing.T) {
+	skill := DevilSkills[SkillTranscendance]
+
+	if skill.Tree != TreeEsoterisme {
+		t.Errorf("expected Transcendance to belong to Ésotérisme, got tree %v", skill.Tree)
+	}
+
+	if skill.RequiredLevel <= DevilSkills[SkillAbsorptionEnergie].RequiredLevel {
+		t.Error("expected Transcendance to require a higher level than the tier-3 Ésotérisme skill")
+	}
+
+	if skill.ManaCost != 0 {
+		t.Errorf("expected Transcendance (a passive, never cast) to have ManaCost 0, got %d", skill.ManaCost)
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

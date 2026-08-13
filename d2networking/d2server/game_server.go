@@ -356,6 +356,10 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 
 	died := state.Stats.ApplyDamageWithManaShield(damage)
 
+	if died && g.tryTranscend(playerID, state) {
+		died = false
+	}
+
 	packet, err := d2netpacket.CreatePlayerDamagedPacket(playerID, state.Stats.Health, died)
 	if err != nil {
 		g.Errorf("CreatePlayerDamagedPacket: %v", err)
@@ -363,6 +367,50 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	}
 
 	g.sendPacketToClients(packet)
+}
+
+// transcendanceHealPercent is how much of MaxHealth Transcendance restores
+// when it saves the Mage from death ("le Mage se régénère").
+//
+// ponytail: the design names the effect but not an amount; a full heal
+// (100%) is a placeholder pending real balance numbers -- reasonable for a
+// rare death save.
+const transcendanceHealPercent = 100
+
+// transcendanceCooldown is how long Transcendance's death-save must wait
+// before it can trigger again.
+//
+// ponytail: "une fois par zone" (devil_game_design_reference.md §7
+// Ésotérisme) has no real meaning yet -- there's no zone-transition event
+// to reset it against. A long flat cooldown stands in until zone
+// transitions exist.
+const transcendanceCooldown = 5 * time.Minute
+
+// tryTranscend checks whether playerID has learned Transcendance and isn't
+// on cooldown; if so, it heals them (transcendanceHealPercent of MaxHealth)
+// and reports true so the caller can override a death. A no-op (false)
+// otherwise.
+func (g *GameServer) tryTranscend(playerID string, state *d2hero.HeroState) bool {
+	if _, learned := state.Skills[d2hero.SkillTranscendance]; !learned {
+		return false
+	}
+
+	now := g.clock()
+
+	g.Lock()
+	last, used := g.lastTranscendanceAt[playerID]
+
+	if used && now.Sub(last) < transcendanceCooldown {
+		g.Unlock()
+		return false
+	}
+
+	g.lastTranscendanceAt[playerID] = now
+	g.Unlock()
+
+	state.Stats.Heal(state.Stats.MaxHealth * transcendanceHealPercent / 100)
+
+	return true
 }
 
 // awardGold rolls a gold drop (d2hero.RollGoldDrop) and credits it to
@@ -1019,6 +1067,7 @@ type GameServer struct {
 	heroStateFactory    *d2hero.HeroStateFactory
 	lastCastAt          map[string]time.Time
 	lastMonsterAttackAt map[string]time.Time
+	lastTranscendanceAt map[string]time.Time
 	clock               func() time.Time // overridden in tests; defaults to time.Now
 
 	*d2util.Logger
@@ -1066,6 +1115,7 @@ func NewGameServer(asset *d2asset.AssetManager,
 		heroStateFactory:    heroStateFactory,
 		lastCastAt:          make(map[string]time.Time),
 		lastMonsterAttackAt: make(map[string]time.Time),
+		lastTranscendanceAt: make(map[string]time.Time),
 		clock:               time.Now,
 	}
 
