@@ -306,7 +306,11 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 		return
 	}
 
-	died := state.Stats.ApplyDamage(monsterAttackDamage)
+	// ponytail: every monster attack treated as Fire damage -- no per-monster
+	// element data exists yet (ROADMAP.md Phase 4). Enough to prove
+	// resistances actually mitigate something.
+	damage := d2hero.MitigateDamage(monsterAttackDamage, d2hero.CapResistance(state.Stats.FireResist))
+	died := state.Stats.ApplyDamage(damage)
 
 	packet, err := d2netpacket.CreatePlayerDamagedPacket(playerID, state.Stats.Health, died)
 	if err != nil {

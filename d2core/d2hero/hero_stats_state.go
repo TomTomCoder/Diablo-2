@@ -25,6 +25,14 @@ type HeroStatsState struct {
 	Stamina    float64 `json:"-"` // only MaxStamina is saved, Stamina gets reset on entering world
 	MaxStamina int     `json:"maxStamina"`
 
+	// Elemental resistances (devil_game_design_reference.md §6): Feu, Froid,
+	// Foudre, Ombre. Unlike Diablo 2, these can never go negative -- always
+	// clamp assignments through CapResistance.
+	FireResist      int `json:"fireResist"`
+	ColdResist      int `json:"coldResist"`
+	LightningResist int `json:"lightningResist"`
+	ShadowResist    int `json:"shadowResist"`
+
 	// values which are not saved/loaded(computed)
 	NextLevelExp int `json:"-"`
 }
@@ -53,6 +61,38 @@ func (f *HeroStateFactory) CreateHeroStatsState(heroClass d2enum.Hero, classStat
 	result.Stamina = float64(result.MaxStamina)
 
 	return &result
+}
+
+// resistanceCap is the maximum any elemental resistance can reach; unlike
+// Diablo 2, resistances here can never go negative either (see
+// CapResistance) -- devil_game_design_reference.md §6/§12.
+const resistanceCap = 75
+
+// CapResistance clamps a resistance value to [0, resistanceCap]. Always run
+// resistance assignments through this rather than setting the field
+// directly, so nothing can push a resistance negative (Devil explicitly
+// removes Diablo 2's punitive negative-resistance mechanic) or over the cap.
+func CapResistance(value int) int {
+	if value < 0 {
+		return 0
+	}
+
+	if value > resistanceCap {
+		return resistanceCap
+	}
+
+	return value
+}
+
+// MitigateDamage reduces amount by resistPercent% (expected already capped
+// via CapResistance), flooring at 0.
+func MitigateDamage(amount, resistPercent int) int {
+	mitigated := amount - (amount*resistPercent)/100
+	if mitigated < 0 {
+		return 0
+	}
+
+	return mitigated
 }
 
 // ApplyDamage reduces Health by amount and reports whether the hero died.
