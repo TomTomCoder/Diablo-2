@@ -118,11 +118,11 @@ Construit la première tranche de contenu jouable racontée, sur la Région I (T
 - ✅ **Format de mod documenté** (`docs/modding.md`) : contrat hôte/invité, comment compiler un module Go avec le toolchain standard, la seule fonction hôte qui existe aujourd'hui, limites explicites (pas d'API quête/dialogue, types numériques/mémoire seulement, pas de sauvegarde côté script). Commit `4af83004`.
 - **Hors de portée ici** : finir la communication `abysswrapper` ↔ moteur, et étendre les éditeurs HellSpawner — les deux exigent le dépôt `hellspawner`/`AbyssEngine` séparé et une interface graphique (giu/ImGui) qui a besoin d'un display, indisponibles dans cet environnement — même nature de mur que la production d'assets visuels.
 
-## Phase 8 — Packaging & diffusion
-*En dernier.*
+## Phase 8 — Packaging & diffusion 🚧
+*Démarrée.*
 
-- Builds cross-plateforme via `goreleaser`.
-- Rappel légal explicite au premier lancement : le joueur doit fournir ses propres fichiers MPQ Diablo II + LoD achetés légalement — le binaire n'en contient aucun (le moteur en dépend toujours techniquement, même si le contenu affiché est celui de Devil).
+- ✅ **Build via `goreleaser`** (`.goreleaser.yml`, schéma v2) : vérifié de bout en bout — `goreleaser build --snapshot` produit un binaire réel, exécuté pour confirmer qu'il tourne. Scope honnête : macOS uniquement (amd64+arm64), vérifié. La compilation croisée CGO vers Linux échoue proprement depuis macOS sans toolchain C croisée (testé) — Windows aurait le même problème. La vraie solution (documentée dans le fichier) : un job CI par OS natif, pas de compilation croisée locale.
+- ✅ **Rappel légal au démarrage** : `d2app.Create` affiche maintenant un message rappelant que le jeu nécessite les fichiers Diablo II + LoD achetés légalement par le joueur — vérifié en exécutant le binaire buildé par goreleaser. Commit `cc6d8289`.
 
 ## Ce qu'on ne fait pas maintenant
 
