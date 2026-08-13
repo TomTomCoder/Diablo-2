@@ -724,3 +724,25 @@ func (r *MonStatRecord) MagicResistanceForDifficulty(difficulty d2enum.Difficult
 		return r.ResistanceMagicNormal
 	}
 }
+
+// AttackDamageRangeForDifficulty returns this monster's primary melee
+// attack's (min, max) damage range for the given difficulty (monstats.txt's
+// A1MinD/A1MinD(N)/A1MinD(H) and A1MaxD/A1MaxD(N)/A1MaxD(H) columns --
+// same design basis as HPRangeForDifficulty/MagicResistanceForDifficulty,
+// §3's "leurs résistances augmentent modérément" applying to monster power
+// scaling generally, not just resistances specifically).
+//
+// ponytail: d2mapentity.NPC.AttackDamageRange currently always uses the
+// Normal-difficulty columns regardless of the actual game difficulty --
+// same risk boundary as HPRangeForDifficulty/MagicResistanceForDifficulty,
+// not wired in for the same reason. See ROADMAP.md.
+func (r *MonStatRecord) AttackDamageRangeForDifficulty(difficulty d2enum.DifficultyType) (min, max int) {
+	switch difficulty {
+	case d2enum.DifficultyNightmare:
+		return r.DamageMinA1Nightmare, r.DamageMaxA1Nightmare
+	case d2enum.DifficultyHell:
+		return r.DamageMinA1Hell, r.DamageMaxA1Hell
+	default:
+		return r.DamageMinA1Normal, r.DamageMaxA1Normal
+	}
+}
