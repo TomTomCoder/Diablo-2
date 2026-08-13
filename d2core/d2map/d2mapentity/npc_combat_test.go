@@ -114,6 +114,29 @@ func TestNPCIsColdImmune(t *testing.T) {
 	}
 }
 
+func TestNPCAggroDistanceTiles(t *testing.T) {
+	npc := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{AiDistanceNormal: 12},
+	}
+	if got := npc.AggroDistanceTiles(); got != 12 {
+		t.Errorf("expected AggroDistanceTiles 12, got %d", got)
+	}
+
+	blank := &NPC{
+		mapEntity:     newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{},
+	}
+	if got := blank.AggroDistanceTiles(); got != 0 {
+		t.Errorf("expected AggroDistanceTiles 0 for a blank aidist column, got %d", got)
+	}
+
+	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
+	if got := noMonstat.AggroDistanceTiles(); got != 0 {
+		t.Errorf("expected AggroDistanceTiles 0 with no monstat record, got %d", got)
+	}
+}
+
 func TestNPCApplyDamage(t *testing.T) {
 	npc := killableNPC(10)
 

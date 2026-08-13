@@ -158,6 +158,24 @@ func (v *NPC) IsColdImmune() bool {
 	return v.monstatRecord.ColdSensitivityNormal == 0
 }
 
+// AggroDistanceTiles returns this NPC's AI activation radius in tiles
+// (monstats.txt's "aidist" column, d2records.MonStatRecord.AiDistanceNormal),
+// or 0 if it has no monstat record or the column was left blank. 0 is a
+// safe "no data" sentinel: real D2 treats a blank aidist as an implicit ~35
+// (that default lives in the game engine, not in the data file), and
+// Devil's own caller already falls back to its own flat radius constant
+// whenever this returns 0 -- same convention as AttackDamageRange.
+//
+// ponytail: always Normal-difficulty, same limitation as
+// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
+func (v *NPC) AggroDistanceTiles() int {
+	if v.monstatRecord == nil {
+		return 0
+	}
+
+	return v.monstatRecord.AiDistanceNormal
+}
+
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.
 // No-op (and never dies) for NPCs that aren't killable.
 func (v *NPC) ApplyDamage(amount int) (died bool) {

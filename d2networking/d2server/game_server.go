@@ -348,8 +348,10 @@ func (g *GameServer) runMonsterAILoop() {
 // advanceMonsterAI gives every killable, living NPC on the map a chance to
 // notice and react to the nearest connected player: chase if aggroed but
 // out of attack range, or attack if in range (subject to its own cooldown,
-// see tryMonsterAttack). NPCs with no player within monsterAggroRadiusSubtiles
-// are left alone entirely.
+// see tryMonsterAttack). NPCs with no player within their aggro radius
+// (monsterAggroRadiusSubtiles, or the monster's own real
+// d2mapentity.NPC.AggroDistanceTiles when its monstat data has one) are
+// left alone entirely.
 func (g *GameServer) advanceMonsterAI() {
 	if len(g.mapEngines) == 0 {
 		return
@@ -371,7 +373,12 @@ func (g *GameServer) advanceMonsterAI() {
 		dist := npcPos.Distance(&playerPos.Vector)
 		monsterKey := npc.MonsterKey()
 
-		if dist > d2hero.MonsterAggroRadiusSubtiles(monsterKey, monsterAggroRadiusSubtiles) {
+		aggroFallback := float64(monsterAggroRadiusSubtiles)
+		if tiles := npc.AggroDistanceTiles(); tiles > 0 {
+			aggroFallback = float64(tiles * subtilesPerTile)
+		}
+
+		if dist > d2hero.MonsterAggroRadiusSubtiles(monsterKey, aggroFallback) {
 			continue
 		}
 
