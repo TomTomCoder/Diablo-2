@@ -63,6 +63,19 @@ func TestSkillEclairEnChaineHasHigherTier(t *testing.T) {
 	}
 }
 
+func TestSkillNovaDeGivreSharesTierWithChainLightning(t *testing.T) {
+	nova, chain := DevilSkills[SkillNovaDeGivre], DevilSkills[SkillEclairEnChaine]
+
+	if nova.RequiredLevel != chain.RequiredLevel {
+		t.Errorf("expected Nova de givre and Éclair en chaîne to share tier 2's RequiredLevel, got %d vs %d",
+			nova.RequiredLevel, chain.RequiredLevel)
+	}
+
+	if nova.Tree != TreeElementalisme {
+		t.Error("expected Nova de givre to belong to Élémentalisme")
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

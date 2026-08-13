@@ -46,6 +46,13 @@ const SkillEclatDeGlace = SkillTraitDeFeu + 1
 // game_server.go -- see skillEclairEnChaineTargets/eclairEnChaineChainRadius.
 const SkillEclairEnChaine = SkillEclatDeGlace + 1
 
+// SkillNovaDeGivre is Devil's own skill ID for "Nova de givre"
+// (Élémentalisme, devil_game_design_reference.md §7): "Explosion de froid en
+// zone autour du Mage". Unlike the other Élémentalisme spells, it's centered
+// on the caster rather than a targeted/nearest NPC -- see resolveNovaHit in
+// game_server.go.
+const SkillNovaDeGivre = SkillEclairEnChaine + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
 // ponytail: three entries instead of the design's full 30 -- this phase is
@@ -77,6 +84,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  6, // tier 2 of Élémentalisme, per the design's level table
 		BaseSortDamage: 5,
 		ManaCost:       6,
+	},
+	SkillNovaDeGivre: {
+		ID:             SkillNovaDeGivre,
+		Name:           "Nova de givre",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  6, // tier 2, alongside Éclair en chaîne
+		BaseSortDamage: 4, // same cold-family trade-off as Éclat de glace: lower damage, an AoE footprint instead
+		ManaCost:       8, // costliest tier-2 spell -- it hits every killable NPC in range, not just one
 	},
 }
 

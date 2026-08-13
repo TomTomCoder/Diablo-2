@@ -182,6 +182,12 @@ const (
 	eclairEnChaineChainRadius  = 6
 )
 
+// novaDeGivreRadiusSubtiles: Nova de givre hits every killable NPC within
+// this many subtiles of the caster (devil_game_design_reference.md §7:
+// "Explosion de froid en zone autour du Mage") -- centered on the caster,
+// not on the cast's targeted position like every other Élémentalisme spell.
+const novaDeGivreRadiusSubtiles = 5
+
 // runMonsterAILoop periodically advances monster AI. Meant to be started as
 // a goroutine; returns once the server is stopped.
 func (g *GameServer) runMonsterAILoop() {
@@ -360,6 +366,11 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 		return
 	}
 
+	if castPacket.SkillID == d2hero.SkillNovaDeGivre {
+		g.resolveNovaHit(castPacket.SourceEntityID, castPacket.SkillID)
+		return
+	}
+
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
 	nearest := g.nearestKillableNPC(target, meleeHitRadiusSubtiles, nil)
@@ -447,6 +458,53 @@ func (g *GameServer) resolveChainHit(first *d2mapentity.NPC, sourceEntityID stri
 
 		current = g.nearestKillableNPC(current.GetPosition(), eclairEnChaineChainRadius, hit)
 	}
+}
+
+// resolveNovaHit resolves Nova de givre: hits every killable NPC within
+// novaDeGivreRadiusSubtiles of the caster's own position (read off their
+// HeroState -- the server has no map-entity for players, see nearestPlayer).
+// A no-op if sourceEntityID isn't a resolved connected player.
+//
+// Limite de test connue (same as resolveChainHit): exercising the actual
+// multi-NPC AoE path needs live d2mapentity.NPC instances in a map engine,
+// whose fields are private outside their own package -- only the no-op path
+// is unit-tested here.
+func (g *GameServer) resolveNovaHit(sourceEntityID string, skillID int) {
+	state := g.playerStateOf(sourceEntityID)
+	if state == nil {
+		return
+	}
+
+	center := d2vector.NewPosition(state.X, state.Y)
+
+	for _, npc := range g.killableNPCsWithin(center, novaDeGivreRadiusSubtiles) {
+		g.applyHit(npc, sourceEntityID, skillID)
+	}
+}
+
+// killableNPCsWithin returns every killable, living NPC within radiusSubtiles
+// of center. Unlike nearestKillableNPC, this collects all matches rather
+// than just the closest one -- for AoE spells like Nova de givre.
+func (g *GameServer) killableNPCsWithin(center d2vector.Position, radiusSubtiles float64) []*d2mapentity.NPC {
+	if len(g.mapEngines) == 0 {
+		return nil
+	}
+
+	var found []*d2mapentity.NPC
+
+	for _, entity := range g.mapEngines[0].Entities() {
+		npc, ok := entity.(*d2mapentity.NPC)
+		if !ok || !npc.IsKillable() || npc.HP <= 0 {
+			continue
+		}
+
+		pos := npc.GetPosition()
+		if center.Distance(&pos.Vector) <= radiusSubtiles {
+			found = append(found, npc)
+		}
+	}
+
+	return found
 }
 
 // resolveAttackDamage returns the damage a cast of skillID from

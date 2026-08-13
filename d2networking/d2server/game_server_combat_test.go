@@ -279,6 +279,21 @@ func TestAwardExperienceNoStatsNoop(t *testing.T) {
 	server.awardExperience("p")
 }
 
+func TestResolveNovaHitUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveNovaHit("nobody", d2hero.SkillNovaDeGivre)
+}
+
+func TestKillableNPCsWithinNoMapEnginesReturnsNil(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	if got := server.killableNPCsWithin(d2vector.NewPosition(0, 0), novaDeGivreRadiusSubtiles); got != nil {
+		t.Errorf("expected nil with no map engines, got %v", got)
+	}
+}
+
 func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
