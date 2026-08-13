@@ -154,6 +154,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handlePlayerDamagedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.GoldAwarded:
+		if err := g.handleGoldAwardedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.Ping:
 		if err := g.handlePingPacket(); err != nil {
 			g.Errorf("GameClient: error responding to server ping: %s", err)
@@ -322,6 +326,24 @@ func (g *GameClient) handlePlayerDamagedPacket(packet d2netpacket.NetPacket) err
 	}
 
 	player.Stats.Health = hit.HP
+
+	return nil
+}
+
+// handleGoldAwardedPacket applies a server-resolved gold total to the
+// local copy of the given player's entity.
+func (g *GameClient) handleGoldAwardedPacket(packet d2netpacket.NetPacket) error {
+	awarded, err := d2netpacket.UnmarshalGoldAwarded(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[awarded.PlayerID]
+	if !found {
+		return nil
+	}
+
+	player.Gold = awarded.Gold
 
 	return nil
 }

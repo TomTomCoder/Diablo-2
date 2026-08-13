@@ -33,6 +33,7 @@ const (
 	ServerFull                                           // Sent by server when server has reached max connections
 	NPCHit                                               // Sent by the server, an NPC took damage (and possibly died)
 	PlayerDamaged                                        // Sent by the server, a player took damage (and possibly died)
+	GoldAwarded                                          // Sent by the server, a player's gold total changed
 
 	UnknownPacketType = 666
 )
@@ -54,6 +55,7 @@ func (n NetPacketType) String() string {
 		ServerFull:                      "ServerFull",
 		NPCHit:                          "NPCHit",
 		PlayerDamaged:                   "PlayerDamaged",
+		GoldAwarded:                     "GoldAwarded",
 	}
 
 	return strings[n]

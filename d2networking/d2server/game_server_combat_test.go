@@ -236,6 +236,24 @@ func TestNearestPlayerNoConnections(t *testing.T) {
 	}
 }
 
+func TestAwardGoldCreditsThePlayer(t *testing.T) {
+	state := &d2hero.HeroState{Gold: 0}
+	server := serverWithConnection(state)
+
+	server.awardGold("p")
+
+	if state.Gold <= 0 {
+		t.Errorf("expected awardGold to credit some gold, got %d", state.Gold)
+	}
+}
+
+func TestAwardGoldUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	// must not panic when the player isn't a connected/resolved state.
+	server.awardGold("nobody")
+}
+
 func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})

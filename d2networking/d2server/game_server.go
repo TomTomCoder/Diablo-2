@@ -280,6 +280,26 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	g.sendPacketToClients(packet)
 }
 
+// awardGold rolls a gold drop (d2hero.RollGoldDrop) and credits it to
+// playerID, broadcasting their new total. A no-op if playerID isn't a
+// resolved connected player.
+func (g *GameServer) awardGold(playerID string) {
+	state := g.playerStateOf(playerID)
+	if state == nil {
+		return
+	}
+
+	state.Gold += d2hero.RollGoldDrop()
+
+	packet, err := d2netpacket.CreateGoldAwardedPacket(playerID, state.Gold)
+	if err != nil {
+		g.Errorf("CreateGoldAwardedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(packet)
+}
+
 // resolveMeleeHit checks for a killable NPC near the cast's target position
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
@@ -326,6 +346,7 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 
 	if died {
 		g.mapEngines[0].RemoveEntity(nearest)
+		g.awardGold(castPacket.SourceEntityID)
 	}
 
 	hitPacket, err := d2netpacket.CreateNPCHitPacket(nearest.ID(), nearest.HP, died)
