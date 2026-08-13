@@ -188,10 +188,24 @@ const (
 // not on the cast's targeted position like every other Élémentalisme spell.
 const novaDeGivreRadiusSubtiles = 5
 
-// bouleDeFeuRadiusSubtiles: Boule de feu hits every killable NPC within this
-// many subtiles of the cast's targeted position ("Projectile AoE, dégâts
-// feu élevés").
-const bouleDeFeuRadiusSubtiles = 3
+// bouleDeFeuRadiusSubtiles/tempeteStatiqueRadiusSubtiles: how many subtiles
+// around the cast's targeted position these AoE-at-target spells hit
+// ("Projectile AoE, dégâts feu élevés" / "Invoque une zone d'éclair
+// persistante" -- see SkillTempeteStatique's doc comment for why the
+// "persistante" part isn't modeled yet).
+const (
+	bouleDeFeuRadiusSubtiles      = 3
+	tempeteStatiqueRadiusSubtiles = 4
+)
+
+// aoeAtTargetRadiusSubtiles maps each AoE-at-target-position Élémentalisme
+// skill to its radius, so resolveMeleeHit can dispatch to resolveAoeHit
+// without a growing if-chain as more such spells are added (Orbe glaciale,
+// Météore, Apocalypse are all this shape too -- ROADMAP.md Phase 2).
+var aoeAtTargetRadiusSubtiles = map[int]float64{
+	d2hero.SkillBouleDeFeu:      bouleDeFeuRadiusSubtiles,
+	d2hero.SkillTempeteStatique: tempeteStatiqueRadiusSubtiles,
+}
 
 // runMonsterAILoop periodically advances monster AI. Meant to be started as
 // a goroutine; returns once the server is stopped.
@@ -378,8 +392,8 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 
 	target := d2vector.NewPosition(castPacket.TargetX, castPacket.TargetY)
 
-	if castPacket.SkillID == d2hero.SkillBouleDeFeu {
-		g.resolveAoeHit(target, castPacket.SourceEntityID, castPacket.SkillID, bouleDeFeuRadiusSubtiles)
+	if radius, ok := aoeAtTargetRadiusSubtiles[castPacket.SkillID]; ok {
+		g.resolveAoeHit(target, castPacket.SourceEntityID, castPacket.SkillID, radius)
 		return
 	}
 

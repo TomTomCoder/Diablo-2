@@ -59,11 +59,23 @@ const SkillNovaDeGivre = SkillEclairEnChaine + 1
 // but centered on the cast's targeted position rather than the caster.
 const SkillBouleDeFeu = SkillNovaDeGivre + 1
 
+// SkillTempeteStatique is Devil's own skill ID for "Tempête statique"
+// (Élémentalisme, devil_game_design_reference.md §7): "Invoque une zone
+// d'éclair persistante".
+//
+// ponytail: resolved as a single instant AoE hit at the targeted position
+// (same resolveAoeHit path as Boule de feu) rather than an actual
+// persistent, re-ticking zone -- no zone/duration entity exists yet.
+// Upgrade path: a per-cast expiry tracked the same way lastCastAt/
+// lastMonsterAttackAt are, re-running resolveAoeHit on that position every
+// aiTickInterval until it lapses.
+const SkillTempeteStatique = SkillBouleDeFeu + 1
+
 // DevilSkills is the registry of Devil's own skill data, keyed by ID.
 //
-// ponytail: three entries instead of the design's full 30 -- this phase is
-// about proving the data model (tier gating, synergies, a status effect,
-// and now a multi-target hit) works, not filling it in. Add the rest of
+// ponytail: a handful of entries instead of the design's full 30 -- this
+// phase is about proving the data model (tier gating, synergies, a status
+// effect, multi-target/AoE hits) works, not filling it in. Add the rest of
 // Élémentalisme next (ROADMAP.md Phase 2), then Arcane/Ésotérisme once
 // their prerequisite mechanics (group control, ally summons) exist.
 var DevilSkills = map[int]*DevilSkillDef{
@@ -106,6 +118,14 @@ var DevilSkills = map[int]*DevilSkillDef{
 		RequiredLevel:  12, // tier 3, per the design's level table
 		BaseSortDamage: 10, // "dégâts feu élevés" -- highest base_sort of any Élémentalisme spell so far
 		ManaCost:       10,
+	},
+	SkillTempeteStatique: {
+		ID:             SkillTempeteStatique,
+		Name:           "Tempête statique",
+		Tree:           TreeElementalisme,
+		RequiredLevel:  12, // tier 3, alongside Boule de feu
+		BaseSortDamage: 6,  // lightning-family: between Éclair en chaîne and Boule de feu
+		ManaCost:       9,
 	},
 }
 

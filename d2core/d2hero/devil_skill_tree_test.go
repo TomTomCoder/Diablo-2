@@ -91,6 +91,19 @@ func TestSkillBouleDeFeuHasHighestTierAndDamageSoFar(t *testing.T) {
 	}
 }
 
+func TestSkillTempeteStatiqueSharesTierWithBouleDeFeu(t *testing.T) {
+	storm, fireball := DevilSkills[SkillTempeteStatique], DevilSkills[SkillBouleDeFeu]
+
+	if storm.RequiredLevel != fireball.RequiredLevel {
+		t.Errorf("expected Tempête statique and Boule de feu to share tier 3's RequiredLevel, got %d vs %d",
+			storm.RequiredLevel, fireball.RequiredLevel)
+	}
+
+	if storm.Tree != TreeElementalisme {
+		t.Error("expected Tempête statique to belong to Élémentalisme")
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

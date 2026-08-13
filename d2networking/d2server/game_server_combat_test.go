@@ -302,6 +302,14 @@ func TestResolveAoeHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolveAoeHit(d2vector.NewPosition(0, 0), "p", d2hero.SkillBouleDeFeu, bouleDeFeuRadiusSubtiles)
 }
 
+func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
+	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique} {
+		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {
+			t.Errorf("expected skill %d to be dispatched via aoeAtTargetRadiusSubtiles", skillID)
+		}
+	}
+}
+
 func TestTryMonsterAttackAppliesDamageAndGatesOnCooldown(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10}
 	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
