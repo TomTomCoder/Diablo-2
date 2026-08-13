@@ -103,6 +103,57 @@ func TestRespecSkillsRefundsPointsAndClearsSkills(t *testing.T) {
 	}
 }
 
+func TestRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+	hero.LeftSkill = SkillTraitDeFeu
+	hero.RightSkill = SkillEclatDeGlace
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("LearnSkill(Trait de feu) should succeed, got %v", err)
+	}
+
+	if err := hero.LearnSkill(SkillEclatDeGlace); err != nil {
+		t.Fatalf("LearnSkill(Éclat de glace) should succeed, got %v", err)
+	}
+
+	refunded, err := hero.RespecSingleSkill(SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("expected RespecSingleSkill to succeed, got %v", err)
+	}
+
+	if refunded != 1 {
+		t.Errorf("expected 1 point refunded, got %d", refunded)
+	}
+
+	if hero.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints restored to 1, got %d", hero.Stats.SkillPoints)
+	}
+
+	if _, stillKnown := hero.Skills[SkillTraitDeFeu]; stillKnown {
+		t.Error("expected Trait de feu to be forgotten")
+	}
+
+	if _, stillKnown := hero.Skills[SkillEclatDeGlace]; !stillKnown {
+		t.Error("expected Éclat de glace to remain learned, untouched by the single-skill respec")
+	}
+
+	if hero.LeftSkill != 0 {
+		t.Errorf("expected LeftSkill (which was the forgotten skill) reset to 0, got %d", hero.LeftSkill)
+	}
+
+	if hero.RightSkill != SkillEclatDeGlace {
+		t.Errorf("expected RightSkill (a different, still-known skill) left untouched, got %d", hero.RightSkill)
+	}
+}
+
+func TestRespecSingleSkillFailsIfNotLearned(t *testing.T) {
+	hero := newLearnableHeroState(1, 0)
+
+	if _, err := hero.RespecSingleSkill(SkillTraitDeFeu); err == nil {
+		t.Error("expected an error respeccing a skill that was never learned")
+	}
+}
+
 func TestRespecSkillsWithNoSkillsIsNoop(t *testing.T) {
 	hero := newLearnableHeroState(1, 3)
 

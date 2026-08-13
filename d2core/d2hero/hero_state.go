@@ -84,3 +84,36 @@ func (h *HeroState) RespecSkills() (pointsRefunded int) {
 
 	return pointsRefunded
 }
+
+// RespecSingleSkill removes skillID from h.Skills and refunds its skill
+// points, without touching any other learned skill. Implements the skill
+// half of the design's "Glyphe d'oubli" (devil_game_design_reference.md
+// §10: "1 compétence ou 1 point d'attribut" -- see RespecSkills' own doc
+// comment for why the attribute half isn't modeled).
+//
+// ponytail: no item/drop/craft delivers this yet -- same as LearnSkill
+// originally, this is the business logic ready for whichever trigger comes
+// first (ROADMAP.md Phase 5: Glyphe d'oubli, Cube de Nexus).
+func (h *HeroState) RespecSingleSkill(skillID int) (pointsRefunded int, err error) {
+	skill, known := h.Skills[skillID]
+	if !known || skill == nil {
+		return 0, errors.New("skill not learned")
+	}
+
+	pointsRefunded = skill.SkillPoints
+	delete(h.Skills, skillID)
+
+	if h.LeftSkill == skillID {
+		h.LeftSkill = 0
+	}
+
+	if h.RightSkill == skillID {
+		h.RightSkill = 0
+	}
+
+	if h.Stats != nil {
+		h.Stats.SkillPoints += pointsRefunded
+	}
+
+	return pointsRefunded, nil
+}
