@@ -31,6 +31,22 @@ func TestSkillBaseSortDamageFallback(t *testing.T) {
 	}
 }
 
+func TestSkillEclatDeGlaceIsDistinctFromTraitDeFeu(t *testing.T) {
+	if SkillEclatDeGlace == SkillTraitDeFeu {
+		t.Fatal("SkillEclatDeGlace must not collide with SkillTraitDeFeu")
+	}
+
+	fire, ice := DevilSkills[SkillTraitDeFeu], DevilSkills[SkillEclatDeGlace]
+
+	if fire.Tree != ice.Tree {
+		t.Error("expected both starting Élémentalisme skills to share a tree")
+	}
+
+	if fire.BaseSortDamage == ice.BaseSortDamage {
+		t.Error("expected distinct base_sort values -- Éclat de glace trades damage for its slow effect")
+	}
+}
+
 func TestSkillManaCostFallback(t *testing.T) {
 	const fallback = 2
 

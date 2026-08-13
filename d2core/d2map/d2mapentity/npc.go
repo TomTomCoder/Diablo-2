@@ -2,6 +2,7 @@ package d2mapentity
 
 import (
 	"math/rand"
+	"time"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 
@@ -27,6 +28,10 @@ type NPC struct {
 	HasPaths      bool
 	isDone        bool
 	HP            int
+
+	// SlowedUntil is when this NPC's movement speed reduction expires (see
+	// ApplySlow/IsSlowed). Zero value means not slowed.
+	SlowedUntil time.Time
 }
 
 const (
@@ -84,9 +89,29 @@ const npcChaseSpeed = 6.0
 // an NPC will walk straight through obstacles between it and the player
 // rather than routing around them. Fine for open areas; see ROADMAP.md
 // Phase 4 for routing around walls.
-func (v *NPC) ChasePlayer(pos d2vector.Position) {
-	v.SetSpeed(npcChaseSpeed)
+func (v *NPC) ChasePlayer(pos d2vector.Position, now time.Time) {
+	speed := npcChaseSpeed
+	if v.IsSlowed(now) {
+		speed *= npcSlowedSpeedMultiplier
+	}
+
+	v.SetSpeed(speed)
 	v.setTarget(pos, nil)
+}
+
+// npcSlowedSpeedMultiplier is how much ChasePlayer's speed is reduced by
+// while SlowedUntil hasn't elapsed (e.g. after being hit by Éclat de
+// glace, "ralentit la cible" -- devil_game_design_reference.md §7).
+const npcSlowedSpeedMultiplier = 0.5
+
+// ApplySlow marks this NPC as slowed until the given time.
+func (v *NPC) ApplySlow(until time.Time) {
+	v.SlowedUntil = until
+}
+
+// IsSlowed reports whether this NPC's slow effect is still active at now.
+func (v *NPC) IsSlowed(now time.Time) bool {
+	return now.Before(v.SlowedUntil)
 }
 
 // Render renders this entity's animated composite.

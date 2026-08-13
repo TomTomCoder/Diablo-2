@@ -2,7 +2,9 @@ package d2mapentity
 
 import (
 	"testing"
+	"time"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 )
 
@@ -52,6 +54,46 @@ func TestNPCApplyDamage(t *testing.T) {
 	// already dead: further damage is a no-op, and it's still reported as dead
 	if died := npc.ApplyDamage(1); !died {
 		t.Error("applying damage to an already-dead NPC should still report died=true")
+	}
+}
+
+func TestNPCApplySlow(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	if npc.IsSlowed(now) {
+		t.Fatal("a fresh NPC should not start slowed")
+	}
+
+	npc.ApplySlow(now.Add(time.Second))
+
+	if !npc.IsSlowed(now) {
+		t.Error("expected the NPC to be slowed immediately after ApplySlow")
+	}
+
+	if npc.IsSlowed(now.Add(2 * time.Second)) {
+		t.Error("expected the slow to have expired after its duration elapsed")
+	}
+}
+
+func TestNPCChasePlayerRespectsSlow(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+	dest := d2vector.NewPosition(5, 5)
+
+	npc.ChasePlayer(dest, now)
+	normalSpeed := npc.GetSpeed()
+
+	npc.ApplySlow(now.Add(time.Second))
+	npc.ChasePlayer(dest, now)
+	slowedSpeed := npc.GetSpeed()
+
+	if slowedSpeed >= normalSpeed {
+		t.Errorf("expected a slowed chase speed (%v) to be less than normal (%v)", slowedSpeed, normalSpeed)
+	}
+
+	if got, want := slowedSpeed, normalSpeed*npcSlowedSpeedMultiplier; got != want {
+		t.Errorf("expected slowed speed %v, got %v", want, got)
 	}
 }
 

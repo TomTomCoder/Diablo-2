@@ -164,6 +164,14 @@ const (
 	monsterAttackDamage        = 3
 )
 
+// eclatDeGlaceSlowDuration is how long a hit NPC's movement speed stays
+// reduced (d2mapentity.NPC.ApplySlow) after being hit by Éclat de glace.
+//
+// ponytail: a flat duration -- the design doesn't specify one, and there's
+// no per-skill duration data model yet (only base_sort/mana cost exist on
+// DevilSkillDef today).
+const eclatDeGlaceSlowDuration = 3 * time.Second
+
 // runMonsterAILoop periodically advances monster AI. Meant to be started as
 // a goroutine; returns once the server is stopped.
 func (g *GameServer) runMonsterAILoop() {
@@ -210,7 +218,7 @@ func (g *GameServer) advanceMonsterAI() {
 		}
 
 		if dist > monsterAttackRangeSubtiles {
-			npc.ChasePlayer(playerPos)
+			npc.ChasePlayer(playerPos, g.clock())
 			continue
 		}
 
@@ -347,6 +355,8 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	if died {
 		g.mapEngines[0].RemoveEntity(nearest)
 		g.awardGold(castPacket.SourceEntityID)
+	} else if castPacket.SkillID == d2hero.SkillEclatDeGlace {
+		nearest.ApplySlow(g.clock().Add(eclatDeGlaceSlowDuration))
 	}
 
 	hitPacket, err := d2netpacket.CreateNPCHitPacket(nearest.ID(), nearest.HP, died)
