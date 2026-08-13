@@ -386,6 +386,38 @@ func TestBroadcastNPCMovedSendsCurrentPosition(t *testing.T) {
 	}
 }
 
+// TestBroadcastNPCStatusEffectSendsEffectAndExpiry is a regression test:
+// Éclat de glace/Ralentissement/Distorsion temporelle's slow, Prison de
+// glace's immobilize, Amplification's amplify, and Rupture arcane's
+// resistance strip all used to mutate the server's own copy of the NPC with
+// no way for clients to find out.
+func TestBroadcastNPCStatusEffectSendsEffectAndExpiry(t *testing.T) {
+	conn := &fakeClientConnection{}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	npc := &d2mapentity.NPC{}
+	until := time.Now().Add(4 * time.Second)
+
+	server.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	status, err := d2netpacket.UnmarshalNPCStatusEffect(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal NPCStatusEffectPacket: %v", err)
+	}
+
+	if status.Effect != d2netpacket.NPCStatusSlowed {
+		t.Errorf("expected effect %q, got %q", d2netpacket.NPCStatusSlowed, status.Effect)
+	}
+
+	if !status.Until.Equal(until) {
+		t.Errorf("expected expiry %v, got %v", until, status.Until)
+	}
+}
+
 func TestResolveTelekinesieHitUnknownPlayerNoop(t *testing.T) {
 	server := serverWithConnection(nil)
 

@@ -51,6 +51,7 @@ const (
 	RespecSingleAttributePointRequest                      // Sent by the client, requests refunding one point from a given attribute (Glyphe d'oubli)
 	SingleAttributePointRespeced                           // Sent by the server, one attribute point was refunded
 	NPCMoved                                               // Sent by the server, an NPC was instantly displaced (Télékinésie/Vortex)
+	NPCStatusEffect                                        // Sent by the server, a timed status effect was applied to an NPC (slow/immobilize/amplify/resistance strip)
 
 	UnknownPacketType = 666
 )
@@ -90,6 +91,7 @@ func (n NetPacketType) String() string {
 		RespecSingleAttributePointRequest: "RespecSingleAttributePointRequest",
 		SingleAttributePointRespeced:      "SingleAttributePointRespeced",
 		NPCMoved:                          "NPCMoved",
+		NPCStatusEffect:                   "NPCStatusEffect",
 	}
 
 	return strings[n]

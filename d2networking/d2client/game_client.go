@@ -154,6 +154,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleNPCMovedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.NPCStatusEffect:
+		if err := g.handleNPCStatusEffectPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.PlayerDamaged:
 		if err := g.handlePlayerDamagedPacket(packet); err != nil {
 			return err
@@ -367,6 +371,41 @@ func (g *GameClient) handleNPCMovedPacket(packet d2netpacket.NetPacket) error {
 	}
 
 	npc.Position.Set(moved.X, moved.Y)
+
+	return nil
+}
+
+// handleNPCStatusEffectPacket applies a server-resolved timed status effect
+// to the local copy of the NPC, via the same NPC methods the server itself
+// used to apply it. Unrecognized effect names are silently ignored (forward
+// compatibility with a server that knows about effects this client
+// doesn't).
+func (g *GameClient) handleNPCStatusEffectPacket(packet d2netpacket.NetPacket) error {
+	status, err := d2netpacket.UnmarshalNPCStatusEffect(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	entity, found := g.MapEngine.Entities()[status.EntityID]
+	if !found {
+		return nil
+	}
+
+	npc, ok := entity.(*d2mapentity.NPC)
+	if !ok {
+		return nil
+	}
+
+	switch status.Effect {
+	case d2netpacket.NPCStatusSlowed:
+		npc.ApplySlow(status.Until)
+	case d2netpacket.NPCStatusImmobilized:
+		npc.ApplyImmobilize(status.Until)
+	case d2netpacket.NPCStatusAmplified:
+		npc.ApplyAmplification(status.Until)
+	case d2netpacket.NPCStatusResistanceStripped:
+		npc.ApplyResistanceStrip(status.Until)
+	}
 
 	return nil
 }

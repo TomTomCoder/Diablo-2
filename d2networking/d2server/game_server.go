@@ -430,7 +430,9 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 		damage = damage * (100 - armureDeGlaceDamageReductionPercent) / 100
 
 		if attacker := g.npcByID(npcID); attacker != nil {
-			attacker.ApplySlow(now.Add(armureDeGlaceSlowDuration))
+			until := now.Add(armureDeGlaceSlowDuration)
+			attacker.ApplySlow(until)
+			g.broadcastNPCStatusEffect(attacker, d2netpacket.NPCStatusSlowed, until)
 		}
 	}
 
@@ -903,12 +905,18 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	}
 
 	if castPacket.SkillID == d2hero.SkillAmplification {
-		nearest.ApplyAmplification(g.clock().Add(amplificationDuration))
+		until := g.clock().Add(amplificationDuration)
+		nearest.ApplyAmplification(until)
+		g.broadcastNPCStatusEffect(nearest, d2netpacket.NPCStatusAmplified, until)
+
 		return
 	}
 
 	if castPacket.SkillID == d2hero.SkillRuptureArcane {
-		nearest.ApplyResistanceStrip(g.clock().Add(ruptureArcaneDuration))
+		until := g.clock().Add(ruptureArcaneDuration)
+		nearest.ApplyResistanceStrip(until)
+		g.broadcastNPCStatusEffect(nearest, d2netpacket.NPCStatusResistanceStripped, until)
+
 		return
 	}
 
@@ -1030,7 +1038,9 @@ func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID st
 		g.awardExperience(sourceEntityID)
 		g.restoreManaOnKill(sourceEntityID)
 	} else if skillID == d2hero.SkillEclatDeGlace {
-		npc.ApplySlow(g.clock().Add(eclatDeGlaceSlowDuration))
+		until := g.clock().Add(eclatDeGlaceSlowDuration)
+		npc.ApplySlow(until)
+		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)
 	}
 
 	hitPacket, err := d2netpacket.CreateNPCHitPacket(npc.ID(), npc.HP, died)
@@ -1173,6 +1183,7 @@ func (g *GameServer) resolveDistorsionTemporelleHit() {
 		}
 
 		npc.ApplySlow(until)
+		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)
 	}
 }
 
@@ -1266,6 +1277,21 @@ func (g *GameServer) broadcastNPCMoved(npc *d2mapentity.NPC) {
 	g.sendPacketToClients(movedPacket)
 }
 
+// broadcastNPCStatusEffect tells clients that npc has effect applied until
+// the given time -- Éclat de glace/Ralentissement/Distorsion temporelle's
+// slow, Prison de glace's immobilize, Amplification's damage amplification,
+// Rupture arcane's resistance strip. Each of these previously only mutated
+// the server's own copy of the NPC, with clients never finding out.
+func (g *GameServer) broadcastNPCStatusEffect(npc *d2mapentity.NPC, effect string, until time.Time) {
+	statusPacket, err := d2netpacket.CreateNPCStatusEffectPacket(npc.ID(), effect, until)
+	if err != nil {
+		g.Errorf("CreateNPCStatusEffectPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(statusPacket)
+}
+
 // resolveTelekinesieHit knocks every killable NPC within telekinesieRadiusSubtiles
 // of target away from sourceEntityID's own position, via d2mapentity.NPC.Knockback.
 // A no-op (besides the position scan) if sourceEntityID isn't a resolved
@@ -1309,6 +1335,7 @@ func (g *GameServer) resolveRalentissementHit(target d2vector.Position) {
 
 	for _, npc := range g.killableNPCsWithin(target, ralentissementRadiusSubtiles) {
 		npc.ApplySlow(until)
+		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)
 	}
 }
 
@@ -1331,6 +1358,7 @@ func (g *GameServer) resolvePrisonDeGlaceHit(target d2vector.Position) {
 
 	for _, npc := range g.killableNPCsWithin(target, prisonDeGlaceRadiusSubtiles) {
 		npc.ApplyImmobilize(until)
+		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusImmobilized, until)
 	}
 }
 
