@@ -55,3 +55,21 @@ func TestItemHealthAndManaBonus(t *testing.T) {
 		t.Errorf("expected 0 Mana bonus for an unknown item code, got %d", got)
 	}
 }
+
+func TestItemPotionSlotsAndManaRestoreAmount(t *testing.T) {
+	if got := ItemPotionSlots(ItemCeintureDeCuirRunique); got != 4 {
+		t.Errorf("expected Ceinture de Cuir Runique's 4 potion slots, got %d", got)
+	}
+
+	if got := ItemManaRestoreAmount(ItemPotionDeMana); got != 10 {
+		t.Errorf("expected Potion de Mana's restore amount of 10, got %d", got)
+	}
+
+	if got := ItemPotionSlots("unknown-item-code"); got != 0 {
+		t.Errorf("expected 0 potion slots for an unknown item code, got %d", got)
+	}
+
+	if got := ItemManaRestoreAmount("unknown-item-code"); got != 0 {
+		t.Errorf("expected 0 Mana restore for an unknown item code, got %d", got)
+	}
+}

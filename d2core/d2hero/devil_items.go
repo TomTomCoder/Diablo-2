@@ -32,6 +32,20 @@ const ItemAnneauDuDebut = "dvl_anneau_du_debut"
 // (*d2inventory.InventoryItemArmor).
 const ItemRobeDuNovice = "dvl_robe_du_novice"
 
+// ItemCeintureDeCuirRunique is Devil's own item code for "Ceinture de Cuir
+// Runique" (devil_mage_character_design.md §5: "4 emplacements potions"),
+// the last of the Mage's 5 starting items. Grants belt slots (see
+// devil_belt.go) rather than a combat stat -- devil_game_design_reference.md
+// §8 notes belts can hold up to 16 slots once upgraded, so this constant is
+// this specific belt's capacity, not a hardcoded universal one.
+const ItemCeintureDeCuirRunique = "dvl_ceinture_cuir_runique"
+
+// ItemPotionDeMana is Devil's own item code for a mana potion
+// (devil_game_design_reference.md §8: "Ceinture : jusqu'à 16 emplacements
+// pour potions de mana et parchemins"). A consumable, not equipped -- see
+// HeroState.UsePotion in devil_belt.go.
+const ItemPotionDeMana = "dvl_potion_de_mana"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -67,6 +81,16 @@ type DevilItemDef struct {
 	// applied on top of a cast's base_sort/Energy damage -- not a source of
 	// base damage itself. See resolveAttackDamage's caller in game_server.go.
 	FireDamagePercent int
+
+	// PotionSlots is how many belt slots this item grants -- e.g. Ceinture
+	// de Cuir Runique's "4 emplacements potions". Only meaningful for belt
+	// items; 0 for everything else. See devil_belt.go.
+	PotionSlots int
+
+	// ManaRestoreAmount is how much Mana this item restores when consumed
+	// (d2hero.HeroState.UsePotion) -- only meaningful for potions; 0 for
+	// everything else.
+	ManaRestoreAmount int
 }
 
 // DevilItems is the registry of Devil's own item data, keyed by code.
@@ -102,6 +126,16 @@ var DevilItems = map[string]*DevilItemDef{
 		Name:        "Robe du Novice",
 		HealthBonus: 15,
 		ManaBonus:   5,
+	},
+	ItemCeintureDeCuirRunique: {
+		Code:        ItemCeintureDeCuirRunique,
+		Name:        "Ceinture de Cuir Runique",
+		PotionSlots: 4,
+	},
+	ItemPotionDeMana: {
+		Code:              ItemPotionDeMana,
+		Name:              "Potion de Mana",
+		ManaRestoreAmount: 10,
 	},
 }
 
@@ -150,6 +184,26 @@ func ItemHealthBonus(itemCode string) int {
 func ItemManaBonus(itemCode string) int {
 	if def, ok := DevilItems[itemCode]; ok {
 		return def.ManaBonus
+	}
+
+	return 0
+}
+
+// ItemPotionSlots returns itemCode's belt capacity (0 if it's not in
+// DevilItems or isn't a belt).
+func ItemPotionSlots(itemCode string) int {
+	if def, ok := DevilItems[itemCode]; ok {
+		return def.PotionSlots
+	}
+
+	return 0
+}
+
+// ItemManaRestoreAmount returns itemCode's Mana restore amount (0 if it's
+// not in DevilItems or isn't a mana potion).
+func ItemManaRestoreAmount(itemCode string) int {
+	if def, ok := DevilItems[itemCode]; ok {
+		return def.ManaRestoreAmount
 	}
 
 	return 0

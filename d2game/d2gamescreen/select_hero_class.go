@@ -518,9 +518,7 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	playerState.Equipment = v.InventoryItemFactory.DefaultHeroItems[v.selectedHero]
 
 	// ponytail: overrides whatever D2 weapon DefaultHeroItems assigned --
-	// Devil's own starting gear isn't modeled beyond these four yet
-	// (ROADMAP.md Phase 5: no Ceinture de Cuir Runique equivalent -- no
-	// potion belt system exists at all yet).
+	// Devil's own starting gear.
 	playerState.Equipment.RightHand = &d2inventory.InventoryItemWeapon{
 		ItemCode: d2hero.ItemBatonApprenti,
 		ItemName: d2hero.DevilItems[d2hero.ItemBatonApprenti].Name,
@@ -548,6 +546,11 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	playerState.Stats.Health += healthBonus
 	playerState.Stats.MaxMana += manaBonus
 	playerState.Stats.Mana += manaBonus
+
+	// Ceinture de Cuir Runique's "4 emplacements potions" -- the belt
+	// itself isn't an equipped stat item (no CharacterEquipment.Belt
+	// field, ROADMAP.md Phase 5), it just grants potion slots.
+	playerState.InitBelt(d2hero.ItemPotionSlots(d2hero.ItemCeintureDeCuirRunique))
 
 	v.navigator.ToCreateGame(playerState.FilePath, v.connectionType, v.connectionHost)
 }

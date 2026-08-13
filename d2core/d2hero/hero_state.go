@@ -22,6 +22,13 @@ type HeroState struct {
 	RightSkill int                            `json:"rightSkill"`
 	Gold       int                            `json:"Gold"`
 	Difficulty d2enum.DifficultyType          `json:"difficulty"`
+
+	// Belt holds potion item codes by slot, "" meaning empty -- Devil's
+	// own potion belt (devil_game_design_reference.md §8), sized by
+	// whichever belt item granted it (see InitBelt in devil_belt.go). Not
+	// a d2inventory.CharacterEquipment field: it's slot *contents*, not an
+	// equipped item itself.
+	Belt []string `json:"belt"`
 }
 
 // LearnSkill spends one skill point to add skillID to h.Skills, if h is
