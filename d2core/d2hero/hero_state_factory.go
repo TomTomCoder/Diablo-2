@@ -3,7 +3,6 @@ package d2hero
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -72,7 +71,7 @@ func (f *HeroStateFactory) CreateHeroState(
 // GetAllHeroStates returns all player saves
 func (f *HeroStateFactory) GetAllHeroStates() ([]*HeroState, error) {
 	basePath, _ := f.getGameBaseSavePath()
-	files, _ := ioutil.ReadDir(basePath)
+	files, _ := os.ReadDir(basePath)
 	result := make([]*HeroState, 0)
 
 	for _, file := range files {
@@ -172,7 +171,7 @@ func (f *HeroStateFactory) CreateHeroSkill(points int, name string) (*HeroSkill,
 // HasGameStates returns true if the player has any previously saved game
 func (f *HeroStateFactory) HasGameStates() bool {
 	basePath, _ := f.getGameBaseSavePath()
-	files, _ := ioutil.ReadDir(basePath)
+	files, _ := os.ReadDir(basePath)
 
 	return len(files) > 0
 }
@@ -185,7 +184,7 @@ func (f *HeroStateFactory) CreateTestGameState() *HeroState {
 
 // LoadHeroState loads the player state from the file
 func (f *HeroStateFactory) LoadHeroState(filePath string) *HeroState {
-	strData, err := ioutil.ReadFile(filepath.Clean(filePath))
+	strData, err := os.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		return nil
 	}
@@ -269,7 +268,7 @@ func (f *HeroStateFactory) Save(state *HeroState) error {
 	}
 
 	fileJSON, _ := json.MarshalIndent(state, "", "   ")
-	if err := ioutil.WriteFile(state.FilePath, fileJSON, writefilePermission); err != nil {
+	if err := os.WriteFile(state.FilePath, fileJSON, writefilePermission); err != nil {
 		return err
 	}
 
