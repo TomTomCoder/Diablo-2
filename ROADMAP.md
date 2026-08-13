@@ -70,12 +70,14 @@ Le design définit **30 compétences en 3 arbres de 10** (`devil_game_design_ref
 
 **Pourquoi Élémentalisme en premier :** c'est l'arbre qui valide le plus directement la formule de dégâts déjà posée en Phase 1, sans dépendre de mécaniques qui n'existent pas encore (contrôle de groupe, invocations alliées).
 
-## Phase 3 — Scripting moderne
-*2–3 semaines. Indépendant du contenu — peut se faire en parallèle des Phases 1/2.*
+## Phase 3 — Scripting moderne ✅
+*Fait — commit `5c544c9c`.*
 
-- `d2script` embarque `otto`, un interpréteur JS pur Go sans activité depuis des années. Le remplacer par `wazero` (runtime WASM pur Go, zéro cgo, activement maintenu) : la logique de quêtes/événements/dialogues devient des modules WASM sandboxés.
-- C'est aussi le mécanisme qui portera la **narration** (Phase 4) : déclencher les dialogues de Sage Wyn, la révélation finale, les quêtes d'urgence des Events temporaires (§9 du game design).
-- Exposer une API minimale et stable aux scripts plutôt que toute la surface de `d2interface`.
+- ✅ `d2script` utilisait `otto` (interpréteur JS pur Go sans activité depuis des années). Remplacé par `wazero` (runtime WASM pur Go, zéro cgo, activement maintenu) : `ScriptEngine` charge et exécute des modules `.wasm` compilés à l'avance plutôt que d'interpréter du texte JS.
+- ✅ `Eval`/`AllowEval`/`DisallowEval` supprimés entièrement — pas d'équivalent WASM ("évaluer une chaîne de code arbitraire" n'existe pas dans ce modèle), et c'est une vraie amélioration de sécurité : un module WASM ne peut appeler que les fonctions hôte qui lui sont explicitement données, jamais un accès arbitraire au process comme avec `Eval()`.
+- ✅ Test de bout en bout réel (pas juste la plomberie à vide) : le toolchain Go standard compile directement en WASM (`GOOS=wasip1 GOARCH=wasm go build`, sans tinygo/clang) — un vrai module invité compilé (`d2script/testdata/hello.wasm`) importe et appelle une fonction hôte, le test vérifie que la valeur passée arrive bien côté Go.
+- La compétence `getMapEngines` (exposait tout le slice `[]*MapEngine` via le passage de valeur arbitraire d'otto) ne se traduit pas en WASM — un module invité ne peut pas garder une référence Go vivante. Remplacée par un placeholder minimal (`mapEngineCount`, retourne un compte) qui prouve juste que le mécanisme fonctionne. Rien n'exploite ce point d'accroche aujourd'hui de toute façon.
+- Reste à faire : c'est le mécanisme qui portera la **narration** (Phase 4) — déclencher les dialogues de Sage Wyn, la révélation finale, les quêtes d'urgence des Events temporaires (§9) — mais l'API de script réelle (quelles fonctions hôte exposer, quel format de module invité pour une "quête") n'est pas encore conçue, seulement le mécanisme de base.
 
 ## Phase 4 — Contenu narratif & Région I
 *Après qu'un sort fonctionne (Phase 1) et que le scripting moderne soit en place (Phase 3).*
