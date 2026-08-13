@@ -516,6 +516,30 @@ func TestResolveBouclierDeManaHitUnknownPlayerNoop(t *testing.T) {
 	server.resolveBouclierDeManaHit("nobody")
 }
 
+// TestResolveBouclierDeManaHitBroadcastsToggle is a regression test:
+// resolveBouclierDeManaHit used to toggle ManaShieldActive server-side with
+// nothing telling clients (even the caster's own, since solo play still
+// round-trips through a local client/server -- ROADMAP.md).
+func TestResolveBouclierDeManaHitBroadcastsToggle(t *testing.T) {
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	server.resolveBouclierDeManaHit("p")
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	status, err := d2netpacket.UnmarshalPlayerStatusEffect(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerStatusEffectPacket: %v", err)
+	}
+
+	if status.Effect != d2netpacket.PlayerStatusManaShield || !status.Active {
+		t.Errorf("expected effect %q active=true, got %q active=%v", d2netpacket.PlayerStatusManaShield, status.Effect, status.Active)
+	}
+}
+
 func TestAoeAtTargetRadiusSubtilesHasEveryAoeAtTargetSkill(t *testing.T) {
 	for _, skillID := range []int{d2hero.SkillBouleDeFeu, d2hero.SkillTempeteStatique, d2hero.SkillOrbeGlaciale, d2hero.SkillMeteore} {
 		if _, ok := aoeAtTargetRadiusSubtiles[skillID]; !ok {
@@ -682,6 +706,28 @@ func TestResolveArmureDeGlaceHitUnknownPlayerNoop(t *testing.T) {
 	server.resolveArmureDeGlaceHit("nobody")
 }
 
+// TestResolveArmureDeGlaceHitBroadcastsToggle is the same regression as
+// resolveBouclierDeManaHit's, for the other toggle.
+func TestResolveArmureDeGlaceHitBroadcastsToggle(t *testing.T) {
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	server.resolveArmureDeGlaceHit("p")
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	status, err := d2netpacket.UnmarshalPlayerStatusEffect(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerStatusEffectPacket: %v", err)
+	}
+
+	if status.Effect != d2netpacket.PlayerStatusArmureDeGlace || !status.Active {
+		t.Errorf("expected effect %q active=true, got %q active=%v", d2netpacket.PlayerStatusArmureDeGlace, status.Effect, status.Active)
+	}
+}
+
 func TestNpcByIDNoMapEnginesReturnsNil(t *testing.T) {
 	server := serverWithConnection(nil)
 
@@ -728,6 +774,40 @@ func TestResolveEveilDuNexusHitUnknownPlayerNoop(t *testing.T) {
 
 	// must not panic when the caster isn't a connected/resolved player.
 	server.resolveEveilDuNexusHit("nobody")
+}
+
+// TestResolveEveilDuNexusHitBroadcastsImmunityAndHeal is a regression test:
+// the immunity and the heal it grants were both previously invisible to
+// clients -- the heal used PlayerDamagedPacket (it just carries current HP,
+// doubling fine for a heal) rather than a new packet type.
+func TestResolveEveilDuNexusHitBroadcastsImmunityAndHeal(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Health: 2, MaxHealth: 10}
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: stats}}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}, clock: time.Now}
+
+	server.resolveEveilDuNexusHit("p")
+
+	if len(conn.sent) != 2 {
+		t.Fatalf("expected 2 packets sent (immunity + heal), got %d", len(conn.sent))
+	}
+
+	status, err := d2netpacket.UnmarshalPlayerStatusEffect(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerStatusEffectPacket: %v", err)
+	}
+
+	if status.Effect != d2netpacket.PlayerStatusMagicImmune || !status.Active {
+		t.Errorf("expected effect %q active=true, got %q active=%v", d2netpacket.PlayerStatusMagicImmune, status.Effect, status.Active)
+	}
+
+	damaged, err := d2netpacket.UnmarshalPlayerDamaged(conn.sent[1].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerDamagedPacket: %v", err)
+	}
+
+	if damaged.HP != stats.Health {
+		t.Errorf("expected the heal broadcast to carry the post-heal HP (%d), got %d", stats.Health, damaged.HP)
+	}
 }
 
 func TestResolveUsePotionRestoresManaAndClearsSlot(t *testing.T) {

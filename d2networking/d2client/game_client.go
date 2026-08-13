@@ -158,6 +158,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleNPCStatusEffectPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.PlayerStatusEffect:
+		if err := g.handlePlayerStatusEffectPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.PlayerDamaged:
 		if err := g.handlePlayerDamagedPacket(packet); err != nil {
 			return err
@@ -405,6 +409,33 @@ func (g *GameClient) handleNPCStatusEffectPacket(packet d2netpacket.NetPacket) e
 		npc.ApplyAmplification(status.Until)
 	case d2netpacket.NPCStatusResistanceStripped:
 		npc.ApplyResistanceStrip(status.Until)
+	}
+
+	return nil
+}
+
+// handlePlayerStatusEffectPacket applies a server-resolved change to the
+// given player's own status effect (Bouclier de mana/Armure de glace
+// toggles, Éveil du Nexus's timed immunity) to the local copy of their
+// stats. Unrecognized effect names are silently ignored.
+func (g *GameClient) handlePlayerStatusEffectPacket(packet d2netpacket.NetPacket) error {
+	status, err := d2netpacket.UnmarshalPlayerStatusEffect(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[status.PlayerID]
+	if !found || player.Stats == nil {
+		return nil
+	}
+
+	switch status.Effect {
+	case d2netpacket.PlayerStatusManaShield:
+		player.Stats.ManaShieldActive = status.Active
+	case d2netpacket.PlayerStatusArmureDeGlace:
+		player.Stats.ArmureDeGlaceActive = status.Active
+	case d2netpacket.PlayerStatusMagicImmune:
+		player.Stats.ApplyMagicImmunity(status.Until)
 	}
 
 	return nil

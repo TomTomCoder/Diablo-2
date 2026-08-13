@@ -1222,6 +1222,22 @@ func (g *GameServer) resolveApocalypseHit(sourceEntityID string, skillID int) {
 	}
 }
 
+// broadcastPlayerStatusEffect tells clients about a change to playerID's
+// own status effect -- used by Bouclier de mana/Armure de glace's toggles
+// and Éveil du Nexus's timed immunity, none of which broadcast anything
+// before this. Even solo play round-trips through a local client/server
+// (ROADMAP.md), so without this the client's own copy of its player never
+// found out, unlike every other Devil mechanic this session.
+func (g *GameServer) broadcastPlayerStatusEffect(playerID, effect string, active bool, until time.Time) {
+	statusPacket, err := d2netpacket.CreatePlayerStatusEffectPacket(playerID, effect, active, until)
+	if err != nil {
+		g.Errorf("CreatePlayerStatusEffectPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(statusPacket)
+}
+
 // resolveBouclierDeManaHit toggles sourceEntityID's own
 // HeroStatsState.ManaShieldActive. The absorption itself
 // (ApplyDamageWithManaShield) is already wired into tryMonsterAttack from
@@ -1235,6 +1251,7 @@ func (g *GameServer) resolveBouclierDeManaHit(sourceEntityID string) {
 	}
 
 	state.Stats.ManaShieldActive = !state.Stats.ManaShieldActive
+	g.broadcastPlayerStatusEffect(sourceEntityID, d2netpacket.PlayerStatusManaShield, state.Stats.ManaShieldActive, time.Time{})
 }
 
 // resolveArmureDeGlaceHit toggles sourceEntityID's own
@@ -1248,6 +1265,7 @@ func (g *GameServer) resolveArmureDeGlaceHit(sourceEntityID string) {
 	}
 
 	state.Stats.ArmureDeGlaceActive = !state.Stats.ArmureDeGlaceActive
+	g.broadcastPlayerStatusEffect(sourceEntityID, d2netpacket.PlayerStatusArmureDeGlace, state.Stats.ArmureDeGlaceActive, time.Time{})
 }
 
 // eveilDuNexusImmunityDuration is exactly what the design specifies
@@ -1273,8 +1291,23 @@ func (g *GameServer) resolveEveilDuNexusHit(sourceEntityID string) {
 		return
 	}
 
-	state.Stats.ApplyMagicImmunity(g.clock().Add(eveilDuNexusImmunityDuration))
+	until := g.clock().Add(eveilDuNexusImmunityDuration)
+	state.Stats.ApplyMagicImmunity(until)
+	g.broadcastPlayerStatusEffect(sourceEntityID, d2netpacket.PlayerStatusMagicImmune, true, until)
+
 	state.Stats.Heal(state.Stats.MaxHealth * eveilDuNexusHealPercent / 100)
+
+	// Correction (août 2026): the heal itself was never broadcast either --
+	// reuses PlayerDamagedPacket (it just carries the player's current HP,
+	// not a damage delta, so it doubles fine for a heal) rather than adding
+	// a redundant packet type.
+	healedPacket, err := d2netpacket.CreatePlayerDamagedPacket(sourceEntityID, state.Stats.Health, false)
+	if err != nil {
+		g.Errorf("CreatePlayerDamagedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(healedPacket)
 }
 
 // broadcastNPCMoved tells clients about npc's current position -- used
