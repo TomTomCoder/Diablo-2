@@ -27,6 +27,63 @@ On construit sur **OpenDiablo2** (Go/ebiten) comme moteur technique, pas sur Aby
 | Monstres/boss | Génériques D2 | Noms et lore propres (Gardien des Cendres, La Noyée...) |
 | Difficultés | Normal/Nightmare/Hell | Éveil/Corruption/Apocalypse (mêmes mécaniques, autre nommage) |
 
+## Principe de travail : contournement avant blocage
+
+Face à un manque (donnée absente, outil absent, format non documenté), la réaction par défaut n'est pas de s'arrêter à "bloqué" — c'est de chercher activement un contournement avant de conclure quoi que ce soit. Exemples concrets déjà appliqués dans ce document : `d2dc6` n'avait qu'un décodeur → un encodeur a été écrit et testé (`EncodeFrame`) plutôt que de conclure qu'on ne pouvait pas produire de `.DC6` ; aucun fichier MPQ réel n'était disponible → un vrai fichier trouvé localement a servi à vérifier le codec, révélant au passage un vrai bug de déchiffrement (`filesystem.Source.Exists`) qui serait resté invisible sinon ; aucun sprite de gameplay Devil n'existe → un pipeline de génération de sprite minimal (COF + DC6 + palette, génération procédurale, pas d'art) a été écrit et vérifié de bout en bout plutôt que d'attendre passivement l'art.
+
+Ce principe a une limite ferme, déjà établie ailleurs dans ce document et à ne jamais franchir : un contournement comble un manque **technique** (outil, format, donnée manquante mais la convention est connue ou vérifiable) — il n'invente jamais de **contenu de jeu** non spécifié (numéros d'équilibrage précis, conventions de chaîne de caractères D2 non vérifiables dans cet environnement, mécaniques non décrites par le design...). Dans ce second cas, documenter précisément la piste et l'endroit où elle bute reste la bonne réponse, pas deviner — voir par exemple l'entrée "Piste creusée et volontairement abandonnée" de la Phase 4 (`ElementType1`) pour un cas où chercher un contournement aurait signifié inventer une convention, donc où le blocage documenté était la bonne réponse.
+
+## Suivi (à cocher au fur et à mesure)
+
+Vue d'ensemble rapide de ce qui reste à faire, phase par phase. Ces cases ne remplacent pas le détail (comment, pourquoi, quelles limites) qui reste dans le corps du document ci-dessous — elles pointent vers lui pour un suivi visuel rapide plutôt que de dupliquer l'historique complet.
+
+**Phase 1 — Combat et attributs du Mage ✅**
+- [x] Formule de dégâts magique (Energy), résistances élémentaires, mitigation
+- [x] Tous les bugs d'arithmétique trouvés lors des audits (synergie auto-amplifiée, réduction de dégâts non plafonnée, respec qui soignait gratuitement...) corrigés
+
+**Phase 2 — Arbres de compétences du Mage 🚧**
+- [x] 27/30 compétences (Élémentalisme 10/10, Arcane 10/10, Ésotérisme 7/10)
+- [ ] 3 compétences d'invocation alliée — bloquées sur données/sprites de monstre qui n'existent pas
+- [ ] Boutons UI pour LearnSkill/InvestSkillPoint/Respec/Glyphe d'oubli (mécanismes + paquets réseau déjà prêts, aucun écran)
+- [ ] Overload/Marque ardente (§6) — déclencheur et portée non précisés par le design, non inventés
+
+**Phase 3 — Scripting moderne ✅**
+- [x] Runtime WASM embarqué, hôte minimal
+- [ ] API de script pour la narration (dialogues, quêtes) — pas encore conçue
+
+**Phase 4 — Contenu narratif & Région I 🚧**
+- [x] IA de monstre minimale ; PV/résistance magique/dégâts d'attaque/rayon d'aggro/délai d'IA qui varient réellement par difficulté
+- [ ] Gardien des Cendres (boss de fin de région)
+- [ ] Dialogues de Sage Wyn
+- [ ] Narration à la mort du boss
+- [ ] Une quête complète de bout en bout sur la Région I
+- [ ] Génération procédurale améliorée (mini-map, anti-cul-de-sac, icônes de points d'intérêt)
+
+**Phase 5 — Objets, loot & progression 🚧**
+- [x] Craft (Cube de Nexus), branché sur l'inventaire (pas seulement l'objet équipé)
+- [x] Ceinture/potions, or/XP à la mort d'un monstre, respec partiel et complet, inventaire/stash réels
+- [x] Moteur de tirage Treasure Class (données/mécanisme seuls, pas encore branché sur du contenu réel)
+- [ ] Déclencheurs réseau/UI pour déplacer un objet entre ceinture/inventaire/coffre
+- [ ] Boutons UI Craft/Respec/Glyphe d'oubli (mécanismes et réseau prêts, aucun écran)
+- [ ] Peupler une vraie Treasure Class (catalogue de loot valide + données de niveau de monstre, aucun des deux n'existe)
+- [ ] Boss corrompu / Quête d'urgence (2 des 4 Events temporaires — liés à un système de spawn/quête qui n'existe pas)
+
+**Phase 6 — Rendu, confort visuel & identité artistique 🚧**
+- [x] Filtrage linéaire des tuiles de sol/mur/ombre
+- [x] Vrais assets reçus du studio (Mage/Mage Divin/Warrior, à hauteur d'œil)
+- [x] Pipeline de génération de sprite placeholder (palette + DC6 + COF, 8 directions/3 modes), vérifié de bout en bout contre le vrai moteur de rendu
+- [ ] Un vrai token de héros Devil (aujourd'hui "Devil" réutilise un token de classe D2 existant)
+- [ ] Art repeint en perspective isométrique + découpage en frames + encodage `.DC6` réel (le pipeline de génération n'est qu'un contournement technique, pas le contenu visuel final)
+- [ ] Pipeline d'upscaling de sprites (xBRZ/HQx)
+
+**Phase 7 — Outillage de contenu 🚧**
+- [x] Format de mod documenté
+- [ ] Hors de portée ici : communication `abysswrapper`/HellSpawner, nécessite un dépôt séparé et une interface graphique indisponible dans cet environnement
+
+**Phase 8 — Packaging & diffusion 🚧**
+- [x] Build `goreleaser`, rappel légal au démarrage, CI verte (build/vet/test/lint) confirmée sur des runs réels
+- [ ] Rien d'actionnable identifié au-delà de la maintenance CI courante
+
 ## Phase 0 — Remise en état des fondations ✅
 *Fait — commit local `597702f`*
 
