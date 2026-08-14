@@ -21,12 +21,14 @@ const SkillTraitDeFeu = 1000
 // Devil-specific skill icons exist yet (ROADMAP.md Phase 6). nil if
 // skillID isn't in DevilSkills.
 //
-// Known gap: HeroSkill.UnmarshalJSON only restores Shallow (the ID) on
-// load, and whatever re-resolves that ID into SkillRecord/
-// SkillDescriptionRecord after loading a save only knows Diablo 2's own
-// skills.txt today. A freshly created/learned skill works for the current
-// session; surviving a save/load round-trip needs that resolution path
-// extended (ROADMAP.md Phase 1, "Sauvegarde").
+// Correction (août 2026): this doc comment used to flag a "known gap" here
+// -- HeroSkill.UnmarshalJSON only restoring Shallow (the ID) on load, and
+// nothing re-resolving a Devil skill ID (as opposed to a D2 skills.txt one)
+// back into a real SkillRecord afterwards. That's since been fixed:
+// HeroStateFactory.LoadHeroState calls this very function for any persisted
+// Shallow.SkillID found in DevilSkills, restoring a real skill rather than
+// leaving it nil -- see that function's own "Bug fix" comment, and
+// ROADMAP.md's "Round-trip complet vérifié" entry for the regression test.
 func NewDevilHeroSkill(skillID int) *HeroSkill {
 	if _, ok := DevilSkills[skillID]; !ok {
 		return nil
