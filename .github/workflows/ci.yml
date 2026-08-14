@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libxcursor-dev libxrandr-dev libxinerama-dev \
-            libxi-dev libxxf86vm-dev libgl1-mesa-dev libasound2-dev
+            libxi-dev libxxf86vm-dev libgl1-mesa-dev libasound2-dev xvfb
 
       - name: Build
         run: go build ./...
@@ -36,8 +36,16 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # Correction (août 2026): every test binary that imports ebiten
+      # (even transitively -- most packages in this module do) panics on
+      # a headless runner: ebiten/v2/internal/ui's own package init()
+      # tries to connect GLFW to a real X11 display, and there is none
+      # here ("glfw: X11: The DISPLAY environment variable is missing").
+      # `go build`/`go vet` never execute that init() (they only compile/
+      # type-check), so this only shows up for Test -- xvfb-run gives
+      # GLFW a real (virtual, headless) X server to connect to instead.
       - name: Test
-        run: go test ./...
+        run: xvfb-run -a go test ./...
 
       # .golangci.yml predates golangci-lint v2's config schema; pin v1 rather
       # than migrating the config (see docs/migration-guide when that's worth doing).
