@@ -9,7 +9,12 @@ jobs:
   build-test-lint:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 -- Lint below needs real local git history to diff
+      # against (see that step's own comment); a shallow checkout (the
+      # default) wouldn't have origin/master available to compare against.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
@@ -55,8 +60,20 @@ jobs:
       # violations (mostly `wsl` cuddle-statement rules) across the codebase.
       # Fixing those is a separate, large, unrelated cleanup; only-new-issues
       # keeps CI green today and enforces the config on new/changed code only.
+      #
+      # Correction (août 2026): only-new-issues: true makes the action fetch
+      # this PR's diff via GitHub's REST API to know which lines are "new" --
+      # this PR imports the whole OpenDiablo2 codebase as its base, so its
+      # diff is far past GitHub's 300-file cap on that endpoint ("Sorry, the
+      # diff exceeded the maximum number of files"), and the Lint step failed
+      # outright rather than actually linting anything. Known, still-open
+      # upstream limitation (golangci-lint-action#1015/#820) -- the
+      # documented workaround is to skip the action's own API-based diffing
+      # and pass golangci-lint's own --new-from-rev flag instead, which
+      # diffs against a real local git ref (needs the full history from
+      # fetch-depth: 0 above), no GitHub API involved, no file-count limit.
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.2
-          only-new-issues: true
+          args: --new-from-rev=origin/master
