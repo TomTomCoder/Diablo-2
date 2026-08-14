@@ -331,6 +331,10 @@ const (
 // radius, so resolveMeleeHit can dispatch to resolveSelfCenteredAoeHit
 // without a growing if-chain -- mirrors aoeAtTargetRadiusSubtiles below for
 // the target-centered equivalent.
+//
+// nolint:gochecknoglobals // a read-only lookup table, not mutable shared
+// state -- same established registry pattern as DevilSkills/DevilItems/etc.
+// in d2hero, flagged now that golangci-lint actually runs (août 2026).
 var selfCenteredAoeRadiusSubtiles = map[int]float64{
 	d2hero.SkillNovaDeGivre:    novaDeGivreRadiusSubtiles,
 	d2hero.SkillTempeteDeLames: tempeteDeLamesRadiusSubtiles,
@@ -354,6 +358,9 @@ const (
 // skill to its radius, so resolveMeleeHit can dispatch to resolveAoeHit
 // without a growing if-chain as more such spells are added (Apocalypse is
 // this shape too -- ROADMAP.md Phase 2).
+//
+// nolint:gochecknoglobals // same reasoning as selfCenteredAoeRadiusSubtiles
+// just above -- a read-only lookup table.
 var aoeAtTargetRadiusSubtiles = map[int]float64{
 	d2hero.SkillBouleDeFeu:      bouleDeFeuRadiusSubtiles,
 	d2hero.SkillTempeteStatique: tempeteStatiqueRadiusSubtiles,
@@ -706,7 +713,7 @@ func (g *GameServer) resolveUsePotion(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if err := state.UsePotion(requestPacket.BeltIndex); err != nil {
+	if err = state.UsePotion(requestPacket.BeltIndex); err != nil {
 		return
 	}
 
@@ -736,7 +743,7 @@ func (g *GameServer) resolveCraft(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if err := state.Craft(requestPacket.RecipeID); err != nil {
+	if err = state.Craft(requestPacket.RecipeID); err != nil {
 		return
 	}
 
@@ -774,7 +781,7 @@ func (g *GameServer) resolveLearnSkill(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if err := state.LearnSkill(requestPacket.SkillID); err != nil {
+	if err = state.LearnSkill(requestPacket.SkillID); err != nil {
 		return
 	}
 
@@ -806,7 +813,7 @@ func (g *GameServer) resolveRespecSkills(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if _, err := state.RespecSkills(); err != nil {
+	if _, err = state.RespecSkills(); err != nil {
 		return
 	}
 
@@ -839,7 +846,7 @@ func (g *GameServer) resolveRespecSingleSkill(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if _, err := state.RespecSingleSkill(requestPacket.SkillID); err != nil {
+	if _, err = state.RespecSingleSkill(requestPacket.SkillID); err != nil {
 		return
 	}
 
@@ -870,7 +877,7 @@ func (g *GameServer) resolveInvestSkillPoint(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if err := state.InvestSkillPoint(requestPacket.SkillID); err != nil {
+	if err = state.InvestSkillPoint(requestPacket.SkillID); err != nil {
 		return
 	}
 
@@ -921,7 +928,7 @@ func (g *GameServer) resolveSpendAttributePoint(packet d2netpacket.NetPacket) {
 	}
 
 	attr := d2hero.Attribute(requestPacket.Attribute)
-	if err := state.Stats.SpendAttributePoint(attr); err != nil {
+	if err = state.Stats.SpendAttributePoint(attr); err != nil {
 		return
 	}
 
@@ -955,7 +962,7 @@ func (g *GameServer) resolveRespecSingleAttributePoint(packet d2netpacket.NetPac
 	}
 
 	attr := d2hero.Attribute(requestPacket.Attribute)
-	if err := state.RespecSingleAttributePoint(attr); err != nil {
+	if err = state.RespecSingleAttributePoint(attr); err != nil {
 		return
 	}
 
@@ -974,6 +981,12 @@ func (g *GameServer) resolveRespecSingleAttributePoint(packet d2netpacket.NetPac
 // and, if one is found within range, applies damage and broadcasts the
 // result. Targeting is purely proximity-based for now -- see the constants
 // above and ROADMAP.md Phase 1.
+//
+// nolint:gocyclo,funlen // same reasoning as OnPacketReceived's own
+// suppression -- this dispatches on skill ID, growing by one check per
+// Devil skill added, not by real complexity. Found by golangci-lint (août
+// 2026) once CI's own broken lint step got fixed for the first time this
+// session.
 func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	if len(g.mapEngines) == 0 {
 		return
@@ -1249,8 +1262,8 @@ func (g *GameServer) resolveChainHit(first *d2mapentity.NPC, sourceEntityID stri
 
 	for i := 0; i < skillEclairEnChaineTargets && current != nil; i++ {
 		g.applyHit(current, sourceEntityID, skillID)
-		hit[current.ID()] = true
 
+		hit[current.ID()] = true
 		current = g.nearestKillableNPC(current.GetPosition(), eclairEnChaineChainRadius, hit)
 	}
 }
@@ -1818,7 +1831,7 @@ func NewGameServer(asset *d2asset.AssetManager,
 	// a placeholder proving the host-function mechanism works, not a
 	// designed script API. See ROADMAP.md Phase 3/2 for the real one.
 	gameServer.scriptEngine.AddFunction("mapEngineCount", func() uint32 {
-		return uint32(len(gameServer.mapEngines))
+		return uint32(len(gameServer.mapEngines)) // nolint:gosec // a map-engine count, never remotely close to overflowing uint32
 	})
 
 	return gameServer, nil
@@ -2166,7 +2179,11 @@ func (g *GameServer) OnClientDisconnected(client ClientConnection) {
 
 // OnPacketReceived is called when a packet has been received from a remote client,
 // and by the local client to 'send' a packet to the server,
-// nolint:gocyclo // switch statement on packet type makes sense, no need to change
+// nolint:gocyclo,funlen // switch statement on packet type makes sense, no
+// need to change. funlen specifically found by golangci-lint (août 2026)
+// once CI's own broken lint step got fixed for the first time this session
+// -- same justification as gocyclo, this switch grows by one case per
+// Devil packet type, not by real complexity.
 func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacket.NetPacket) error {
 	if g == nil {
 		return errors.New("game server is nil")

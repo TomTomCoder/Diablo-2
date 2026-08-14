@@ -108,7 +108,6 @@ func (g *GameClient) Open(connectionString, saveFilePath string) error {
 // Close destroys the server if the client is local. For remote clients
 // it sends a DisconnectRequestPacket (see d2netpacket).
 func (g *GameClient) Close() error {
-
 	return g.clientConnection.Close()
 }
 
@@ -120,11 +119,12 @@ func (g *GameClient) Destroy() error {
 // OnPacketReceived is called by the ClientConection and processes incoming
 // packets.
 //
-// nolint:gocyclo,gocognit // switch statement on packet type makes sense, no
-// need to change. gocognit specifically found by golangci-lint (août 2026)
-// once CI's own broken lint step got fixed for the first time this session
-// -- same justification as the existing gocyclo suppression, this switch
-// grows by one case per Devil packet type, not by real complexity.
+// nolint:gocyclo,gocognit,funlen // switch statement on packet type makes
+// sense, no need to change. gocognit/funlen specifically found by
+// golangci-lint (août 2026) once CI's own broken lint step got fixed for
+// the first time this session -- same justification as the existing gocyclo
+// suppression, this switch grows by one case per Devil packet type, not by
+// real complexity.
 func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 	switch packet.PacketType {
 	case d2netpackettype.GenerateMap:

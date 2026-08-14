@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	mkdirPermission     = 0750
-	writefilePermission = 0600
+	mkdirPermission     = 0o750
+	writefilePermission = 0o600
 )
 
 // NewHeroStateFactory creates a new HeroStateFactory and initializes it.
@@ -202,7 +202,7 @@ func (f *HeroStateFactory) LoadHeroState(filePath string) *HeroState {
 	// This is because this factory has a reference to the asset manager with loaded records.
 	// We cant do this while unmarshalling because there is no reference to the asset manager.
 	//
-	// Bug fix: this previously assumed every persisted skill ID lives in
+	// Correction: this previously assumed every persisted skill ID lives in
 	// D2's own skills.txt (f.asset.Records.Skill.Details), which is never
 	// true for Devil's own namespaced skill IDs -- the map lookup missed,
 	// returning nil, and the very next line dereferenced that nil

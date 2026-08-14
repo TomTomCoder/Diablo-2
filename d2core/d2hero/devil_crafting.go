@@ -34,6 +34,9 @@ const RecipeUpgradeBatonApprenti = "dvl_recipe_upgrade_baton_apprenti"
 // output) works end to end with real Devil items, not just a placeholder.
 // The design's own "Codex progressif" (recipes revealed as discovered) is a
 // UI-layer concern, not modeled here.
+//
+// nolint:gochecknoglobals // a read-only registry, not mutable shared state
+// -- flagged now that golangci-lint actually runs (août 2026).
 var DevilCraftingRecipes = map[string]*DevilCraftingRecipe{
 	RecipeUpgradeBatonApprenti: {
 		ID:             RecipeUpgradeBatonApprenti,

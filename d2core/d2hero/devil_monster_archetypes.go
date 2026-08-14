@@ -30,6 +30,9 @@ type MonsterArchetypeDef struct {
 // (advanceMonsterAI/tryMonsterAttack), so per-monster-type tuning works the
 // moment real monster data exists -- it won't need another round of
 // server-side changes, just registry entries here.
+//
+// nolint:gochecknoglobals // a read-only registry, not mutable shared state
+// -- flagged now that golangci-lint actually runs (août 2026).
 var MonsterArchetypes = map[string]*MonsterArchetypeDef{}
 
 // MonsterAggroRadiusSubtiles returns key's aggro radius, or fallback if
@@ -84,7 +87,7 @@ func MonsterAttackDamage(key string, fallback int) int {
 // the *fallback* passed to MonsterAttackDamage, so a Devil-specific
 // MonsterArchetypeDef override still wins first.
 //
-// nolint:gosec // not concerned with crypto-strong randomness
+// nolint:gosec,gocritic // not concerned with crypto-strong randomness; min/max param names read clearly here
 func RollDamageInRange(min, max, fallback int) int {
 	if max <= 0 || min > max {
 		return fallback

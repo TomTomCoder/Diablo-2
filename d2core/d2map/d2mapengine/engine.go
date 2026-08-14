@@ -337,10 +337,12 @@ func (m *MapEngine) Advance(tickTime float64) {
 	}
 
 	m.entitiesMu.Lock()
+
 	entities := make([]d2interface.MapEntity, 0, len(m.entities))
 	for _, entity := range m.entities {
 		entities = append(entities, entity)
 	}
+
 	m.entitiesMu.Unlock()
 
 	for _, entity := range entities {

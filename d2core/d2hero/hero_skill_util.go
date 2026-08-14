@@ -6,7 +6,7 @@ import "github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
 // This is done to avoid serializing the whole record data of HeroSkill to a game save or network packets.
 // We cant do this while unmarshalling because there is no reference to the asset manager.
 //
-// Bug fix: this previously assumed every skill ID lives in D2's own
+// Correction: this previously assumed every skill ID lives in D2's own
 // skills.txt (asset.Records.Skill.Details), which is never true for
 // Devil's own namespaced skill IDs (SkillTraitDeFeu and friends,
 // deliberately outside D2's real ID ranges) -- the map lookup missed,

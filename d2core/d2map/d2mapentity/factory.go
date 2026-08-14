@@ -25,7 +25,7 @@ const (
 
 // randomBetween returns a random int in [min, max], inclusive. Falls back to
 // min if the range is empty or inverted (bad data shouldn't panic here).
-func randomBetween(min, max int) int {
+func randomBetween(min, max int) int { // nolint:gocritic // min/max param names read clearly here
 	if max <= min {
 		return min
 	}

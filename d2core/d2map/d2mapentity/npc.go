@@ -128,7 +128,7 @@ func (v *NPC) MagicResistancePercent() int {
 //
 // ponytail: always Normal-difficulty, same limitation as
 // MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
-func (v *NPC) AttackDamageRange() (min, max int) {
+func (v *NPC) AttackDamageRange() (min, max int) { // nolint:gocritic // named returns read clearly for a min/max pair
 	if v.monstatRecord == nil {
 		return 0, 0
 	}

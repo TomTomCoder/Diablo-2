@@ -108,7 +108,7 @@ func TestCastCooldownForScalesWithDexterity(t *testing.T) {
 
 // plentyOfMana is enough mana for these cooldown-focused tests to never be
 // blocked by manaCostFor -- that's covered separately in the mana tests.
-var plentyOfMana = &d2hero.HeroStatsState{Mana: 1000, MaxMana: 1000}
+var plentyOfMana = &d2hero.HeroStatsState{Mana: 1000, MaxMana: 1000} // nolint:gochecknoglobals // test fixture, not shared runtime state
 
 func TestCanCastNowGatesOnCooldown(t *testing.T) {
 	server := serverWithConnection(&d2hero.HeroState{Stats: &d2hero.HeroStatsState{

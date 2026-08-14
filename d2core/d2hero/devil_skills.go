@@ -97,6 +97,9 @@ func NewTraitDeFeuSkill() *HeroSkill {
 // TraitDeFeuSynergyTargets are the skills Trait de feu's own invested points
 // boost (devil_game_design_reference.md §7 "Règles des synergies": "chaque
 // point dans Trait de feu augmente les dégâts de Boule de feu et Météore").
+//
+// nolint:gochecknoglobals // a read-only lookup table, not mutable shared
+// state -- flagged now that golangci-lint actually runs (août 2026).
 var TraitDeFeuSynergyTargets = map[int]bool{
 	SkillBouleDeFeu: true,
 	SkillMeteore:    true,

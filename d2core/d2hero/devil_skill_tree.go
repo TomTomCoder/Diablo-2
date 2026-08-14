@@ -264,6 +264,9 @@ const SkillRegenerationAcceleree = SkillResonanceMagique + 1
 // missing ones (Familier, Double ésotérique, Golem arcane) are genuine ally
 // summons, blocked on real monster data + sprites that don't exist yet
 // (see MapEntityFactory.NewNPC's requirements), not a data-model gap.
+//
+// nolint:gochecknoglobals // a read-only registry, not mutable shared state
+// -- flagged now that golangci-lint actually runs (août 2026).
 var DevilSkills = map[int]*DevilSkillDef{
 	SkillTraitDeFeu: {
 		ID:              SkillTraitDeFeu,

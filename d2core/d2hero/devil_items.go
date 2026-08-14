@@ -99,6 +99,9 @@ type DevilItemDef struct {
 // ponytail: a handful of entries instead of the design's full item set
 // (§5, §8) -- this proves an equipped item can modify combat damage/Energy
 // at all, it doesn't fill in the item system.
+//
+// nolint:gochecknoglobals // a read-only registry, not mutable shared state
+// -- flagged now that golangci-lint actually runs (août 2026).
 var DevilItems = map[string]*DevilItemDef{
 	ItemBatonApprenti: {
 		Code:              ItemBatonApprenti,

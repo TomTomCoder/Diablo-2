@@ -177,6 +177,7 @@ func (h *HeroState) RespecSingleSkill(skillID int) (pointsRefunded int, err erro
 	}
 
 	pointsRefunded = skill.SkillPoints
+
 	delete(h.Skills, skillID)
 
 	if h.LeftSkill == skillID {
