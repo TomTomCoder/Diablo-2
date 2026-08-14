@@ -16,6 +16,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Correction (août 2026): fetch-depth: 0 alone wasn't enough --
+      # a pull_request checkout doesn't necessarily leave a resolvable
+      # `origin/master` ref lying around (Lint's own log: "fatal: bad
+      # revision 'origin/master'"), which made --new-from-rev silently
+      # fail and fall back to linting the whole repo instead of just new
+      # lines. Fetching master explicitly guarantees the ref exists
+      # locally regardless of what the checkout step alone sets up.
+      - name: Fetch master for lint's --new-from-rev
+        run: git fetch origin master
+
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
