@@ -5,8 +5,10 @@ import "errors"
 // InitBelt sets h's belt to capacity empty slots, discarding whatever was
 // there before. Meant to be called once, when a belt item is equipped
 // (e.g. character creation assigning Ceinture de Cuir Runique's 4 slots,
-// devil_mage_character_design.md §5) -- same "baked in at equip time"
-// shape as Robe du Novice's Health/Mana bonus, not a live recomputation.
+// devil_mage_character_design.md §5 as it read before that document's
+// visual-identity rewrite -- see devil_items.go's own top-of-file note) --
+// same "baked in at equip time" shape as Robe du Novice's Health/Mana
+// bonus, not a live recomputation.
 // devil_game_design_reference.md §8 notes belts can hold up to 16 slots
 // once upgraded -- there's no belt-upgrade path yet, so capacity is
 // whatever the caller passes (ItemPotionSlots of the equipped belt).

@@ -1,7 +1,28 @@
 package d2hero
 
+// Correction (août 2026): every "§5" citation below (and in devil_belt.go)
+// is stale -- devil_mage_character_design.md was rewritten this session to
+// match the real turnarounds received (ROADMAP.md Phase 6), and that
+// rewrite is visual-identity-only: it dropped the starting-kit/itemization
+// section these names and numbers were originally sourced from. The data
+// itself (Energy/Vie/Mana bonuses, potion slot count) hasn't been
+// contradicted by anything newer, so it's kept as the last-known-good
+// specification, but it's no longer independently verifiable against the
+// current document text -- found while auditing for exactly this kind of
+// staleness, not re-derived or guessed.
+//
+// Separately, and left alone rather than unilaterally decided: the
+// rewritten document's own §2 says the Mage casts bare-handed with "un
+// objet magique flottant dans chaque paume (cristal, orbe élémentaire)",
+// no staff -- yet ItemBatonApprenti/ItemBatonInitie are still literally
+// named "Bâton" (staff). Whether that's a name to keep as pre-Devil lore
+// flavor, or should become an orb/crystal to match the confirmed visual,
+// is a content/design call for the studio, not something to invent here.
+
 // ItemBatonApprenti is Devil's own item code for "Bâton de l'Apprenti"
-// (devil_mage_character_design.md §5), the Mage's starting weapon.
+// (devil_mage_character_design.md §5, as it read before that document's
+// visual-identity rewrite -- see this file's own top-of-file note), the
+// Mage's starting weapon.
 //
 // ponytail: a string code namespaced with "dvl_" rather than a bare name,
 // so it can never collide with a Diablo 2 items.txt code loaded from the
