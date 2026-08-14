@@ -374,6 +374,21 @@ func (v *Game) OnPlayerCast(skillID int, targetX, targetY float64) {
 	}
 }
 
+// OnInvestSkillPoint sends a request to invest another skill point into
+// the given skill (d2hero.HeroState.InvestSkillPoint), triggered by
+// clicking that skill's icon in the skill tree panel.
+func (v *Game) OnInvestSkillPoint(skillID int) {
+	ip, err := d2netpacket.CreateInvestSkillPointRequestPacket(v.gameClient.PlayerID, skillID)
+	if err != nil {
+		v.Errorf("InvestSkillPointRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(ip); err != nil {
+		v.Errorf("InvestSkillPointRequestPacket: player %s, skill %d: %v", v.gameClient.PlayerID, skillID, err)
+	}
+}
+
 func (v *Game) debugSpawnItemAtPlayer(codes ...string) {
 	if v.localPlayer == nil {
 		return

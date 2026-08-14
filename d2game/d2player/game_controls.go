@@ -248,6 +248,7 @@ func NewGameControls(
 	gc.questLog.SetOnCloseCb(gc.onCloseQuestLog)
 	gc.inventory.SetOnCloseCb(gc.onCloseInventory)
 	gc.skilltree.SetOnCloseCb(gc.onCloseSkilltree)
+	gc.skilltree.SetOnInvestSkillPointCb(gc.inputListener.OnInvestSkillPoint)
 
 	gc.escapeMenu.SetOnCloseCb(gc.hud.miniPanel.restoreDisabled)
 	gc.HelpOverlay.SetOnCloseCb(gc.hud.miniPanel.restoreDisabled)

@@ -81,6 +81,16 @@ func (b *BaseWidget) GetSize() (width, height int) {
 	return b.width, b.height
 }
 
+// SetSize sets the size of the widget. Widgets built from a fixed-size
+// resource (buttons, custom widgets) set this at construction time, from
+// inside this package where the width/height fields are directly
+// reachable; SetSize exists for widgets built by other packages (e.g.
+// d2player's skillIcon) that need Contains() -- and therefore click
+// detection -- to work over more than a zero-size box.
+func (b *BaseWidget) SetSize(width, height int) {
+	b.width, b.height = width, height
+}
+
 // SetPosition sets the position of the widget
 func (b *BaseWidget) SetPosition(x, y int) {
 	b.x, b.y = x, y

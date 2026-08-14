@@ -121,28 +121,35 @@ func newSkillTree(
 }
 
 type skillTree struct {
-	resources       *skillTreeHeroTypeResources
-	asset           *d2asset.AssetManager
-	uiManager       *d2ui.UIManager
-	skills          map[int]*d2hero.HeroSkill
-	skillIcons      []*skillIcon
-	heroClass       d2enum.Hero
-	availSPLabel    *d2ui.Label
-	closeButton     *d2ui.Button
-	tab             [numTabs]*skillTreeTab
-	remainingPoints *d2ui.Label
-	isOpen          bool
-	originX         int
-	originY         int
-	selectedTab     int
-	onCloseCb       func()
-	panelGroup      *d2ui.WidgetGroup
-	iconGroup       *d2ui.WidgetGroup
-	panel           *d2ui.CustomWidget
-	stats           *d2hero.HeroStatsState
+	resources            *skillTreeHeroTypeResources
+	asset                *d2asset.AssetManager
+	uiManager            *d2ui.UIManager
+	skills               map[int]*d2hero.HeroSkill
+	skillIcons           []*skillIcon
+	heroClass            d2enum.Hero
+	availSPLabel         *d2ui.Label
+	closeButton          *d2ui.Button
+	tab                  [numTabs]*skillTreeTab
+	remainingPoints      *d2ui.Label
+	isOpen               bool
+	originX              int
+	originY              int
+	selectedTab          int
+	onCloseCb            func()
+	panelGroup           *d2ui.WidgetGroup
+	iconGroup            *d2ui.WidgetGroup
+	panel                *d2ui.CustomWidget
+	stats                *d2hero.HeroStatsState
+	onInvestSkillPointCb func(skillID int)
 
 	*d2util.Logger
 	l d2util.LogLevel
+}
+
+// SetOnInvestSkillPointCb sets the callback run when the player clicks a
+// skill icon, requesting to invest another skill point into that skill.
+func (s *skillTree) SetOnInvestSkillPointCb(cb func(skillID int)) {
+	s.onInvestSkillPointCb = cb
 }
 
 func (s *skillTree) load() {
@@ -172,8 +179,15 @@ func (s *skillTree) load() {
 
 	s.loadForHeroType()
 
-	for _, skill := range s.skills {
+	for skillID, skill := range s.skills {
 		si := newSkillIcon(s.uiManager, s.resources.skillSprite, s.l, skill)
+
+		si.OnActivated(func() {
+			if s.onInvestSkillPointCb != nil {
+				s.onInvestSkillPointCb(skillID)
+			}
+		})
+
 		s.skillIcons = append(s.skillIcons, si)
 		s.iconGroup.AddWidget(si)
 	}
