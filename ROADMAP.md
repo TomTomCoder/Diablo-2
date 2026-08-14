@@ -44,7 +44,7 @@ Vue d'ensemble rapide de ce qui reste à faire, phase par phase. Ces cases ne re
 **Phase 2 — Arbres de compétences du Mage 🚧**
 - [x] 27/30 compétences (Élémentalisme 10/10, Arcane 10/10, Ésotérisme 7/10)
 - [x] `EquipSkill` (choisir quel sort lancer en jeu) + `DevilHUD` (affichage vie/mana/sorts équipés, sans DC6)
-- [ ] 3 compétences d'invocation alliée — bloquées sur données/sprites de monstre qui n'existent pas
+- [ ] 3 compétences d'invocation alliée — **re-vérifié (août 2026)** : le blocage sprite n'existe plus (le pipeline placeholder de la Phase 6 couvre ce que `MapEntityFactory.NewNPC` demande), seul reste le blocage données : aucune des trois créatures n'a de stats (PV/dégâts/vitesse) spécifiées où que ce soit dans le design — les inventer franchirait la même limite déjà tenue partout ailleurs (voir `devil_skill_tree.go`)
 - [x] Premier bouton UI cliquable réel : `InvestSkillPoint` déclenché en cliquant l'icône d'une compétence dans l'arbre existant
 - [ ] Boutons UI cliquables restants pour LearnSkill/Respec/Glyphe d'oubli (mécanismes + paquets réseau + affichage passif déjà prêts, aucune interactivité)
 - [ ] Overload/Marque ardente (§6) — déclencheur et portée non précisés par le design, non inventés

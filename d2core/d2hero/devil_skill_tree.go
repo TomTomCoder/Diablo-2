@@ -265,6 +265,17 @@ const SkillRegenerationAcceleree = SkillResonanceMagique + 1
 // summons, blocked on real monster data + sprites that don't exist yet
 // (see MapEntityFactory.NewNPC's requirements), not a data-model gap.
 //
+// Re-verified (août 2026), not just re-asserted: NewNPC's sprite half
+// (LoadComposite's COF/DC6/AnimData) is exactly what the placeholder
+// asset pipeline built this session (d2core/d2asset/placeholdergen)
+// already proves out end-to-end -- that part of this wall is gone. What
+// still blocks these 3 skills is the *data* half: NewNPC also requires a
+// full d2records.MonStatRecord (HP range, speed, equipment options,
+// weapon class...), and none of these three creatures has any specified
+// stats anywhere in the design docs. Inventing HP/damage/speed numbers
+// for them would cross the same "no invented balance numbers" line the
+// rest of this codebase already holds -- the wall moved, it didn't fall.
+//
 // nolint:gochecknoglobals // a read-only registry, not mutable shared state
 // -- flagged now that golangci-lint actually runs (août 2026).
 var DevilSkills = map[int]*DevilSkillDef{
