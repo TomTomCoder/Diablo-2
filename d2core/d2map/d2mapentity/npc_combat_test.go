@@ -204,6 +204,25 @@ func TestNPCApplySlow(t *testing.T) {
 	}
 }
 
+// TestNPCApplySlowNeverShortensAnAlreadyLongerWindow is a regression test:
+// ApplySlow is shared by 4 casts with different flat durations (Éclat de
+// glace/Ralentissement/Armure de glace's counter-slow all 3s, Distorsion
+// temporelle 5s) -- it used to unconditionally overwrite SlowedUntil, so
+// casting Distorsion temporelle then immediately Éclat de glace on the same
+// target cut its slow down to 3s instead of leaving the longer ~5s window
+// intact.
+func TestNPCApplySlowNeverShortensAnAlreadyLongerWindow(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	npc.ApplySlow(now.Add(5 * time.Second)) // e.g. Distorsion temporelle
+	npc.ApplySlow(now.Add(3 * time.Second)) // e.g. Éclat de glace, shortly after
+
+	if !npc.IsSlowed(now.Add(4 * time.Second)) {
+		t.Error("expected the longer 5s window to survive a shorter, later ApplySlow call")
+	}
+}
+
 func TestNPCChasePlayerRespectsSlow(t *testing.T) {
 	npc := killableNPC(10)
 	now := time.Now()

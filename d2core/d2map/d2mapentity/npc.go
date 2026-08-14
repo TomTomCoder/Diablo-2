@@ -239,9 +239,22 @@ func (v *NPC) ChasePlayer(pos d2vector.Position, now time.Time) {
 // glace, "ralentit la cible" -- devil_game_design_reference.md §7).
 const npcSlowedSpeedMultiplier = 0.5
 
-// ApplySlow marks this NPC as slowed until the given time.
+// ApplySlow marks this NPC as slowed until the given time -- extending the
+// slow if it's already active and until is later, never shortening it.
+//
+// Correction (août 2026): this used to unconditionally overwrite
+// SlowedUntil. Four different casts share this one method with three
+// different flat durations (Éclat de glace/Ralentissement/Armure de
+// glace's counter-slow all 3s, Distorsion temporelle 5s) -- casting
+// Distorsion temporelle then immediately Éclat de glace on the same
+// target used to cut its slow down from ~5s to 3s, undermining Distorsion
+// temporelle's own exactly-specified "pendant 5 secondes" (§7). Now only
+// ever extends, matching how a re-cast of the *same* skill already behaved
+// by coincidence (a later "now + same flat duration" is always later).
 func (v *NPC) ApplySlow(until time.Time) {
-	v.SlowedUntil = until
+	if until.After(v.SlowedUntil) {
+		v.SlowedUntil = until
+	}
 }
 
 // IsSlowed reports whether this NPC's slow effect is still active at now.
@@ -250,9 +263,15 @@ func (v *NPC) IsSlowed(now time.Time) bool {
 }
 
 // ApplyAmplification marks this NPC as amplified (taking increased damage,
-// see IsAmplified) until the given time.
+// see IsAmplified) until the given time -- extending, never shortening, an
+// already-active window. Same defensive shape as ApplySlow's own fix, kept
+// consistent across all four *Until setters on this struct even though only
+// ApplySlow currently has more than one calling skill to actually exercise
+// the difference.
 func (v *NPC) ApplyAmplification(until time.Time) {
-	v.AmplifiedUntil = until
+	if until.After(v.AmplifiedUntil) {
+		v.AmplifiedUntil = until
+	}
 }
 
 // IsAmplified reports whether this NPC's damage amplification is still
@@ -262,15 +281,20 @@ func (v *NPC) IsAmplified(now time.Time) bool {
 }
 
 // ApplyImmobilize marks this NPC as fully immobilized (see IsImmobilized)
-// until the given time.
+// until the given time -- same extend-never-shorten shape as ApplySlow.
 func (v *NPC) ApplyImmobilize(until time.Time) {
-	v.ImmobilizedUntil = until
+	if until.After(v.ImmobilizedUntil) {
+		v.ImmobilizedUntil = until
+	}
 }
 
 // ApplyResistanceStrip marks this NPC's magic resistance as removed (see
-// IsResistanceStripped/MagicResistancePercent) until the given time.
+// IsResistanceStripped/MagicResistancePercent) until the given time -- same
+// extend-never-shorten shape as ApplySlow.
 func (v *NPC) ApplyResistanceStrip(until time.Time) {
-	v.ResistanceStrippedUntil = until
+	if until.After(v.ResistanceStrippedUntil) {
+		v.ResistanceStrippedUntil = until
+	}
 }
 
 // IsResistanceStripped reports whether this NPC's magic resistance removal
