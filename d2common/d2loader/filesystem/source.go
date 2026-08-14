@@ -28,9 +28,18 @@ func (s *Source) Open(subPath string) (io.ReadSeeker, error) {
 }
 
 // Exists returns true if the file exists
+//
+// Correction (août 2026): this used to check os.IsExist(err), which
+// classifies "already exists" errors from creation calls (os.Mkdir/
+// os.OpenFile with O_EXCL) -- not whether os.Stat succeeded. os.Stat
+// returns a nil error on success, and os.IsExist(nil) is always false,
+// so this always reported an existing file as missing. Found while
+// building a filesystem-backed asset source for generated placeholder
+// sprites (no real Diablo II MPQ exists in this environment): every file
+// written to disk was rejected as "not found" by the composite loader.
 func (s *Source) Exists(subPath string) bool {
 	_, err := os.Stat(s.fullPath(subPath))
-	return os.IsExist(err)
+	return err == nil
 }
 
 func (s *Source) fullPath(subPath string) string {

@@ -26,6 +26,20 @@ type AnimationData struct {
 	entries map[string][]*AnimationDataRecord
 }
 
+// New creates a new, empty AnimationData, with no entries -- mirrors
+// d2dc6.New()/d2cof.New()'s own "start empty, populate via mutators"
+// pattern for those sibling file formats. Previously the only way to get
+// a non-nil, usable AnimationData was Load() on real file bytes (Load is
+// what actually initializes the private entries map), which forced every
+// external constructor -- e.g. hand-authoring a synthetic AnimData.d2
+// entry rather than parsing a real file -- through a full binary
+// round-trip it didn't actually need.
+func New() *AnimationData {
+	return &AnimationData{
+		entries: make(map[string][]*AnimationDataRecord),
+	}
+}
+
 // GetRecordNames returns a slice of all record name strings
 func (ad *AnimationData) GetRecordNames() []string {
 	result := make([]string, 0)
@@ -117,6 +131,7 @@ func (ad *AnimationData) DeleteEntry(name string) error {
 }
 
 // Load loads the data into an AnimationData struct
+//
 //nolint:gocognit,funlen // can't reduce
 func Load(data []byte) (*AnimationData, error) {
 	reader := d2datautils.CreateStreamReader(data)
