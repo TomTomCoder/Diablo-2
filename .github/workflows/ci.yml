@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -11,20 +11,29 @@ jobs:
     steps:
       # fetch-depth: 0 -- Lint below needs real local git history to diff
       # against (see that step's own comment); a shallow checkout (the
-      # default) wouldn't have origin/master available to compare against.
+      # default) wouldn't have origin/main available to compare against.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       # Correction (août 2026): fetch-depth: 0 alone wasn't enough --
       # a pull_request checkout doesn't necessarily leave a resolvable
-      # `origin/master` ref lying around (Lint's own log: "fatal: bad
-      # revision 'origin/master'"), which made --new-from-rev silently
-      # fail and fall back to linting the whole repo instead of just new
-      # lines. Fetching master explicitly guarantees the ref exists
-      # locally regardless of what the checkout step alone sets up.
-      - name: Fetch master for lint's --new-from-rev
-        run: git fetch origin master
+      # `origin/<branch>` ref lying around (Lint's own log first said
+      # "fatal: bad revision 'origin/master'", which made --new-from-rev
+      # silently fail and fall back to linting the whole repo instead of
+      # just new lines). Fetching the base branch explicitly guarantees
+      # the ref exists locally regardless of what the checkout step alone
+      # sets up.
+      #
+      # Correction (août 2026, again): `master` itself was wrong --
+      # `git fetch origin master` then failed with "couldn't find remote
+      # ref master". This fork's actual default branch is `main`
+      # (confirmed via `gh repo view --json defaultBranchRef`, not
+      # assumed) -- the workflow's `master` references were stale,
+      # inherited from upstream OpenDiablo2's own branch name. Fixed
+      # everywhere in this file, including the push trigger above.
+      - name: Fetch main for lint's --new-from-rev
+        run: git fetch origin main
 
       - uses: actions/setup-go@v5
         with:
@@ -100,4 +109,4 @@ jobs:
         with:
           version: v1.64.2
           install-mode: goinstall
-          args: --new-from-rev=origin/master
+          args: --new-from-rev=origin/main
