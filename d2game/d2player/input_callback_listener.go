@@ -9,4 +9,5 @@ type inputCallbackListener interface {
 	OnEquipSkill(slot d2hero.SkillSlot, skillID int)
 	OnSpendAttributePoint(attr d2hero.Attribute)
 	OnLearnSkill(skillID int)
+	OnCraft(recipeID string)
 }

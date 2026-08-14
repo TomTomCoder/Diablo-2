@@ -387,6 +387,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.hud.onToggleRunButton(true)
 	case d2enum.ToggleHelpScreen:
 		g.toggleHelpOverlay()
+	case d2enum.CraftItem:
+		g.inputListener.OnCraft(d2hero.RecipeUpgradeBatonApprenti)
 	default:
 		return false
 	}

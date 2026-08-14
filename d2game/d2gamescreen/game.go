@@ -405,6 +405,20 @@ func (v *Game) OnLearnSkill(skillID int) {
 	}
 }
 
+// OnCraft sends a request to craft the given Cube de Nexus recipe
+// (d2hero.HeroState.Craft), triggered by the CraftItem keybinding.
+func (v *Game) OnCraft(recipeID string) {
+	cp, err := d2netpacket.CreateCraftRequestPacket(v.gameClient.PlayerID, recipeID)
+	if err != nil {
+		v.Errorf("CraftRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(cp); err != nil {
+		v.Errorf("CraftRequestPacket: player %s, recipe %s: %v", v.gameClient.PlayerID, recipeID, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.

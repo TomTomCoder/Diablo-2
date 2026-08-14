@@ -297,6 +297,7 @@ func (km *KeyMap) ResetToDefault() {
 		d2enum.TakeScreenShot: {d2enum.KeyPrintScreen, -1},
 		d2enum.ClearScreen:    {d2enum.KeySpace, -1},
 		d2enum.ClearMessages:  {d2enum.KeyN, -1},
+		d2enum.CraftItem:      {d2enum.KeyX, -1},
 	}
 
 	for gameEvent, keys := range defaultControls {

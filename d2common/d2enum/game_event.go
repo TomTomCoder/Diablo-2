@@ -80,4 +80,16 @@ const (
 	TakeScreenShot
 	ClearScreen // closes all active menus/panels
 	ClearMessages
+
+	// CraftItem attempts Devil's own single Cube de Nexus recipe
+	// (d2hero.RecipeUpgradeBatonApprenti) -- ROADMAP.md Phase 5's "Craft"
+	// UI item. A keybinding rather than a clickable button: with exactly
+	// one recipe and no Cube de Nexus panel/art of any kind, a proper
+	// recipe-picker screen would need pixel positions with no existing
+	// element to safely anchor against (unlike SpendAttributePoint's
+	// already-placed buttons or LearnSkill's already-gridded skill
+	// icons) -- a keybinding needs none, so it's the safe way to make
+	// crafting a real, triggerable player action today. Revisit once a
+	// second recipe exists and picking one actually matters.
+	CraftItem
 )
