@@ -67,25 +67,32 @@ go_install() {
 }
 
 dep_install() {
+	# Correction (août 2026): libXxf86vm (the X11 XF86VidMode extension
+	# library, needed by GLFW -- ebiten's desktop backend) was missing from
+	# every distro's list below, added alongside the other X11 dev packages
+	# already here. Found via CI's own failure logs (`gh run list`/`gh run
+	# view --log-failed`), not by anything failing locally -- this
+	# environment has no display/X11 at all, so a local `go build` never
+	# exercises this cgo link step the way a real Linux CI runner does.
 	if [ "$distribution" = "CentOS" ] || [ "$distribution" = "Red\ Hat" ] || [ "$distribution" = "Oracle" ]; then
-		sudo yum install -y libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel mesa-libGL-devel alsa-lib-devel libXi-devel >/dev/null 2>&1
+		sudo yum install -y libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel libXxf86vm-devel mesa-libGL-devel alsa-lib-devel libXi-devel >/dev/null 2>&1
 
 	elif [ "$distribution" = "Fedora" ]; then
-		sudo dnf install -y libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel mesa-libGL-devel alsa-lib-devel libXi-devel >/dev/null 2>&1
+		sudo dnf install -y libX11-devel libXcursor-devel libXrandr-devel libXinerama-devel libXxf86vm-devel mesa-libGL-devel alsa-lib-devel libXi-devel >/dev/null 2>&1
 
 	elif [ "$distribution" = "Debian" ] || [ "$distribution" = "Ubuntu" ] || [ "$distribution" = "Deepin" ]; then
-		sudo apt-get install -y libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libgl1-mesa-dev libsdl2-dev libasound2-dev >/dev/null 2>&1
+		sudo apt-get install -y libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxxf86vm-dev libgl1-mesa-dev libsdl2-dev libasound2-dev >/dev/null 2>&1
 
 	elif [ "$distribution" = "Gentoo" ]; then
-		sudo emerge --ask n libXcursor libXrandr libXinerama libXi libGLw libglvnd libsdl2 alsa-lib >/dev/null 2>&1
+		sudo emerge --ask n libXcursor libXrandr libXinerama libXi libXxf86vm libGLw libglvnd libsdl2 alsa-lib >/dev/null 2>&1
 
 	elif [ "$distribution" = "Manjaro" ] || [ "$distribution" = "Arch\ Linux" ]; then
 		mesa_detect_arch=$(pacman -Q | grep mesa)
 
 		if [ -z "$mesa_detect_arch" ]; then
-			sudo pacman -S libxcursor libxrandr libxinerama libxi mesa libglvnd sdl2 sdl2_mixer sdl2_net alsa-lib --noconfirm >/dev/null 2>&1
+			sudo pacman -S libxcursor libxrandr libxinerama libxi libxxf86vm mesa libglvnd sdl2 sdl2_mixer sdl2_net alsa-lib --noconfirm >/dev/null 2>&1
 		else
-			sudo pacman -S libxcursor libxrandr libxinerama libxi libglvnd sdl2 sdl2_mixer sdl2_net alsa-lib --noconfirm >/dev/null 2>&1
+			sudo pacman -S libxcursor libxrandr libxinerama libxi libxxf86vm libglvnd sdl2 sdl2_mixer sdl2_net alsa-lib --noconfirm >/dev/null 2>&1
 		fi
 
 	elif [ "$distribution" = "OpenSUSE" ] || [ "$distribution" = "SUSE" ]; then
