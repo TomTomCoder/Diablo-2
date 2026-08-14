@@ -568,6 +568,11 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 	// field, ROADMAP.md Phase 5), it just grants potion slots.
 	playerState.InitBelt(d2hero.ItemPotionSlots(d2hero.ItemCeintureDeCuirRunique))
 
+	// A real inventory/stash (devil_game_design_reference.md §8), unlike
+	// the belt, isn't granted by an equipped item -- every hero gets the
+	// same baseline storage from the start.
+	playerState.InitStorage()
+
 	v.navigator.ToCreateGame(playerState.FilePath, v.connectionType, v.connectionHost)
 }
 

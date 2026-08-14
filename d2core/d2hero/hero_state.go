@@ -30,6 +30,15 @@ type HeroState struct {
 	// equipped item itself.
 	Belt []string `json:"belt"`
 
+	// Inventory/Stash hold Devil item codes by slot, "" meaning empty --
+	// devil_game_design_reference.md §8's "Inventaire : grille portée sur
+	// le personnage (taille contrainte)" / "Coffre (stash) : accessible en
+	// ville uniquement". See devil_inventory.go's own top-of-file note for
+	// why these are flat slot lists rather than a true spatial grid, and
+	// InitStorage for how they're sized.
+	Inventory []string `json:"inventory"`
+	Stash     []string `json:"stash"`
+
 	// DiscoveredRecipes tracks which Cube de Nexus recipe IDs (see
 	// devil_crafting.go's DevilCraftingRecipe.ID) h has ever crafted --
 	// devil_game_design_reference.md §8's "Codex progressif": "chaque

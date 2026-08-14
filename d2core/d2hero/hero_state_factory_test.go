@@ -82,7 +82,9 @@ func TestSaveThenLoadRoundTripsARealDevilCharacter(t *testing.T) {
 			SkillEclatDeGlace:        NewDevilHeroSkill(SkillEclatDeGlace),
 			SkillMaitriseElementaire: NewDevilHeroSkill(SkillMaitriseElementaire),
 		},
-		Belt: []string{ItemPotionDeMana, "", "", ""},
+		Belt:      []string{ItemPotionDeMana, "", "", ""},
+		Inventory: []string{ItemBatonInitie, ""},
+		Stash:     []string{"", ItemRobeDuNovice},
 		Stats: &HeroStatsState{
 			Level: 18, StatsPoints: 3, SkillPoints: 1,
 			Vitality: 12, VitalitySpent: 2, LifePerVit: 4,
@@ -136,6 +138,14 @@ func TestSaveThenLoadRoundTripsARealDevilCharacter(t *testing.T) {
 
 	if len(loaded.Belt) != 4 || loaded.Belt[0] != ItemPotionDeMana {
 		t.Errorf("expected the belt's contents to survive, got %v", loaded.Belt)
+	}
+
+	if len(loaded.Inventory) != 2 || loaded.Inventory[0] != ItemBatonInitie {
+		t.Errorf("expected the inventory's contents to survive, got %v", loaded.Inventory)
+	}
+
+	if len(loaded.Stash) != 2 || loaded.Stash[1] != ItemRobeDuNovice {
+		t.Errorf("expected the stash's contents to survive, got %v", loaded.Stash)
 	}
 
 	if loaded.Stats == nil {
