@@ -141,15 +141,23 @@ type skillTree struct {
 	panel                *d2ui.CustomWidget
 	stats                *d2hero.HeroStatsState
 	onInvestSkillPointCb func(skillID int)
+	onLearnSkillCb       func(skillID int)
 
 	*d2util.Logger
 	l d2util.LogLevel
 }
 
-// SetOnInvestSkillPointCb sets the callback run when the player clicks a
-// skill icon, requesting to invest another skill point into that skill.
+// SetOnInvestSkillPointCb sets the callback run when the player clicks an
+// already-known skill icon, requesting to invest another skill point into
+// that skill.
 func (s *skillTree) SetOnInvestSkillPointCb(cb func(skillID int)) {
 	s.onInvestSkillPointCb = cb
+}
+
+// SetOnLearnSkillCb sets the callback run when the player clicks a
+// not-yet-known skill's preview icon, requesting to learn it.
+func (s *skillTree) SetOnLearnSkillCb(cb func(skillID int)) {
+	s.onLearnSkillCb = cb
 }
 
 func (s *skillTree) load() {
@@ -179,12 +187,33 @@ func (s *skillTree) load() {
 
 	s.loadForHeroType()
 
-	for skillID, skill := range s.skills {
+	// One icon per skill in the whole registry, known or not -- built once
+	// here since d2core/d2ui has no widget-removal capability anywhere, so
+	// the list can't be rebuilt later as skills get learned or become
+	// eligible (ROADMAP.md's "LearnSkill" entries have the full
+	// investigation). A not-yet-known skill gets a SkillPoints-0 preview
+	// icon (greyed out, same rule renderSprite already applies to any
+	// skill with 0 points); clicking it requests LearnSkill instead of
+	// InvestSkillPoint. Known-ness is checked live at click time against
+	// s.skills (the same map object as HeroState.Skills), not captured
+	// from this loop, so a click after learning correctly falls through
+	// to investing a point even though the icon itself keeps showing the
+	// stale preview for the rest of the session.
+	for skillID := range d2hero.DevilSkills {
+		skill, known := s.skills[skillID]
+		if !known {
+			skill = d2hero.NewDevilHeroSkillPreview(skillID)
+		}
+
 		si := newSkillIcon(s.uiManager, s.resources.skillSprite, s.l, skill)
 
 		si.OnActivated(func() {
-			if s.onInvestSkillPointCb != nil {
-				s.onInvestSkillPointCb(skillID)
+			if _, known := s.skills[skillID]; known {
+				if s.onInvestSkillPointCb != nil {
+					s.onInvestSkillPointCb(skillID)
+				}
+			} else if s.onLearnSkillCb != nil {
+				s.onLearnSkillCb(skillID)
 			}
 		})
 

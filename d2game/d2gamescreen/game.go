@@ -390,6 +390,21 @@ func (v *Game) OnInvestSkillPoint(skillID int) {
 	}
 }
 
+// OnLearnSkill sends a request to learn a not-yet-known skill
+// (d2hero.HeroState.LearnSkill), triggered by clicking its preview icon
+// in the skill tree panel.
+func (v *Game) OnLearnSkill(skillID int) {
+	lp, err := d2netpacket.CreateLearnSkillRequestPacket(v.gameClient.PlayerID, skillID)
+	if err != nil {
+		v.Errorf("LearnSkillRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(lp); err != nil {
+		v.Errorf("LearnSkillRequestPacket: player %s, skill %d: %v", v.gameClient.PlayerID, skillID, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.

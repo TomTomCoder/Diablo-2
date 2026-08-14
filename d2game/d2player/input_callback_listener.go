@@ -8,4 +8,5 @@ type inputCallbackListener interface {
 	OnInvestSkillPoint(skillID int)
 	OnEquipSkill(slot d2hero.SkillSlot, skillID int)
 	OnSpendAttributePoint(attr d2hero.Attribute)
+	OnLearnSkill(skillID int)
 }

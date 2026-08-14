@@ -250,6 +250,7 @@ func NewGameControls(
 	gc.inventory.SetOnCloseCb(gc.onCloseInventory)
 	gc.skilltree.SetOnCloseCb(gc.onCloseSkilltree)
 	gc.skilltree.SetOnInvestSkillPointCb(gc.inputListener.OnInvestSkillPoint)
+	gc.skilltree.SetOnLearnSkillCb(gc.inputListener.OnLearnSkill)
 	gc.hud.skillSelectMenu.SetOnEquipCb(gc.inputListener.OnEquipSkill)
 
 	gc.escapeMenu.SetOnCloseCb(gc.hud.miniPanel.restoreDisabled)

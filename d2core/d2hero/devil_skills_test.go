@@ -77,6 +77,39 @@ func TestNewDevilHeroSkillMarksPassiveSkillsCorrectly(t *testing.T) {
 	}
 }
 
+// TestNewDevilHeroSkillPreviewLooksUnlearnedButRendersLikeTheRealThing
+// checks the two properties d2game/d2player/skilltree.go's icon rendering
+// actually relies on: SkillPoints 0 (skillIcon.renderSprite greys an icon
+// out exactly when SkillPoints == 0 -- the whole point of a "not learned
+// yet" preview) and Shallow nil (a preview must never accidentally get
+// saved as if it were a real learned skill).
+func TestNewDevilHeroSkillPreviewLooksUnlearnedButRendersLikeTheRealThing(t *testing.T) {
+	preview := NewDevilHeroSkillPreview(SkillTraitDeFeu)
+
+	if preview == nil {
+		t.Fatal("NewDevilHeroSkillPreview returned nil for a known skill ID")
+	}
+
+	if preview.SkillPoints != 0 {
+		t.Errorf("expected SkillPoints 0 so the icon renders greyed out, got %d", preview.SkillPoints)
+	}
+
+	if preview.Shallow != nil {
+		t.Error("expected Shallow nil -- a preview must never be mistaken for a real learned skill on save")
+	}
+
+	learned := NewDevilHeroSkill(SkillTraitDeFeu)
+	if preview.SkillPage != learned.SkillPage || preview.SkillColumn != learned.SkillColumn || preview.SkillRow != learned.SkillRow {
+		t.Error("expected the preview to render at the exact same position as the real, learned skill")
+	}
+}
+
+func TestNewDevilHeroSkillPreviewUnknownSkillReturnsNil(t *testing.T) {
+	if NewDevilHeroSkillPreview(unknownSkillID) != nil {
+		t.Error("expected nil for an unknown skill ID")
+	}
+}
+
 func TestMaitriseElementaireDamagePercent(t *testing.T) {
 	if got := MaitriseElementaireDamagePercent(0); got != 0 {
 		t.Errorf("expected 0%% with no points invested, got %d", got)

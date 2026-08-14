@@ -30,6 +30,45 @@ const SkillTraitDeFeu = 1000
 // leaving it nil -- see that function's own "Bug fix" comment, and
 // ROADMAP.md's "Round-trip complet vérifié" entry for the regression test.
 func NewDevilHeroSkill(skillID int) *HeroSkill {
+	return newDevilHeroSkillWithPoints(skillID, 1)
+}
+
+// NewDevilHeroSkillPreview returns a HeroSkill for a skill the hero hasn't
+// learned yet, for the skill tree panel to render a clickable "learn this"
+// icon: same render data as NewDevilHeroSkill (position, icon, equip
+// eligibility), but SkillPoints 0 so skillIcon's own "grey out an
+// unlearned skill" rule (skillIcon.renderSprite, SkillPoints == 0) applies
+// to it correctly, and Shallow nil since a preview is never meant to be
+// saved -- only a real learned skill (in HeroState.Skills) is. nil if
+// skillID isn't in DevilSkills.
+//
+// ponytail: known, accepted, documented limitation, not an oversight --
+// see ROADMAP.md's "LearnSkill" entries. Once the previewed skill is
+// actually learned, the specific *skillIcon* widget built from this
+// object keeps showing it as unlearned for the rest of the session (its
+// captured *HeroSkill pointer never becomes the real, learned one)
+// even though clicking it again correctly falls through to
+// InvestSkillPoint instead of re-triggering LearnSkill, since that
+// decision is made by checking the live HeroState.Skills map, not this
+// stale pointer. Rebuilding the icon list to fix the visual would need
+// d2core/d2ui to support removing widgets, which it doesn't anywhere in
+// the package (checked, not assumed) -- reloading the panel by
+// relogging is the only current way to clear the staleness.
+func NewDevilHeroSkillPreview(skillID int) *HeroSkill {
+	skill := newDevilHeroSkillWithPoints(skillID, 0)
+	if skill == nil {
+		return nil
+	}
+
+	skill.Shallow = nil
+
+	return skill
+}
+
+// newDevilHeroSkillWithPoints is NewDevilHeroSkill/NewDevilHeroSkillPreview's
+// shared constructor -- points is 1 for an actually-learned skill (see
+// HeroState.LearnSkill), 0 for a not-yet-learned preview.
+func newDevilHeroSkillWithPoints(skillID, points int) *HeroSkill {
 	def, ok := DevilSkills[skillID]
 	if !ok {
 		return nil
@@ -67,8 +106,8 @@ func NewDevilHeroSkill(skillID int) *HeroSkill {
 			SkillRow:    row,
 			ListRow:     page, // group the equip popup by tree, same as the skill tree tabs
 		},
-		SkillPoints: 1,
-		Shallow:     &shallowHeroSkill{SkillID: skillID, SkillPoints: 1},
+		SkillPoints: points,
+		Shallow:     &shallowHeroSkill{SkillID: skillID, SkillPoints: points},
 	}
 }
 
