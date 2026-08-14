@@ -405,6 +405,22 @@ func (v *Game) OnEquipSkill(slot d2hero.SkillSlot, skillID int) {
 	}
 }
 
+// OnSpendAttributePoint sends a request to spend one of the player's
+// level-up points on the given attribute
+// (d2hero.HeroStatsState.SpendAttributePoint), triggered by clicking one
+// of the "+" buttons on the hero stats panel.
+func (v *Game) OnSpendAttributePoint(attr d2hero.Attribute) {
+	sp, err := d2netpacket.CreateSpendAttributePointRequestPacket(v.gameClient.PlayerID, int(attr))
+	if err != nil {
+		v.Errorf("SpendAttributePointRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(sp); err != nil {
+		v.Errorf("SpendAttributePointRequestPacket: player %s, attribute %d: %v", v.gameClient.PlayerID, attr, err)
+	}
+}
+
 func (v *Game) debugSpawnItemAtPlayer(codes ...string) {
 	if v.localPlayer == nil {
 		return

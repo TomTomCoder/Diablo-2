@@ -134,6 +134,7 @@ type HeroStatsPanel struct {
 	panelGroup      *d2ui.WidgetGroup
 	newStatPoints   *d2ui.WidgetGroup
 	remainingPoints *d2ui.Label
+	onSpendPointCb  func(attr d2hero.Attribute)
 
 	originX int
 	originY int
@@ -202,22 +203,13 @@ func (s *HeroStatsPanel) loadNewStatPoints() {
 	s.newStatPoints.AddWidget(s.remainingPoints)
 
 	buttons := []struct {
-		x  int
-		y  int
-		cb func()
+		x, y int
+		attr d2hero.Attribute
 	}{
-		{205, 140, func() {
-			s.heroState.Strength++
-		}},
-		{205, 201, func() {
-			s.heroState.Dexterity++
-		}},
-		{205, 286, func() {
-			s.heroState.Vitality++
-		}},
-		{205, 347, func() {
-			s.heroState.Energy++
-		}},
+		{205, 140, d2hero.AttributeStrength},
+		{205, 201, d2hero.AttributeDexterity},
+		{205, 286, d2hero.AttributeVitality},
+		{205, 347, d2hero.AttributeEnergy},
 	}
 
 	var socket *d2ui.Sprite
@@ -225,7 +217,7 @@ func (s *HeroStatsPanel) loadNewStatPoints() {
 	var button *d2ui.Button
 
 	for _, i := range buttons {
-		currentValue := i
+		attr := i.attr
 
 		socket, err = s.uiManager.NewSprite(d2resource.HeroStatsPanelSocket, d2resource.PaletteSky)
 		if err != nil {
@@ -238,14 +230,19 @@ func (s *HeroStatsPanel) loadNewStatPoints() {
 		button = s.uiManager.NewButton(d2ui.ButtonTypeAddSkill, d2resource.PaletteSky)
 		button.SetPosition(i.x, i.y)
 		button.OnActivated(func() {
-			currentValue.cb()
-			s.heroState.StatsPoints--
-			s.remainingPoints.SetText(strconv.Itoa(s.heroState.StatsPoints))
-			s.setStatValues()
-			s.setLayout()
+			if s.onSpendPointCb != nil {
+				s.onSpendPointCb(attr)
+			}
 		})
 		s.newStatPoints.AddWidget(button)
 	}
+}
+
+// SetOnSpendPointCb sets the callback run when the player clicks one of
+// the four attribute "+" buttons, requesting a point be spent on that
+// attribute (d2hero.HeroStatsState.SpendAttributePoint).
+func (s *HeroStatsPanel) SetOnSpendPointCb(cb func(attr d2hero.Attribute)) {
+	s.onSpendPointCb = cb
 }
 
 func (s *HeroStatsPanel) setLayout() {
@@ -287,12 +284,22 @@ func (s *HeroStatsPanel) SetOnCloseCb(cb func()) {
 }
 
 // Advance updates labels on the panel
+//
+// ponytail: remainingPoints/setLayout used to be refreshed only from
+// inside the "+" button's own click handler -- fine when that handler
+// mutated state locally and instantly, but now that spending a point is a
+// request/response round trip (SetOnSpendPointCb), the display needs to
+// keep polling s.heroState.StatsPoints here instead, the same way
+// setStatValues already does for Strength/Dexterity/etc., so it still
+// catches the server's answer once it actually arrives.
 func (s *HeroStatsPanel) Advance(elapsed float64) {
 	if !s.isOpen {
 		return
 	}
 
 	s.setStatValues()
+	s.remainingPoints.SetText(strconv.Itoa(s.heroState.StatsPoints))
+	s.setLayout()
 }
 
 func (s *HeroStatsPanel) renderStaticMenu(target d2interface.Surface) {

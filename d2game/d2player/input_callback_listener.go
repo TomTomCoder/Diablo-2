@@ -7,4 +7,5 @@ type inputCallbackListener interface {
 	OnPlayerCast(skillID int, x, y float64)
 	OnInvestSkillPoint(skillID int)
 	OnEquipSkill(slot d2hero.SkillSlot, skillID int)
+	OnSpendAttributePoint(attr d2hero.Attribute)
 }
