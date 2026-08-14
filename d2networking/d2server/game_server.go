@@ -485,7 +485,14 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	if npc := g.npcByID(npcID); npc != nil {
 		monsterKey = npc.MonsterKey()
 
-		damageMin, damageMax := npc.AttackDamageRange()
+		// Correction (août 2026): the defending player's real Difficulty,
+		// not always Normal -- see NPC.AttackDamageRange's own doc comment.
+		difficulty := d2enum.DifficultyNormal
+		if defender := g.playerStateOf(playerID); defender != nil {
+			difficulty = defender.Difficulty
+		}
+
+		damageMin, damageMax := npc.AttackDamageRange(difficulty)
 		fallbackDamage = d2hero.RollDamageInRange(damageMin, damageMax, monsterAttackDamage)
 
 		if frames := npc.AiDelayFrames(); frames > 0 {
@@ -1220,7 +1227,14 @@ func amplifiedDamage(damage int, amplified bool) int {
 func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID string, skillID, damage int) {
 	damage = amplifiedDamage(damage, npc.IsAmplified(g.clock()))
 
-	resistance := npc.MagicResistancePercent()
+	// Correction (août 2026): the attacking player's real Difficulty, not
+	// always Normal -- see NPC.MagicResistancePercent's own doc comment.
+	difficulty := d2enum.DifficultyNormal
+	if attacker := g.playerStateOf(sourceEntityID); attacker != nil {
+		difficulty = attacker.Difficulty
+	}
+
+	resistance := npc.MagicResistancePercent(difficulty)
 	if npc.IsResistanceStripped(g.clock()) {
 		resistance = 0 // Rupture arcane: "supprime les résistances d'une cible"
 	}

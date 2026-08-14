@@ -108,14 +108,20 @@ func (v *NPC) MonsterKey() string {
 // combine this with IsResistanceStripped (mirroring how amplifiedDamage
 // combines a base value with IsAmplified in game_server.go).
 //
-// ponytail: always Normal-difficulty, same limitation as
-// MonStatRecord.HPRangeForDifficulty -- see that method's doc comment.
-func (v *NPC) MagicResistancePercent() int {
+// Correction (août 2026): used to always read ResistanceMagicNormal
+// regardless of difficulty -- devil_game_design_reference.md §3's "leurs
+// résistances augmentent modérément" for Nightmare/Hell. Unlike
+// NewNPC's own HP scaling (still Normal-only -- see
+// MonStatRecord.HPRangeForDifficulty's own doc comment for why), this is
+// read at hit-resolution time entirely server-side, with the acting
+// player's HeroState already one lookup away -- no client call sites to
+// thread a value through, so nothing blocks wiring it for real here.
+func (v *NPC) MagicResistancePercent(difficulty d2enum.DifficultyType) int {
 	if v.monstatRecord == nil {
 		return 0
 	}
 
-	return v.monstatRecord.ResistanceMagicNormal
+	return v.monstatRecord.MagicResistanceForDifficulty(difficulty)
 }
 
 // AttackDamageRange returns this NPC's primary melee attack's damage range
@@ -126,14 +132,15 @@ func (v *NPC) MagicResistancePercent() int {
 // modeling per-monster secondary attacks ("A2") or skill-based ones
 // ("S1"), so reading more than one column here would have nowhere to go.
 //
-// ponytail: always Normal-difficulty, same limitation as
-// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
-func (v *NPC) AttackDamageRange() (min, max int) { // nolint:gocritic // named returns read clearly for a min/max pair
+// Correction (août 2026): same fix as MagicResistancePercent, same
+// reasoning -- read at attack-resolution time entirely server-side, with
+// the defending player's HeroState already one lookup away.
+func (v *NPC) AttackDamageRange(difficulty d2enum.DifficultyType) (min, max int) { // nolint:gocritic // named returns read clearly for a min/max pair
 	if v.monstatRecord == nil {
 		return 0, 0
 	}
 
-	return v.monstatRecord.DamageMinA1Normal, v.monstatRecord.DamageMaxA1Normal
+	return v.monstatRecord.AttackDamageRangeForDifficulty(difficulty)
 }
 
 // IsColdImmune reports whether this NPC is immune to cold-elemental slow

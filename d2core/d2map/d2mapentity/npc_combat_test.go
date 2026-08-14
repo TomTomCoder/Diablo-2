@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 )
@@ -55,7 +56,7 @@ func TestNPCMagicResistancePercent(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{ResistanceMagicNormal: 50},
 	}
-	if got, want := resistant.MagicResistancePercent(), 50; got != want {
+	if got, want := resistant.MagicResistancePercent(d2enum.DifficultyNormal), 50; got != want {
 		t.Errorf("expected MagicResistancePercent %d, got %d", want, got)
 	}
 
@@ -63,13 +64,36 @@ func TestNPCMagicResistancePercent(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{ResistanceMagicNormal: -50},
 	}
-	if got, want := vulnerable.MagicResistancePercent(), -50; got != want {
+	if got, want := vulnerable.MagicResistancePercent(d2enum.DifficultyNormal), -50; got != want {
 		t.Errorf("expected negative MagicResistancePercent %d (takes more damage), got %d", want, got)
 	}
 
 	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
-	if got := noMonstat.MagicResistancePercent(); got != 0 {
+	if got := noMonstat.MagicResistancePercent(d2enum.DifficultyNormal); got != 0 {
 		t.Errorf("expected MagicResistancePercent 0 with no monstat record, got %d", got)
+	}
+}
+
+// TestNPCMagicResistancePercentVariesByDifficulty is a regression test:
+// MagicResistancePercent used to always read ResistanceMagicNormal
+// regardless of the difficulty passed in (devil_game_design_reference.md
+// §3: "leurs résistances augmentent modérément" at Nightmare/Hell).
+func TestNPCMagicResistancePercentVariesByDifficulty(t *testing.T) {
+	npc := &NPC{
+		mapEntity: newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{
+			ResistanceMagicNormal:    10,
+			ResistanceMagicNightmare: 30,
+			ResistanceMagicHell:      50,
+		},
+	}
+
+	if got, want := npc.MagicResistancePercent(d2enum.DifficultyNightmare), 30; got != want {
+		t.Errorf("expected Nightmare resistance %d, got %d", want, got)
+	}
+
+	if got, want := npc.MagicResistancePercent(d2enum.DifficultyHell), 50; got != want {
+		t.Errorf("expected Hell resistance %d, got %d", want, got)
 	}
 }
 
@@ -79,15 +103,32 @@ func TestNPCAttackDamageRange(t *testing.T) {
 		monstatRecord: &d2records.MonStatRecord{DamageMinA1Normal: 3, DamageMaxA1Normal: 7},
 	}
 
-	gotMin, gotMax := npc.AttackDamageRange()
+	gotMin, gotMax := npc.AttackDamageRange(d2enum.DifficultyNormal)
 	if gotMin != 3 || gotMax != 7 {
 		t.Errorf("expected AttackDamageRange (3, 7), got (%d, %d)", gotMin, gotMax)
 	}
 
 	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
-	gotMin, gotMax = noMonstat.AttackDamageRange()
+	gotMin, gotMax = noMonstat.AttackDamageRange(d2enum.DifficultyNormal)
 	if gotMin != 0 || gotMax != 0 {
 		t.Errorf("expected AttackDamageRange (0, 0) with no monstat record, got (%d, %d)", gotMin, gotMax)
+	}
+}
+
+// TestNPCAttackDamageRangeVariesByDifficulty mirrors
+// TestNPCMagicResistancePercentVariesByDifficulty for the damage range.
+func TestNPCAttackDamageRangeVariesByDifficulty(t *testing.T) {
+	npc := &NPC{
+		mapEntity: newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{
+			DamageMinA1Normal: 3, DamageMaxA1Normal: 7,
+			DamageMinA1Hell: 20, DamageMaxA1Hell: 40,
+		},
+	}
+
+	gotMin, gotMax := npc.AttackDamageRange(d2enum.DifficultyHell)
+	if gotMin != 20 || gotMax != 40 {
+		t.Errorf("expected Hell AttackDamageRange (20, 40), got (%d, %d)", gotMin, gotMax)
 	}
 }
 
