@@ -220,6 +220,14 @@ func (v *Game) Render(screen d2interface.Surface) {
 			return
 		}
 	}
+
+	// DevilHUD is a separate, asset-independent overlay (health/mana bars +
+	// equipped skill names, drawn from plain shapes/text -- see its own
+	// doc comment for why: the stock HUD above depends on .DC6 sprites
+	// that don't exist in this environment, and would panic on a nil
+	// *d2ui.Sprite if they did fail to load). Stateless, so a fresh one
+	// per frame costs nothing worth caching.
+	(&d2player.DevilHUD{}).Render(screen, v.localPlayer)
 }
 
 // Advance runs the update logic on the Gameplay screen
