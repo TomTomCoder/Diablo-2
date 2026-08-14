@@ -195,6 +195,10 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleSkillLearnedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.SkillEquipped:
+		if err := g.handleSkillEquippedPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.SkillsRespeced:
 		if err := g.handleSkillsRespecedPacket(packet); err != nil {
 			return err
@@ -567,6 +571,36 @@ func (g *GameClient) handleSkillLearnedPacket(packet d2netpacket.NetPacket) erro
 
 	player.Skills[learned.SkillID] = skill
 	player.Stats.SkillPoints = learned.SkillPoints
+
+	return nil
+}
+
+// handleSkillEquippedPacket assigns the local copy of the given player's
+// LeftSkill/RightSkill to their already-known skill of the given ID. Does
+// nothing if the skill isn't known locally (the server would have refused
+// the request in that case anyway).
+func (g *GameClient) handleSkillEquippedPacket(packet d2netpacket.NetPacket) error {
+	equipped, err := d2netpacket.UnmarshalSkillEquipped(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[equipped.PlayerID]
+	if !found {
+		return nil
+	}
+
+	skill, known := player.Skills[equipped.SkillID]
+	if !known {
+		return nil
+	}
+
+	switch d2hero.SkillSlot(equipped.Slot) {
+	case d2hero.SkillSlotLeft:
+		player.LeftSkill = skill
+	case d2hero.SkillSlotRight:
+		player.RightSkill = skill
+	}
 
 	return nil
 }

@@ -810,6 +810,38 @@ func (g *GameServer) resolveLearnSkill(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(learnedPacket)
 }
 
+// resolveEquipSkill unmarshals an EquipSkillRequestPacket and, if
+// HeroState.EquipSkill succeeds (the skill must already be learned),
+// broadcasts the result via SkillEquippedPacket. Same "silently do nothing
+// on failure" shape as resolveLearnSkill.
+func (g *GameServer) resolveEquipSkill(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalEquipSkillRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveEquipSkill: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	slot := d2hero.SkillSlot(requestPacket.Slot)
+
+	if err = state.EquipSkill(slot, requestPacket.SkillID); err != nil {
+		return
+	}
+
+	equippedPacket, err := d2netpacket.CreateSkillEquippedPacket(
+		requestPacket.SourceEntityID, requestPacket.Slot, requestPacket.SkillID)
+	if err != nil {
+		g.Errorf("CreateSkillEquippedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(equippedPacket)
+}
+
 // resolveRespecSkills unmarshals a RespecSkillsRequestPacket and forgets
 // every skill the caster has learned (HeroState.RespecSkills -- "Respec
 // partiel"), broadcasting their refunded SkillPoints. Correction (août
@@ -2236,6 +2268,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveCraft(packet)
 	case d2netpackettype.LearnSkillRequest:
 		g.resolveLearnSkill(packet)
+	case d2netpackettype.EquipSkillRequest:
+		g.resolveEquipSkill(packet)
 	case d2netpackettype.RespecSkillsRequest:
 		g.resolveRespecSkills(packet)
 	case d2netpackettype.RespecSingleSkillRequest:

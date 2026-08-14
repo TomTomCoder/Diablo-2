@@ -105,6 +105,72 @@ func TestInvestSkillPointFailsWithoutPoints(t *testing.T) {
 	}
 }
 
+func TestEquipSkillAssignsLeftAndRightIndependently(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("test setup: LearnSkill failed: %v", err)
+	}
+
+	if err := hero.LearnSkill(SkillEclatDeGlace); err != nil {
+		t.Fatalf("test setup: LearnSkill failed: %v", err)
+	}
+
+	if err := hero.EquipSkill(SkillSlotLeft, SkillTraitDeFeu); err != nil {
+		t.Fatalf("expected EquipSkill(left) to succeed, got %v", err)
+	}
+
+	if err := hero.EquipSkill(SkillSlotRight, SkillEclatDeGlace); err != nil {
+		t.Fatalf("expected EquipSkill(right) to succeed, got %v", err)
+	}
+
+	if hero.LeftSkill != SkillTraitDeFeu {
+		t.Errorf("expected LeftSkill %d, got %d", SkillTraitDeFeu, hero.LeftSkill)
+	}
+
+	if hero.RightSkill != SkillEclatDeGlace {
+		t.Errorf("expected RightSkill %d, got %d", SkillEclatDeGlace, hero.RightSkill)
+	}
+}
+
+func TestEquipSkillFailsIfNotLearned(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+
+	if err := hero.EquipSkill(SkillSlotLeft, SkillTraitDeFeu); err == nil {
+		t.Error("expected an error equipping a skill that isn't learned")
+	}
+
+	if hero.LeftSkill != 0 {
+		t.Errorf("expected LeftSkill untouched at 0, got %d", hero.LeftSkill)
+	}
+}
+
+// TestEquipSkillCanReplaceAnAlreadyEquippedSkill is a regression test: D2
+// lets you freely reassign skills at any time, no "unequip first" step.
+func TestEquipSkillCanReplaceAnAlreadyEquippedSkill(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("test setup: LearnSkill failed: %v", err)
+	}
+
+	if err := hero.LearnSkill(SkillEclatDeGlace); err != nil {
+		t.Fatalf("test setup: LearnSkill failed: %v", err)
+	}
+
+	if err := hero.EquipSkill(SkillSlotLeft, SkillTraitDeFeu); err != nil {
+		t.Fatalf("test setup: EquipSkill failed: %v", err)
+	}
+
+	if err := hero.EquipSkill(SkillSlotLeft, SkillEclatDeGlace); err != nil {
+		t.Fatalf("expected re-equipping the left slot to succeed, got %v", err)
+	}
+
+	if hero.LeftSkill != SkillEclatDeGlace {
+		t.Errorf("expected LeftSkill replaced with %d, got %d", SkillEclatDeGlace, hero.LeftSkill)
+	}
+}
+
 func TestRespecSkillsRefundsPointsAndClearsSkills(t *testing.T) {
 	hero := newLearnableHeroState(6, 2)
 	hero.LeftSkill = SkillTraitDeFeu

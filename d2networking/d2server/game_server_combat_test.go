@@ -1126,6 +1126,56 @@ func TestResolveLearnSkillUnknownPlayerNoop(t *testing.T) {
 	server.resolveLearnSkill(packet)
 }
 
+func TestResolveEquipSkillAssignsSlot(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 6},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: d2hero.NewDevilHeroSkill(d2hero.SkillTraitDeFeu)},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateEquipSkillRequestPacket("p", int(d2hero.SkillSlotLeft), d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateEquipSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveEquipSkill(packet)
+
+	if state.LeftSkill != d2hero.SkillTraitDeFeu {
+		t.Errorf("expected LeftSkill %d, got %d", d2hero.SkillTraitDeFeu, state.LeftSkill)
+	}
+}
+
+func TestResolveEquipSkillFailsIfNotLearnedIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 6},
+		Skills: make(map[int]*d2hero.HeroSkill),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateEquipSkillRequestPacket("p", int(d2hero.SkillSlotLeft), d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateEquipSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveEquipSkill(packet)
+
+	if state.LeftSkill != 0 {
+		t.Errorf("expected LeftSkill untouched at 0, got %d", state.LeftSkill)
+	}
+}
+
+func TestResolveEquipSkillUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateEquipSkillRequestPacket("nobody", int(d2hero.SkillSlotLeft), d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateEquipSkillRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveEquipSkill(packet)
+}
+
 func TestResolveRespecSkillsRefundsAllPoints(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},

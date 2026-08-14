@@ -177,6 +177,75 @@ func TestHandleSkillLearnedPacketAddsSkillAndUpdatesPoints(t *testing.T) {
 	}
 }
 
+func TestHandleSkillEquippedPacketAssignsLeftAndRightIndependently(t *testing.T) {
+	traitDeFeu := &d2hero.HeroSkill{}
+	eclatDeGlace := &d2hero.HeroSkill{}
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Skills: map[int]*d2hero.HeroSkill{
+			d2hero.SkillTraitDeFeu:   traitDeFeu,
+			d2hero.SkillEclatDeGlace: eclatDeGlace,
+		},
+	})
+
+	leftPacket, err := d2netpacket.CreateSkillEquippedPacket("p", int(d2hero.SkillSlotLeft), d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillEquippedPacket failed: %v", err)
+	}
+
+	if err := client.handleSkillEquippedPacket(leftPacket); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	rightPacket, err := d2netpacket.CreateSkillEquippedPacket("p", int(d2hero.SkillSlotRight), d2hero.SkillEclatDeGlace)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillEquippedPacket failed: %v", err)
+	}
+
+	if err := client.handleSkillEquippedPacket(rightPacket); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.LeftSkill != traitDeFeu {
+		t.Error("expected LeftSkill assigned to Trait de feu")
+	}
+
+	if player.RightSkill != eclatDeGlace {
+		t.Error("expected RightSkill assigned to Éclat de glace")
+	}
+}
+
+func TestHandleSkillEquippedPacketUnknownSkillIsNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Skills: map[int]*d2hero.HeroSkill{}})
+
+	packet, err := d2netpacket.CreateSkillEquippedPacket("p", int(d2hero.SkillSlotLeft), d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillEquippedPacket failed: %v", err)
+	}
+
+	if err := client.handleSkillEquippedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if client.Players["p"].LeftSkill != nil {
+		t.Error("expected LeftSkill untouched when the skill isn't known locally")
+	}
+}
+
+func TestHandleSkillEquippedPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateSkillEquippedPacket("nobody", int(d2hero.SkillSlotLeft), d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateSkillEquippedPacket failed: %v", err)
+	}
+
+	// must not panic when the target isn't a known player.
+	if err := client.handleSkillEquippedPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestHandleSingleSkillRespecedPacketRemovesSkill(t *testing.T) {
 	client := clientWithPlayer("p", &d2mapentity.Player{
 		Stats:  &d2hero.HeroStatsState{SkillPoints: 0},

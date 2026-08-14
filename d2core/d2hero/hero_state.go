@@ -123,6 +123,43 @@ func (h *HeroState) InvestSkillPoint(skillID int) error {
 	return nil
 }
 
+// SkillSlot is which of the two active-skill slots a skill is assigned to
+// -- Devil keeps D2's own "one skill per mouse button" model (§7 doesn't
+// propose anything different), so there are exactly two.
+type SkillSlot int
+
+const (
+	// SkillSlotLeft is the skill triggered by the left mouse button.
+	SkillSlotLeft SkillSlot = iota
+	// SkillSlotRight is the skill triggered by the right mouse button.
+	SkillSlotRight
+)
+
+// EquipSkill assigns an already-learned skill to slot (HeroState.LeftSkill/
+// RightSkill), for the client to actually be able to cast it. Previously
+// these fields were only ever set by loading a save file or cleared by a
+// respec -- nothing let a player choose what to cast during play at all.
+//
+// ponytail: no cooldown/UI concept of "swapping mid-fight" is restricted
+// here -- the design doesn't call for one, and D2 itself lets you freely
+// reassign skills at any time.
+func (h *HeroState) EquipSkill(slot SkillSlot, skillID int) error {
+	if _, known := h.Skills[skillID]; !known {
+		return errors.New("skill not learned")
+	}
+
+	switch slot {
+	case SkillSlotLeft:
+		h.LeftSkill = skillID
+	case SkillSlotRight:
+		h.RightSkill = skillID
+	default:
+		return errors.New("unknown skill slot")
+	}
+
+	return nil
+}
+
 // resetAllSkillsAndAttributes clears every skill h has learned, refunding
 // the skill points spent on them, and refunds every attribute point ever
 // spent via HeroStatsState.SpendAttributePoint

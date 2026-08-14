@@ -55,6 +55,8 @@ const (
 	PlayerStatusEffect                                     // Sent by the server, the caster's status changed (mana shield/armure/immunity)
 	CraftRequest                                           // Sent by the client, requests crafting a Cube de Nexus recipe
 	ItemCrafted                                            // Sent by the server, a recipe was crafted (new equipped item + remaining gold)
+	EquipSkillRequest                                      // Sent by the client, requests assigning a learned skill to a slot
+	SkillEquipped                                          // Sent by the server, a player's left/right skill slot changed
 
 	UnknownPacketType = 666
 )
@@ -98,6 +100,8 @@ func (n NetPacketType) String() string {
 		PlayerStatusEffect:                "PlayerStatusEffect",
 		CraftRequest:                      "CraftRequest",
 		ItemCrafted:                       "ItemCrafted",
+		EquipSkillRequest:                 "EquipSkillRequest",
+		SkillEquipped:                     "SkillEquipped",
 	}
 
 	return strings[n]
