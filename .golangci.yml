@@ -39,8 +39,14 @@ linters-settings:
 linters:
   disable-all: true
   enable:
+    # Correction (août 2026): deadcode/golint/gomnd/structcheck/varcheck
+    # removed from this list -- golangci-lint's own log flagged all five
+    # as "fully inactivated" (their repos are archived/they were merged
+    # into other linters years ago), and referencing an inactivated
+    # linter here is a hard failure (exit code 7) that --issues-exit-code
+    # doesn't cover, separate from "issues found". unused already covers
+    # what deadcode/structcheck/varcheck did.
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - dupl
@@ -55,8 +61,6 @@ linters:
     - godox
     - gofmt
     - goimports
-    - golint
-    - gomnd
     - goprintffuncname
     - gosec
     - gosimple
@@ -68,13 +72,11 @@ linters:
     - prealloc
     - rowserrcheck
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
     - wsl
 
