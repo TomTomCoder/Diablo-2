@@ -24,12 +24,13 @@ type Player struct {
 	RightSkill    *d2hero.HeroSkill
 	Class         d2enum.Hero
 	Gold          int
-	// Inventory/Stash mirror d2hero.HeroState's own fields (item codes by
-	// slot, "" meaning empty) -- previously not tracked here at all, unlike
-	// Skills/Stats, since nothing client-side ever read them before a real
-	// inventory/stash screen existed to need them.
+	// Inventory/Stash/Belt mirror d2hero.HeroState's own fields (item codes
+	// by slot, "" meaning empty) -- previously not tracked here at all,
+	// unlike Skills/Stats, since nothing client-side ever read them before
+	// a real inventory/stash/belt screen existed to need them.
 	Inventory         []string
 	Stash             []string
+	Belt              []string
 	lastPathSize      int
 	isInTown          bool
 	isRunToggled      bool

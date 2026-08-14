@@ -61,6 +61,10 @@ const (
 	ItemMovedToStash                                       // Sent by the server, an item moved from inventory to stash
 	MoveToInventoryRequest                                 // Sent by the client, requests moving a stash item to the inventory
 	ItemMovedFromStash                                     // Sent by the server, an item moved from stash to inventory
+	MoveToBeltRequest                                      // Sent by the client, requests moving an inventory potion to the belt
+	ItemMovedToBelt                                        // Sent by the server, a potion moved from inventory to belt
+	MoveFromBeltRequest                                    // Sent by the client, requests moving a belt potion to the inventory
+	ItemMovedFromBelt                                      // Sent by the server, a potion moved from belt to inventory
 
 	UnknownPacketType = 666
 )
@@ -110,6 +114,10 @@ func (n NetPacketType) String() string {
 		ItemMovedToStash:                  "ItemMovedToStash",
 		MoveToInventoryRequest:            "MoveToInventoryRequest",
 		ItemMovedFromStash:                "ItemMovedFromStash",
+		MoveToBeltRequest:                 "MoveToBeltRequest",
+		ItemMovedToBelt:                   "ItemMovedToBelt",
+		MoveFromBeltRequest:               "MoveFromBeltRequest",
+		ItemMovedFromBelt:                 "ItemMovedFromBelt",
 	}
 
 	return strings[n]

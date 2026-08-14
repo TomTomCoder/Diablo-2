@@ -948,7 +948,7 @@ func TestResolveUsePotionRestoresManaAndClearsSlot(t *testing.T) {
 	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{Mana: 0, MaxMana: 100}}
 	state.InitBelt(2)
 
-	if err := state.AddPotionToBelt(d2hero.ItemPotionDeMana); err != nil {
+	if _, err := state.AddPotionToBelt(d2hero.ItemPotionDeMana); err != nil {
 		t.Fatalf("test setup: AddPotionToBelt failed: %v", err)
 	}
 
@@ -1263,6 +1263,90 @@ func TestResolveMoveToInventoryUnknownPlayerNoop(t *testing.T) {
 
 	// must not panic when the caster isn't a connected/resolved player.
 	server.resolveMoveToInventory(packet)
+}
+
+func TestResolveMoveToBeltMovesThePotion(t *testing.T) {
+	state := &d2hero.HeroState{Inventory: []string{d2hero.ItemPotionDeMana}}
+	state.InitBelt(1)
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateMoveToBeltRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToBeltRequestPacket failed: %v", err)
+	}
+
+	server.resolveMoveToBelt(packet)
+
+	if state.Inventory[0] != "" {
+		t.Errorf("expected the inventory slot cleared, got %q", state.Inventory[0])
+	}
+
+	if state.Belt[0] != d2hero.ItemPotionDeMana {
+		t.Errorf("expected the potion moved to the belt, got %q", state.Belt[0])
+	}
+}
+
+func TestResolveMoveToBeltRejectsNonPotionIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Inventory: []string{d2hero.ItemPendentifArcane}}
+	state.InitBelt(1)
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateMoveToBeltRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToBeltRequestPacket failed: %v", err)
+	}
+
+	server.resolveMoveToBelt(packet)
+
+	if state.Belt[0] != "" {
+		t.Errorf("expected the belt untouched for a non-potion item, got %q", state.Belt[0])
+	}
+}
+
+func TestResolveMoveToBeltUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateMoveToBeltRequestPacket("nobody", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToBeltRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveMoveToBelt(packet)
+}
+
+func TestResolveMoveFromBeltMovesThePotion(t *testing.T) {
+	state := &d2hero.HeroState{Inventory: make([]string, 1)}
+	state.InitBelt(1)
+	state.Belt[0] = d2hero.ItemPotionDeMana
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateMoveFromBeltRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveFromBeltRequestPacket failed: %v", err)
+	}
+
+	server.resolveMoveFromBelt(packet)
+
+	if state.Belt[0] != "" {
+		t.Errorf("expected the belt slot cleared, got %q", state.Belt[0])
+	}
+
+	if state.Inventory[0] != d2hero.ItemPotionDeMana {
+		t.Errorf("expected the potion moved to the inventory, got %q", state.Inventory[0])
+	}
+}
+
+func TestResolveMoveFromBeltUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateMoveFromBeltRequestPacket("nobody", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveFromBeltRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveMoveFromBelt(packet)
 }
 
 func TestResolveRespecSkillsRefundsAllPoints(t *testing.T) {

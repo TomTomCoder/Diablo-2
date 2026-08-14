@@ -207,6 +207,14 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleItemMovedFromStashPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.ItemMovedToBelt:
+		if err := g.handleItemMovedToBeltPacket(packet); err != nil {
+			return err
+		}
+	case d2netpackettype.ItemMovedFromBelt:
+		if err := g.handleItemMovedFromBeltPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.SkillsRespeced:
 		if err := g.handleSkillsRespecedPacket(packet); err != nil {
 			return err
@@ -666,6 +674,61 @@ func (g *GameClient) handleItemMovedFromStashPacket(packet d2netpacket.NetPacket
 	}
 
 	player.Stash[moved.StashIndex] = ""
+	player.Inventory[moved.InventoryIndex] = moved.ItemCode
+
+	return nil
+}
+
+// handleItemMovedToBeltPacket clears the local copy of the given player's
+// Inventory slot and sets the corresponding Belt slot. Same out-of-range
+// no-op reasoning as handleItemMovedToStashPacket -- Player.Belt is
+// likewise never fully synced on join.
+func (g *GameClient) handleItemMovedToBeltPacket(packet d2netpacket.NetPacket) error {
+	moved, err := d2netpacket.UnmarshalItemMovedToBelt(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[moved.PlayerID]
+	if !found {
+		return nil
+	}
+
+	if moved.InventoryIndex < 0 || moved.InventoryIndex >= len(player.Inventory) {
+		return nil
+	}
+
+	if moved.BeltIndex < 0 || moved.BeltIndex >= len(player.Belt) {
+		return nil
+	}
+
+	player.Inventory[moved.InventoryIndex] = ""
+	player.Belt[moved.BeltIndex] = moved.ItemCode
+
+	return nil
+}
+
+// handleItemMovedFromBeltPacket is handleItemMovedToBeltPacket's mirror.
+func (g *GameClient) handleItemMovedFromBeltPacket(packet d2netpacket.NetPacket) error {
+	moved, err := d2netpacket.UnmarshalItemMovedFromBelt(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[moved.PlayerID]
+	if !found {
+		return nil
+	}
+
+	if moved.BeltIndex < 0 || moved.BeltIndex >= len(player.Belt) {
+		return nil
+	}
+
+	if moved.InventoryIndex < 0 || moved.InventoryIndex >= len(player.Inventory) {
+		return nil
+	}
+
+	player.Belt[moved.BeltIndex] = ""
 	player.Inventory[moved.InventoryIndex] = moved.ItemCode
 
 	return nil

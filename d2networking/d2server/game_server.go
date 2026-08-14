@@ -902,6 +902,66 @@ func (g *GameServer) resolveMoveToInventory(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(movedPacket)
 }
 
+// resolveMoveToBelt unmarshals a MoveToBeltRequestPacket and, if
+// HeroState.MoveToBelt succeeds (the inventory slot must hold a potion,
+// the belt must have room), broadcasts the result via
+// ItemMovedToBeltPacket. Same "silently do nothing on failure" shape as
+// resolveMoveToStash.
+func (g *GameServer) resolveMoveToBelt(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalMoveToBeltRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveMoveToBelt: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	itemCode, beltSlot, err := state.MoveToBelt(requestPacket.InventoryIndex)
+	if err != nil {
+		return
+	}
+
+	movedPacket, err := d2netpacket.CreateItemMovedToBeltPacket(
+		requestPacket.SourceEntityID, requestPacket.InventoryIndex, beltSlot, itemCode)
+	if err != nil {
+		g.Errorf("CreateItemMovedToBeltPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(movedPacket)
+}
+
+// resolveMoveFromBelt is resolveMoveToBelt's mirror.
+func (g *GameServer) resolveMoveFromBelt(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalMoveFromBeltRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveMoveFromBelt: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	itemCode, inventorySlot, err := state.MoveFromBelt(requestPacket.BeltIndex)
+	if err != nil {
+		return
+	}
+
+	movedPacket, err := d2netpacket.CreateItemMovedFromBeltPacket(
+		requestPacket.SourceEntityID, requestPacket.BeltIndex, inventorySlot, itemCode)
+	if err != nil {
+		g.Errorf("CreateItemMovedFromBeltPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(movedPacket)
+}
+
 // resolveRespecSkills unmarshals a RespecSkillsRequestPacket and forgets
 // every skill the caster has learned (HeroState.RespecSkills -- "Respec
 // partiel"), broadcasting their refunded SkillPoints. Correction (août
@@ -2334,6 +2394,10 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveMoveToStash(packet)
 	case d2netpackettype.MoveToInventoryRequest:
 		g.resolveMoveToInventory(packet)
+	case d2netpackettype.MoveToBeltRequest:
+		g.resolveMoveToBelt(packet)
+	case d2netpackettype.MoveFromBeltRequest:
+		g.resolveMoveFromBelt(packet)
 	case d2netpackettype.RespecSkillsRequest:
 		g.resolveRespecSkills(packet)
 	case d2netpackettype.RespecSingleSkillRequest:

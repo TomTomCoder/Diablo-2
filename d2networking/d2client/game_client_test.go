@@ -355,6 +355,96 @@ func TestHandleItemMovedFromStashPacketUnknownPlayerNoop(t *testing.T) {
 	}
 }
 
+func TestHandleItemMovedToBeltPacketMovesThePotion(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Inventory: []string{d2hero.ItemPotionDeMana},
+		Belt:      make([]string, 1),
+	})
+
+	packet, err := d2netpacket.CreateItemMovedToBeltPacket("p", 0, 0, d2hero.ItemPotionDeMana)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedToBeltPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedToBeltPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.Inventory[0] != "" {
+		t.Errorf("expected the inventory slot cleared, got %q", player.Inventory[0])
+	}
+
+	if player.Belt[0] != d2hero.ItemPotionDeMana {
+		t.Errorf("expected the potion in the local belt copy, got %q", player.Belt[0])
+	}
+}
+
+func TestHandleItemMovedToBeltPacketOutOfRangeIsNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedToBeltPacket("p", 0, 0, d2hero.ItemPotionDeMana)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedToBeltPacket failed: %v", err)
+	}
+
+	// must not panic indexing an empty Inventory/Belt.
+	if err := client.handleItemMovedToBeltPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestHandleItemMovedToBeltPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedToBeltPacket("nobody", 0, 0, d2hero.ItemPotionDeMana)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedToBeltPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedToBeltPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestHandleItemMovedFromBeltPacketMovesThePotion(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Inventory: make([]string, 1),
+		Belt:      []string{d2hero.ItemPotionDeMana},
+	})
+
+	packet, err := d2netpacket.CreateItemMovedFromBeltPacket("p", 0, 0, d2hero.ItemPotionDeMana)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedFromBeltPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedFromBeltPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.Belt[0] != "" {
+		t.Errorf("expected the belt slot cleared, got %q", player.Belt[0])
+	}
+
+	if player.Inventory[0] != d2hero.ItemPotionDeMana {
+		t.Errorf("expected the potion in the local inventory copy, got %q", player.Inventory[0])
+	}
+}
+
+func TestHandleItemMovedFromBeltPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedFromBeltPacket("nobody", 0, 0, d2hero.ItemPotionDeMana)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedFromBeltPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedFromBeltPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestHandleSingleSkillRespecedPacketRemovesSkill(t *testing.T) {
 	client := clientWithPlayer("p", &d2mapentity.Player{
 		Stats:  &d2hero.HeroStatsState{SkillPoints: 0},
