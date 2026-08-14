@@ -12,9 +12,13 @@ const (
 )
 
 // DevilSkillDef is Devil's own skill data model. Deliberately separate from
-// Diablo 2's skills.txt/SkillRecord schema: different mana-cost shape, and a
-// simpler synergy model (one target skill per point invested, vs. D2's
-// often multi-target synergies) -- see ROADMAP.md Phase 2 for why reusing
+// Diablo 2's skills.txt/SkillRecord schema: different mana-cost shape, and
+// per-point synergies (§7 "Règles des synergies") modeled as standalone
+// registries next to the specific mechanic each one boosts (see
+// TraitDeFeuSynergyTargets/BouclierDeManaSynergyReductionPercent in
+// devil_skills.go) rather than a generic field on this struct -- D2's own
+// synergies vary too much in shape (damage bonus, duration, reduction...) for
+// one shared field to fit them all. See ROADMAP.md Phase 2 for why reusing
 // D2's columns wasn't a good fit.
 type DevilSkillDef struct {
 	ID             int
@@ -23,12 +27,6 @@ type DevilSkillDef struct {
 	RequiredLevel  int // "palier" -- the character level needed to spend a point here
 	BaseSortDamage int
 	ManaCost       int
-
-	// SynergyTargetID/SynergyPercent: each point invested in this skill adds
-	// SynergyPercent% bonus damage to the skill with ID SynergyTargetID.
-	// SynergyTargetID == 0 means this skill has no synergy.
-	SynergyTargetID int
-	SynergyPercent  int
 
 	// DealsFireDamage marks a skill whose damage is (at least partly) Fire,
 	// per its own design description (Trait de feu/Boule de feu/Météore's

@@ -683,6 +683,39 @@ func TestTryMonsterAttackWithArmureDeGlaceReducesDamage(t *testing.T) {
 	}
 }
 
+// TestTryMonsterAttackWithBouclierDeManaSynergyBoostsArmureDeGlace is a
+// regression test for Bouclier de mana's own synergy ("chaque point dans
+// Bouclier de mana augmente l'absorption de Armure de glace",
+// devil_game_design_reference.md §7) -- applies even though the shield
+// itself isn't toggled on, since the design only requires the points to be
+// invested.
+func TestTryMonsterAttackWithBouclierDeManaSynergyBoostsArmureDeGlace(t *testing.T) {
+	const points = 3
+
+	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10, ArmureDeGlaceActive: true}
+	state := &d2hero.HeroState{
+		Stats:  stats,
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillBouclierDeMana: {SkillPoints: points}},
+	}
+	server := serverWithConnection(state)
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	server.tryMonsterAttack("npc-1", "p")
+
+	percent := armureDeGlaceDamageReductionPercent + d2hero.BouclierDeManaSynergyReductionPercent(points)
+	reduced := monsterAttackDamage * (100 - percent) / 100
+
+	if got, want := 10-stats.Health, reduced; got != want {
+		t.Errorf("expected the synergy to boost Armure de glace's reduction to %d, got %d", want, got)
+	}
+
+	if reduced >= monsterAttackDamage*(100-armureDeGlaceDamageReductionPercent)/100 {
+		t.Fatal("test is meaningless if the synergy doesn't actually reduce damage further")
+	}
+}
+
 func TestTryMonsterAttackWithTranscendanceSavesFromDeath(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 1, MaxHealth: 10}
 	state := &d2hero.HeroState{
@@ -1712,6 +1745,46 @@ func TestResolveAttackDamageMaitriseElementaireDoesNotAffectOtherTrees(t *testin
 
 	if got := server.resolveAttackDamage("p", d2hero.SkillTempeteDeLames); got != want {
 		t.Errorf("expected an Ésotérisme skill to be unaffected by Maîtrise élémentaire (%d), got %d", want, got)
+	}
+}
+
+// TestResolveAttackDamageAppliesTraitDeFeuSynergyToItsTargetsOnly is a
+// regression test for Trait de feu's own synergy ("chaque point dans Trait
+// de feu augmente les dégâts de Boule de feu et Météore",
+// devil_game_design_reference.md §7) -- narrower than Maîtrise élémentaire,
+// which boosts every Élémentalisme skill: this only targets Boule de
+// feu/Météore specifically.
+func TestResolveAttackDamageAppliesTraitDeFeuSynergyToItsTargetsOnly(t *testing.T) {
+	const points = 4
+
+	server := serverWithConnection(&d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Energy: 0},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {SkillPoints: points}},
+	})
+
+	percent := d2hero.TraitDeFeuSynergyDamagePercent(points)
+
+	bouleDeFeuBase := d2hero.DevilSkills[d2hero.SkillBouleDeFeu].BaseSortDamage
+	wantBouleDeFeu := bouleDeFeuBase + (bouleDeFeuBase*percent)/100
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillBouleDeFeu); got != wantBouleDeFeu {
+		t.Errorf("expected Trait de feu's synergy applied to Boule de feu (%d), got %d", wantBouleDeFeu, got)
+	}
+
+	meteoreBase := d2hero.DevilSkills[d2hero.SkillMeteore].BaseSortDamage
+	wantMeteore := meteoreBase + (meteoreBase*percent)/100
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillMeteore); got != wantMeteore {
+		t.Errorf("expected Trait de feu's synergy applied to Météore (%d), got %d", wantMeteore, got)
+	}
+
+	// A third Élémentalisme skill, not one of the synergy's two named
+	// targets, must be unaffected -- unlike Maîtrise élémentaire's tree-wide
+	// gating, this synergy only targets Boule de feu/Météore specifically.
+	eclatDeGlaceBase := d2hero.DevilSkills[d2hero.SkillEclatDeGlace].BaseSortDamage
+
+	if got := server.resolveAttackDamage("p", d2hero.SkillEclatDeGlace); got != eclatDeGlaceBase {
+		t.Errorf("expected Éclat de glace unaffected by Trait de feu's synergy (%d), got %d", eclatDeGlaceBase, got)
 	}
 }
 

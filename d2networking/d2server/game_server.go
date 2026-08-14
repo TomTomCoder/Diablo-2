@@ -254,7 +254,9 @@ const gameTickFps = 25.0
 // Armure de glace is active (HeroStatsState.ArmureDeGlaceActive), incoming
 // monster attacks are reduced by this percent and the attacking NPC is
 // slowed for this long (devil_game_design_reference.md §7 Ésotérisme:
-// "Réduit les dégâts reçus et ralentit les attaquants au contact").
+// "Réduit les dégâts reçus et ralentit les attaquants au contact"). Boosted
+// further by Bouclier de mana's own synergy -- see
+// d2hero.BouclierDeManaSynergyReductionPercent's call site below.
 //
 // ponytail: flat placeholder numbers -- the design doesn't specify exact
 // values.
@@ -484,7 +486,17 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 		// including Armure de glace's partial reduction.
 		damage = 0
 	case state.Stats.ArmureDeGlaceActive:
-		damage = damage * (100 - armureDeGlaceDamageReductionPercent) / 100
+		reductionPercent := armureDeGlaceDamageReductionPercent
+
+		// Bouclier de mana's own synergy (§7: "chaque point dans Bouclier de
+		// mana augmente l'absorption de Armure de glace") -- applies even
+		// though the shield itself needn't be toggled on right now, the
+		// design only requires the points to be invested.
+		if bouclier, learned := state.Skills[d2hero.SkillBouclierDeMana]; learned {
+			reductionPercent += d2hero.BouclierDeManaSynergyReductionPercent(bouclier.SkillPoints)
+		}
+
+		damage = damage * (100 - reductionPercent) / 100
 
 		if attacker := g.npcByID(npcID); attacker != nil {
 			until := now.Add(armureDeGlaceSlowDuration)
@@ -1605,6 +1617,16 @@ func (g *GameServer) resolveAttackDamage(sourceEntityID string, skillID int) int
 	if def, ok := d2hero.DevilSkills[skillID]; ok && def.Tree == d2hero.TreeElementalisme {
 		if maitrise, learned := state.Skills[d2hero.SkillMaitriseElementaire]; learned {
 			if percent := d2hero.MaitriseElementaireDamagePercent(maitrise.SkillPoints); percent > 0 {
+				damage += (damage * percent) / 100
+			}
+		}
+	}
+
+	// Trait de feu's own synergy: only boosts Boule de feu/Météore
+	// specifically, not every Élémentalisme skill like Maîtrise élémentaire.
+	if d2hero.TraitDeFeuSynergyTargets[skillID] {
+		if traitDeFeu, learned := state.Skills[d2hero.SkillTraitDeFeu]; learned {
+			if percent := d2hero.TraitDeFeuSynergyDamagePercent(traitDeFeu.SkillPoints); percent > 0 {
 				damage += (damage * percent) / 100
 			}
 		}

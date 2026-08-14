@@ -91,3 +91,37 @@ func RegenerationAccellereePercent(points int) int {
 func NewTraitDeFeuSkill() *HeroSkill {
 	return NewDevilHeroSkill(SkillTraitDeFeu)
 }
+
+// TraitDeFeuSynergyTargets are the skills Trait de feu's own invested points
+// boost (devil_game_design_reference.md §7 "Règles des synergies": "chaque
+// point dans Trait de feu augmente les dégâts de Boule de feu et Météore").
+var TraitDeFeuSynergyTargets = map[int]bool{
+	SkillBouleDeFeu: true,
+	SkillMeteore:    true,
+}
+
+// traitDeFeuSynergyPercentPerPoint is the placeholder magnitude for the
+// synergy above -- the design names the rule but gives no number, same
+// practice as maitriseElementaireDamagePercentPerPoint.
+const traitDeFeuSynergyPercentPerPoint = 3
+
+// TraitDeFeuSynergyDamagePercent returns the damage bonus percent Trait de
+// feu's own invested points grant to Boule de feu/Météore, for a caster with
+// the given number of points invested in Trait de feu (0 for none invested).
+func TraitDeFeuSynergyDamagePercent(points int) int {
+	return points * traitDeFeuSynergyPercentPerPoint
+}
+
+// bouclierDeManaSynergyPercentPerPoint is the placeholder magnitude for
+// Bouclier de mana's own synergy (§7: "chaque point dans Bouclier de mana
+// augmente l'absorption de Armure de glace") -- same practice as
+// traitDeFeuSynergyPercentPerPoint.
+const bouclierDeManaSynergyPercentPerPoint = 2
+
+// BouclierDeManaSynergyReductionPercent returns the extra damage-reduction
+// percent Bouclier de mana's own invested points grant to Armure de glace's
+// own flat reduction, for a caster with the given number of points invested
+// in Bouclier de mana (0 for none invested).
+func BouclierDeManaSynergyReductionPercent(points int) int {
+	return points * bouclierDeManaSynergyPercentPerPoint
+}
