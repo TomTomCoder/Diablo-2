@@ -256,7 +256,16 @@ func TestRefundAttributePointFailsIfNothingSpent(t *testing.T) {
 	}
 }
 
-func TestRefundAttributePointShrinksMaxHealthAndClampsCurrent(t *testing.T) {
+// TestRefundAttributePointShrinksHealthBySameAmountSpendGranted is a
+// regression test for a healing exploit: RefundAttributePoint used to only
+// clamp Health down to the new MaxHealth, never actually subtracting it --
+// since SpendAttributePoint always heals by the full LifePerVit amount,
+// spending then immediately refunding the very same point (nothing stops
+// that; no cooldown/item gate exists yet) was a free, endlessly repeatable
+// heal whenever Health stayed below the new cap. Now actually subtracted,
+// same amount SpendAttributePoint granted -- see that function's own
+// correction comment.
+func TestRefundAttributePointShrinksHealthBySameAmountSpendGranted(t *testing.T) {
 	stats := &HeroStatsState{StatsPoints: 1, Vitality: 10, Health: 50, MaxHealth: 50, LifePerVit: 4}
 
 	if err := stats.SpendAttributePoint(AttributeVitality); err != nil {
@@ -273,8 +282,24 @@ func TestRefundAttributePointShrinksMaxHealthAndClampsCurrent(t *testing.T) {
 		t.Errorf("expected MaxHealth restored to 50, got %d", stats.MaxHealth)
 	}
 
-	if stats.Health != 10 {
-		t.Errorf("expected Health left untouched at 10 (below the new cap), got %d", stats.Health)
+	if stats.Health != 6 {
+		t.Errorf("expected Health reduced by the same 4 LifePerVit that spending granted (10-4=6), got %d", stats.Health)
+	}
+}
+
+// TestRefundAttributePointNeverDropsHealthBelowOne is a regression test for
+// the floor half of the same fix: a big enough refund must never be able to
+// reduce Health to 0 (HeroStatsState.ApplyDamage's own definition of
+// "died") purely from an attribute-point bookkeeping action.
+func TestRefundAttributePointNeverDropsHealthBelowOne(t *testing.T) {
+	stats := &HeroStatsState{StatsPoints: 1, Vitality: 10, Health: 1, MaxHealth: 54, LifePerVit: 4, VitalitySpent: 1}
+
+	if err := stats.RefundAttributePoint(AttributeVitality); err != nil {
+		t.Fatalf("expected RefundAttributePoint to succeed, got %v", err)
+	}
+
+	if stats.Health != 1 {
+		t.Errorf("expected Health floored at 1 rather than dropping to/below 0, got %d", stats.Health)
 	}
 }
 

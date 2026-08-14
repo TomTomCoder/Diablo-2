@@ -496,6 +496,16 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 			reductionPercent += d2hero.BouclierDeManaSynergyReductionPercent(bouclier.SkillPoints)
 		}
 
+		// Correction (août 2026): with enough points invested in Bouclier de
+		// mana (no per-skill point cap exists), reductionPercent could
+		// exceed 100, making (100-reductionPercent) negative -- damage would
+		// go negative and a monster attack would heal the player instead of
+		// hurting them. Capped the same way d2hero.MitigateDamage already
+		// floors mitigated damage at 0.
+		if reductionPercent > 100 {
+			reductionPercent = 100
+		}
+
 		damage = damage * (100 - reductionPercent) / 100
 
 		if attacker := g.npcByID(npcID); attacker != nil {
@@ -952,8 +962,19 @@ func (g *GameServer) resolveMeleeHit(packet d2netpacket.NetPacket) {
 	// -- every dispatched cast re-arms the bonus, regardless of which skill
 	// it is or whether the caster even knows Résonance magique (consuming
 	// it in resolveAttackDamage is what actually gates that).
+	//
+	// Correction (août 2026) -- this used to arm the bonus immediately,
+	// before dispatching to this same cast's own damage resolution below.
+	// Since resolveAttackDamage's consumption check only looks at whether
+	// the window is currently open, every eligible cast immediately
+	// consumed the bonus it had just armed for itself -- boosting its own
+	// damage instead of "the next" cast's, turning what should be a
+	// combo/rhythm mechanic into an unconditional bonus on every cast.
+	// Deferred so the arm only happens after this cast's own damage
+	// resolution has already had a chance to consume whatever the
+	// *previous* cast armed.
 	if state := g.playerStateOf(castPacket.SourceEntityID); state != nil && state.Stats != nil {
-		state.Stats.ApplyResonanceMagiqueBonus(g.clock().Add(resonanceMagiqueWindow))
+		defer state.Stats.ApplyResonanceMagiqueBonus(g.clock().Add(resonanceMagiqueWindow))
 	}
 
 	if radius, ok := selfCenteredAoeRadiusSubtiles[castPacket.SkillID]; ok {

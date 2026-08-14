@@ -208,6 +208,18 @@ func (s *HeroStatsState) SpendAttributePoint(attr Attribute) error {
 // design's "Glyphe d'oubli" applied to "1 point d'attribut" instead of a
 // skill -- devil_game_design_reference.md §10), returning it to
 // s.StatsPoints. Errors if attr has no spent points to refund.
+//
+// Correction (août 2026): Energy/Vitality's Mana/Health used to be merely
+// clamped down to the new Max, not actually reduced by the same amount
+// SpendAttributePoint had granted -- since SpendAttributePoint always heals
+// by the full ManaPerEne/LifePerVit amount, and this clamp only bit once
+// current Mana/Health exceeded the new (lower) Max, spending then
+// immediately refunding the very same point (no cooldown/item gate exists
+// yet to prevent this) was a free, endlessly repeatable heal. Now actually
+// subtracted, floored at 1 for Health specifically (never 0, so undoing an
+// attribute point alone can never itself read as "died" -- see
+// ApplyDamage's own died condition) and 0 for Mana (0 Mana isn't a death
+// state, just "can't cast").
 func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
 	switch attr {
 	case AttributeStrength:
@@ -225,7 +237,7 @@ func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
 		s.Energy--
 		s.EnergySpent--
 		s.MaxMana -= s.ManaPerEne
-		s.Mana = min(s.Mana, s.MaxMana)
+		s.Mana = min(max(s.Mana-s.ManaPerEne, 0), s.MaxMana)
 	case AttributeDexterity:
 		if s.DexteritySpent <= 0 {
 			return errors.New("no spent points to refund on this attribute")
@@ -241,7 +253,7 @@ func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
 		s.Vitality--
 		s.VitalitySpent--
 		s.MaxHealth -= s.LifePerVit
-		s.Health = min(s.Health, s.MaxHealth)
+		s.Health = min(max(s.Health-s.LifePerVit, 1), s.MaxHealth)
 	default:
 		return errors.New("unknown attribute")
 	}
@@ -256,6 +268,12 @@ func (s *HeroStatsState) RefundAttributePoint(attr Attribute) error {
 // StatsPoints -- the attribute half of the design's "Respec partiel"
 // (devil_game_design_reference.md §10: "Tous les points de compétences et
 // d'attributs"). Reports how many points were refunded in total.
+//
+// Correction (août 2026): same fix as RefundAttributePoint's own -- Mana/
+// Health are now actually reduced by the full amount SpendAttributePoint
+// granted, not just clamped down to the new (lower) Max, closing the same
+// free-heal exploit at bulk-respec scale. Health still floors at 1, never
+// 0, so a respec alone can never read as "died".
 func (s *HeroStatsState) RespecAllAttributePoints() (pointsRefunded int) {
 	pointsRefunded = s.StrengthSpent + s.EnergySpent + s.DexteritySpent + s.VitalitySpent
 
@@ -265,9 +283,9 @@ func (s *HeroStatsState) RespecAllAttributePoints() (pointsRefunded int) {
 	s.Vitality -= s.VitalitySpent
 
 	s.MaxMana -= s.EnergySpent * s.ManaPerEne
-	s.Mana = min(s.Mana, s.MaxMana)
+	s.Mana = min(max(s.Mana-s.EnergySpent*s.ManaPerEne, 0), s.MaxMana)
 	s.MaxHealth -= s.VitalitySpent * s.LifePerVit
-	s.Health = min(s.Health, s.MaxHealth)
+	s.Health = min(max(s.Health-s.VitalitySpent*s.LifePerVit, 1), s.MaxHealth)
 
 	s.StrengthSpent, s.EnergySpent, s.DexteritySpent, s.VitalitySpent = 0, 0, 0, 0
 	s.StatsPoints += pointsRefunded

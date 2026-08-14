@@ -716,6 +716,35 @@ func TestTryMonsterAttackWithBouclierDeManaSynergyBoostsArmureDeGlace(t *testing
 	}
 }
 
+// TestTryMonsterAttackWithBouclierDeManaSynergyCapsAtZeroDamage is a
+// regression test for a correctness bug: with enough points invested in
+// Bouclier de mana (no per-skill point cap exists anywhere), the combined
+// reduction percent could exceed 100, making (100-percent) negative --
+// damage would go negative and heal the player instead of hurting them.
+func TestTryMonsterAttackWithBouclierDeManaSynergyCapsAtZeroDamage(t *testing.T) {
+	const points = 100 // armureDeGlaceDamageReductionPercent(30) + 100*2 is far past 100%
+
+	stats := &d2hero.HeroStatsState{Health: 10, MaxHealth: 10, ArmureDeGlaceActive: true}
+	state := &d2hero.HeroState{
+		Stats:  stats,
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillBouclierDeMana: {SkillPoints: points}},
+	}
+	server := serverWithConnection(state)
+
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	server.tryMonsterAttack("npc-1", "p")
+
+	if stats.Health > 10 {
+		t.Fatalf("expected damage to floor at 0 rather than heal the player, got Health %d (started at 10)", stats.Health)
+	}
+
+	if stats.Health != 10 {
+		t.Errorf("expected zero damage taken once the reduction is capped at 100%%, got Health %d", stats.Health)
+	}
+}
+
 func TestTryMonsterAttackWithTranscendanceSavesFromDeath(t *testing.T) {
 	stats := &d2hero.HeroStatsState{Health: 1, MaxHealth: 10}
 	state := &d2hero.HeroState{
