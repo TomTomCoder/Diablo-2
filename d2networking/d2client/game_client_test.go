@@ -326,3 +326,62 @@ func TestHandleSkillPointInvestedPacketUpdatesInvestedPoints(t *testing.T) {
 		t.Errorf("expected SkillPoints drained to 0, got %d", player.Stats.SkillPoints)
 	}
 }
+
+// TestHandlePlayerDisconnectionPacketUnknownPlayerNoop is a regression test:
+// a disconnection notification for a player ID not in g.Players (e.g. a
+// duplicate/replayed packet delivered after the first one already removed
+// and deleted that entry) used to look up g.Players without a `found`
+// check, then pass the resulting nil *d2mapentity.Player straight into
+// MapEngine.RemoveEntity -- a classic Go typed-nil-in-interface gotcha:
+// RemoveEntity's own `entity == nil` guard doesn't catch a nil concrete
+// pointer wrapped in a non-nil interface value, so it panicked dereferencing
+// the nil pointer at entity.ID(). g.MapEngine is deliberately left nil here:
+// the fixed code must never touch it for an unknown player ID.
+func TestHandlePlayerDisconnectionPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreatePlayerDisconnectRequestPacket("nobody")
+	if err != nil {
+		t.Fatalf("test setup: CreatePlayerDisconnectRequestPacket failed: %v", err)
+	}
+
+	if err := client.handlePlayerDisconnectionPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if _, found := client.Players["p"]; !found {
+		t.Error("expected the unrelated known player to be left untouched")
+	}
+}
+
+// TestHandleMovePlayerPacketUnknownPlayerNoop is a regression test for the
+// same class of bug: a MovePlayer packet for an unknown player ID used to
+// dereference a nil *d2mapentity.Player at player.SetPath.
+func TestHandleMovePlayerPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateMovePlayerPacket("nobody", 0, 0, 1, 1)
+	if err != nil {
+		t.Fatalf("test setup: CreateMovePlayerPacket failed: %v", err)
+	}
+
+	if err := client.handleMovePlayerPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestHandleCastSkillPacketUnknownPlayerNoop is a regression test for the
+// same class of bug: a CastSkill packet for an unknown source entity ID
+// used to dereference a nil *d2mapentity.Player at player.StopMoving.
+func TestHandleCastSkillPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateCastPacket("nobody", d2hero.SkillTraitDeFeu, 0, 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateCastPacket failed: %v", err)
+	}
+
+	if err := client.handleCastSkillPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}

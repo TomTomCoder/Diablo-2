@@ -299,13 +299,21 @@ func (g *GameClient) handleSpawnItemPacket(packet d2netpacket.NetPacket) error {
 	return err
 }
 
+// Correction (août 2026): used to look up g.Players without a `found`
+// check, same class of bug as handlePlayerDisconnectionPacket -- a
+// MovePlayer packet for a player ID not (yet, or no longer) in g.Players
+// would panic dereferencing a nil *d2mapentity.Player at player.SetPath.
 func (g *GameClient) handleMovePlayerPacket(packet d2netpacket.NetPacket) error {
 	movePlayer, err := d2netpacket.UnmarshalMovePlayer(packet.PacketData)
 	if err != nil {
 		return err
 	}
 
-	player := g.Players[movePlayer.PlayerID]
+	player, found := g.Players[movePlayer.PlayerID]
+	if !found {
+		return nil
+	}
+
 	start := d2vector.NewPositionTile(movePlayer.StartX, movePlayer.StartY)
 	dest := d2vector.NewPositionTile(movePlayer.DestX, movePlayer.DestY)
 	path := g.MapEngine.PathFind(start, dest)
@@ -762,13 +770,21 @@ func (g *GameClient) handlePlayerTeleportedPacket(packet d2netpacket.NetPacket) 
 	return nil
 }
 
+// Correction (août 2026): used to look up g.Players without a `found`
+// check, same class of bug as handlePlayerDisconnectionPacket -- a
+// CastSkill packet for a player ID not in g.Players would panic
+// dereferencing a nil *d2mapentity.Player at player.StopMoving.
 func (g *GameClient) handleCastSkillPacket(packet d2netpacket.NetPacket) error {
 	playerCast, err := d2netpacket.UnmarshalCast(packet.PacketData)
 	if err != nil {
 		return err
 	}
 
-	player := g.Players[playerCast.SourceEntityID]
+	player, found := g.Players[playerCast.SourceEntityID]
+	if !found {
+		return nil
+	}
+
 	player.StopMoving()
 
 	castX := playerCast.TargetX * numSubtilesPerTile
@@ -931,13 +947,28 @@ func (g *GameClient) handlePingPacket() error {
 	return nil
 }
 
+// Correction (août 2026): used to look up g.Players without a `found`
+// check -- for a duplicate/replayed disconnection notification (this
+// packet type is broadcast unconditionally by GameServer with no
+// de-dup, and the game supports a UDP client connection, which can
+// legitimately duplicate datagrams), the second delivery finds nothing
+// left in g.Players, so `player` is a nil *d2mapentity.Player. Passing
+// that nil pointer into MapEngine.RemoveEntity(entity d2interface.MapEntity)
+// wraps it in a non-nil interface value (the interface carries the
+// *Player type even though the pointer itself is nil) -- RemoveEntity's
+// own `entity == nil` guard doesn't catch this classic Go gotcha, so it
+// falls through to entity.ID(), a nil-pointer dereference.
 func (g *GameClient) handlePlayerDisconnectionPacket(packet d2netpacket.NetPacket) error {
 	disconnectPacket, err := d2netpacket.UnmarshalPlayerDisconnectionRequest(packet.PacketData)
 	if err != nil {
 		return err
 	}
 
-	player := g.Players[disconnectPacket.ID]
+	player, found := g.Players[disconnectPacket.ID]
+	if !found {
+		return nil
+	}
+
 	g.MapEngine.RemoveEntity(player)
 	delete(g.Players, disconnectPacket.ID)
 
