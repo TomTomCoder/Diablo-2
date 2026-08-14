@@ -72,8 +72,22 @@ jobs:
       # and pass golangci-lint's own --new-from-rev flag instead, which
       # diffs against a real local git ref (needs the full history from
       # fetch-depth: 0 above), no GitHub API involved, no file-count limit.
+      #
+      # Correction (août 2026, again): the pinned v1.64.2 *binary* release
+      # is itself built with Go 1.24, and refuses to analyze code that
+      # targets a newer Go version ("the Go language version (go1.24) used
+      # to build golangci-lint is lower than the targeted Go version
+      # (1.25.0)") -- go.mod's own `go 1.25.0` isn't an accidental bump,
+      # wazero (added in Phase 3) genuinely requires it (confirmed via
+      # `go list -m -json`, not assumed), so lowering go.mod isn't an
+      # option. install-mode: goinstall compiles golangci-lint from source
+      # using the Go toolchain already set up above (which resolves to
+      # 1.25.0+ via GOTOOLCHAIN=auto, same as Build/Test do) instead of
+      # downloading a prebuilt binary frozen at whatever Go version its own
+      # release used.
       - name: Lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.64.2
+          install-mode: goinstall
           args: --new-from-rev=origin/master
