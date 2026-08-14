@@ -47,10 +47,21 @@ func (b *Block) HasFlag(flag FileFlag) bool {
 	return (b.Flags & flag) != 0
 }
 
+// calculateEncryptionSeed derives b's decryption key from its own filename
+// (the base name only -- MPQ paths use "\", stripped here). FileFixKey
+// additionally adjusts that key by the file's position/size within the
+// archive; plain FileEncrypted files (the common case) use the filename
+// hash unmodified. See the caller in CreateStream for why this must run
+// for every encrypted file, not only FileFixKey ones.
 func (b *Block) calculateEncryptionSeed(fileName string) {
 	fileName = fileName[strings.LastIndex(fileName, `\`)+1:]
 	seed := hashString(fileName, 3)
-	b.EncryptionSeed = (seed + b.FilePosition) ^ b.UncompressedFileSize
+
+	if b.HasFlag(FileFixKey) {
+		seed = (seed + b.FilePosition) ^ b.UncompressedFileSize
+	}
+
+	b.EncryptionSeed = seed
 }
 
 //nolint:gomnd // number

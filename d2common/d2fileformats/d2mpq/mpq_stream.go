@@ -33,7 +33,17 @@ func CreateStream(mpq *MPQ, block *Block, fileName string) (*Stream, error) {
 		Index: 0xFFFFFFFF, //nolint:gomnd // MPQ magic
 	}
 
-	if s.Block.HasFlag(FileFixKey) {
+	// Correction (août 2026): the decryption key must be derived from the
+	// filename for *any* encrypted file, not only ones with FileFixKey --
+	// FileFixKey only changes how that key is further adjusted (see
+	// calculateEncryptionSeed). Previously this only ran for FileFixKey,
+	// leaving EncryptionSeed at its zero value for the very common
+	// encrypted-but-not-fixkey case -- every read of such a file failed
+	// with "decryption of MPQ failed" (loadBlockOffsets' own sanity check)
+	// or "unable to determine encryption key" (loadBlock's zero-seed
+	// guard). Found by running this reader against a real third-party MPQ
+	// archive, where every single file hit this exact failure.
+	if s.Block.HasFlag(FileEncrypted) {
 		s.Block.calculateEncryptionSeed(fileName)
 	}
 
