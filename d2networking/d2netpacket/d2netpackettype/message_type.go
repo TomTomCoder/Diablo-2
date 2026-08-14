@@ -35,7 +35,7 @@ const (
 	PlayerDamaged                                          // Sent by the server, a player took damage (and possibly died)
 	GoldAwarded                                            // Sent by the server, a player's gold total changed
 	ExperienceAwarded                                      // Sent by the server, a player gained experience (and possibly leveled up)
-	PlayerTeleported                                       // Sent by the server, a player was instantly moved (Devil's own "Téléportation" skill)
+	PlayerTeleported                                       // Sent by the server, a player was instantly moved (Téléportation)
 	UsePotionRequest                                       // Sent by the client, requests using the potion in a given belt slot
 	PotionUsed                                             // Sent by the server, a player's Mana changed from using a potion
 	LearnSkillRequest                                      // Sent by the client, requests learning a given skill
@@ -48,11 +48,11 @@ const (
 	SkillPointInvested                                     // Sent by the server, a player invested another point into a known skill
 	SpendAttributePointRequest                             // Sent by the client, requests spending a level-up point on a given attribute
 	AttributePointSpent                                    // Sent by the server, a player spent a point on an attribute
-	RespecSingleAttributePointRequest                      // Sent by the client, requests refunding one point from a given attribute (Glyphe d'oubli)
+	RespecSingleAttributePointRequest                      // Sent by the client, requests refunding one attribute point (Glyphe d'oubli)
 	SingleAttributePointRespeced                           // Sent by the server, one attribute point was refunded
 	NPCMoved                                               // Sent by the server, an NPC was instantly displaced (Télékinésie/Vortex)
-	NPCStatusEffect                                        // Sent by the server, a timed status effect was applied to an NPC (slow/immobilize/amplify/resistance strip)
-	PlayerStatusEffect                                     // Sent by the server, the caster's own status effect changed (mana shield/armure de glace toggle, magic immunity)
+	NPCStatusEffect                                        // Sent by the server, an NPC's status changed (slow/immobilize/amplify/strip)
+	PlayerStatusEffect                                     // Sent by the server, the caster's status changed (mana shield/armure/immunity)
 	CraftRequest                                           // Sent by the client, requests crafting a Cube de Nexus recipe
 	ItemCrafted                                            // Sent by the server, a recipe was crafted (new equipped item + remaining gold)
 

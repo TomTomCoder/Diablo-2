@@ -68,7 +68,9 @@ type SkillsRespecedPacket struct {
 // CreateSkillsRespecedPacket returns a NetPacket which declares a
 // SkillsRespecedPacket for the given player, carrying their post-respec
 // SkillPoints and full attribute/pool state.
-func CreateSkillsRespecedPacket(playerID string, skillPoints, statsPoints, strength, energy, dexterity, vitality, maxHealth, health, maxMana, mana int) (NetPacket, error) {
+func CreateSkillsRespecedPacket(
+	playerID string, skillPoints, statsPoints, strength, energy, dexterity, vitality, maxHealth, health, maxMana, mana int,
+) (NetPacket, error) {
 	respecedPacket := SkillsRespecedPacket{
 		PlayerID:    playerID,
 		SkillPoints: skillPoints,

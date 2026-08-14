@@ -69,7 +69,9 @@ type AttributePointSpentPacket struct {
 // AttributePointSpentPacket for the given player, attribute, its new
 // value, the caster's remaining StatsPoints, and their current
 // MaxHealth/Health/MaxMana/Mana.
-func CreateAttributePointSpentPacket(playerID string, attribute, newValue, statsPoints, maxHealth, health, maxMana, mana int) (NetPacket, error) {
+func CreateAttributePointSpentPacket(
+	playerID string, attribute, newValue, statsPoints, maxHealth, health, maxMana, mana int,
+) (NetPacket, error) {
 	spentPacket := AttributePointSpentPacket{
 		PlayerID:    playerID,
 		Attribute:   attribute,
@@ -166,7 +168,9 @@ type SingleAttributePointRespecedPacket struct {
 // declares a SingleAttributePointRespecedPacket for the given player,
 // attribute, its new value, the caster's new StatsPoints total, and their
 // current MaxHealth/Health/MaxMana/Mana.
-func CreateSingleAttributePointRespecedPacket(playerID string, attribute, newValue, statsPoints, maxHealth, health, maxMana, mana int) (NetPacket, error) {
+func CreateSingleAttributePointRespecedPacket(
+	playerID string, attribute, newValue, statsPoints, maxHealth, health, maxMana, mana int,
+) (NetPacket, error) {
 	respecedPacket := SingleAttributePointRespecedPacket{
 		PlayerID:    playerID,
 		Attribute:   attribute,
