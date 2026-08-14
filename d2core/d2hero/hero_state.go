@@ -123,27 +123,20 @@ func (h *HeroState) InvestSkillPoint(skillID int) error {
 	return nil
 }
 
-// RespecSkills implements the design's "Respec partiel"
-// (devil_game_design_reference.md §10: "1 fois par difficulté (quête Den
-// of Nexus)" / "Tous les points de compétences et d'attributs") in full:
-// clears every skill h has learned, refunding the skill points spent on
-// them, and also refunds every attribute point ever spent via
-// HeroStatsState.SpendAttributePoint (HeroStatsState.RespecAllAttributePoints).
-// LeftSkill/RightSkill are reset to 0 (no skill equipped) since they'd
-// otherwise reference a skill that no longer exists in h.Skills. Reports
-// how many *skill* points were refunded (the attribute refund is reflected
-// directly in h.Stats.StatsPoints).
+// resetAllSkillsAndAttributes clears every skill h has learned, refunding
+// the skill points spent on them, and refunds every attribute point ever
+// spent via HeroStatsState.SpendAttributePoint
+// (HeroStatsState.RespecAllAttributePoints). LeftSkill/RightSkill are reset
+// to 0 (no skill equipped) since they'd otherwise reference a skill that no
+// longer exists in h.Skills. Reports how many *skill* points were refunded
+// (the attribute refund is reflected directly in h.Stats.StatsPoints).
 //
-// Errors if h has already used its one-time Respec partiel at h.Difficulty
-// (RespecPartielUsedAt) -- the design's own "1 fois par difficulté" limit.
-// Doesn't enforce the quest gate ("quête Den of Nexus") alongside it: no
-// quest system exists yet, so that half stays undocumented as a real gap
-// rather than faked.
-func (h *HeroState) RespecSkills() (pointsRefunded int, err error) {
-	if h.RespecPartielUsedAt[h.Difficulty] {
-		return 0, errors.New("respec partiel already used at this difficulty")
-	}
-
+// Shared by RespecSkills ("Respec partiel", gated to once per difficulty)
+// and RespecComplet ("Respec complet", no such gate) -- both reset exactly
+// the same scope (§10: "Tous les points de compétences et d'attributs" /
+// "Remise à zéro totale" read as the same reset, just via a different
+// access route), only the gating around the reset differs.
+func (h *HeroState) resetAllSkillsAndAttributes() (pointsRefunded int) {
 	for _, skill := range h.Skills {
 		if skill != nil {
 			pointsRefunded += skill.SkillPoints
@@ -159,6 +152,26 @@ func (h *HeroState) RespecSkills() (pointsRefunded int, err error) {
 		h.Stats.RespecAllAttributePoints()
 	}
 
+	return pointsRefunded
+}
+
+// RespecSkills implements the design's "Respec partiel"
+// (devil_game_design_reference.md §10: "1 fois par difficulté (quête Den
+// of Nexus)" / "Tous les points de compétences et d'attributs") in full --
+// see resetAllSkillsAndAttributes for the reset itself.
+//
+// Errors if h has already used its one-time Respec partiel at h.Difficulty
+// (RespecPartielUsedAt) -- the design's own "1 fois par difficulté" limit.
+// Doesn't enforce the quest gate ("quête Den of Nexus") alongside it: no
+// quest system exists yet, so that half stays undocumented as a real gap
+// rather than faked.
+func (h *HeroState) RespecSkills() (pointsRefunded int, err error) {
+	if h.RespecPartielUsedAt[h.Difficulty] {
+		return 0, errors.New("respec partiel already used at this difficulty")
+	}
+
+	pointsRefunded = h.resetAllSkillsAndAttributes()
+
 	if h.RespecPartielUsedAt == nil {
 		h.RespecPartielUsedAt = make(map[d2enum.DifficultyType]bool)
 	}
@@ -166,6 +179,23 @@ func (h *HeroState) RespecSkills() (pointsRefunded int, err error) {
 	h.RespecPartielUsedAt[h.Difficulty] = true
 
 	return pointsRefunded, nil
+}
+
+// RespecComplet implements the design's "Respec complet"
+// (devil_game_design_reference.md §10: "Combinaison de 4 essences de boss
+// dans le Cube de Nexus" / "Remise à zéro totale") -- the same full reset
+// as RespecSkills ("Respec partiel"), but with no once-per-difficulty
+// limit, matching how the design's own table only states that restriction
+// for the partial variant.
+//
+// ponytail: the design's own trigger (combining 4 boss-essence items in
+// the Cube de Nexus) needs boss-essence items that don't exist yet -- no
+// boss content is implemented at all (ROADMAP.md Phase 4). This is the
+// reset mechanism ready for whichever trigger comes first, same
+// "mechanism before trigger" sequencing already used for LearnSkill/
+// UsePotion/InvestSkillPoint in their own time.
+func (h *HeroState) RespecComplet() (pointsRefunded int) {
+	return h.resetAllSkillsAndAttributes()
 }
 
 // RespecSingleSkill removes skillID from h.Skills and refunds its skill

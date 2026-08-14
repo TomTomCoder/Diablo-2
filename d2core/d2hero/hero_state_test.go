@@ -341,3 +341,66 @@ func TestRespecSkillsSucceedsAgainAtADifferentDifficulty(t *testing.T) {
 		t.Errorf("expected RespecSkills at Nightmare to succeed independently of Normal, got %v", err)
 	}
 }
+
+// TestRespecCompletRefundsPointsAndClearsSkills mirrors
+// TestRespecSkillsRefundsPointsAndClearsSkills -- "Respec complet" resets
+// exactly the same scope as "Respec partiel" (devil_game_design_reference.md
+// §10), just via a different access route.
+func TestRespecCompletRefundsPointsAndClearsSkills(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+	hero.LeftSkill = SkillTraitDeFeu
+	hero.RightSkill = SkillEclatDeGlace
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("LearnSkill(Trait de feu) should succeed, got %v", err)
+	}
+
+	if err := hero.LearnSkill(SkillEclatDeGlace); err != nil {
+		t.Fatalf("LearnSkill(Éclat de glace) should succeed, got %v", err)
+	}
+
+	refunded := hero.RespecComplet()
+
+	if refunded != 2 {
+		t.Errorf("expected 2 points refunded, got %d", refunded)
+	}
+
+	if hero.Stats.SkillPoints != 2 {
+		t.Errorf("expected SkillPoints restored to 2, got %d", hero.Stats.SkillPoints)
+	}
+
+	if len(hero.Skills) != 0 {
+		t.Errorf("expected Skills cleared, got %d entries", len(hero.Skills))
+	}
+
+	if hero.LeftSkill != 0 || hero.RightSkill != 0 {
+		t.Errorf("expected LeftSkill/RightSkill reset to 0, got %d/%d", hero.LeftSkill, hero.RightSkill)
+	}
+}
+
+// TestRespecCompletHasNoOncePerDifficultyLimit is a regression test for the
+// one real difference between RespecComplet and RespecSkills: unlike
+// "Respec partiel", "Respec complet" isn't gated to once per difficulty --
+// devil_game_design_reference.md §10 only states that limit for the
+// partial variant.
+func TestRespecCompletHasNoOncePerDifficultyLimit(t *testing.T) {
+	hero := newLearnableHeroState(6, 2)
+	hero.Difficulty = d2enum.DifficultyNormal
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("test setup: LearnSkill failed: %v", err)
+	}
+
+	hero.RespecComplet()
+
+	if err := hero.LearnSkill(SkillTraitDeFeu); err != nil {
+		t.Fatalf("test setup: relearning failed: %v", err)
+	}
+
+	// a second RespecComplet at the *same* difficulty, unlike RespecSkills,
+	// must not be blocked.
+	refunded := hero.RespecComplet()
+	if refunded != 1 {
+		t.Errorf("expected a second RespecComplet at the same difficulty to succeed, refunding 1 point, got %d", refunded)
+	}
+}
