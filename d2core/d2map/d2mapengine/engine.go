@@ -2,6 +2,7 @@ package d2mapengine
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
 
@@ -26,6 +27,7 @@ type MapEngine struct {
 	*d2mapstamp.StampFactory
 	*d2mapentity.MapEntityFactory
 	seed          int64                            // The map seed
+	entitiesMu    sync.Mutex                       // guards entities -- see Entities/AddEntity/RemoveEntity/Advance
 	entities      map[string]d2interface.MapEntity // Entities on the map
 	tiles         []MapTile
 	size          d2geom.Size               // Size of the map, in tiles
@@ -72,7 +74,10 @@ func (m *MapEngine) GetStartingPosition() (x, y int) {
 
 // ResetMap clears all map and entity data and reloads it from the cached files.
 func (m *MapEngine) ResetMap(levelType d2enum.RegionIdType, width, height int) {
+	m.entitiesMu.Lock()
 	m.entities = make(map[string]d2interface.MapEntity)
+	m.entitiesMu.Unlock()
+
 	m.levelType = *m.asset.Records.Level.Types[levelType]
 	m.size = d2geom.Size{Width: width, Height: height}
 	m.tiles = make([]MapTile, width*height)
@@ -188,10 +193,13 @@ func (m *MapEngine) PlaceStamp(stamp *d2mapstamp.Stamp, tileOffsetX, tileOffsetY
 
 	// Copy over the entities
 	stampEntities := stamp.Entities(tileOffsetX, tileOffsetY)
+
+	m.entitiesMu.Lock()
 	for idx := range stampEntities {
 		e := stampEntities[idx]
 		m.entities[e.ID()] = e
 	}
+	m.entitiesMu.Unlock()
 }
 
 // converts x,y tile coordinate into index in MapEngine.tiles
@@ -217,9 +225,28 @@ func (m *MapEngine) TileAt(tileX, tileY int) *MapTile {
 	return &m.tiles[idx]
 }
 
-// Entities returns a pointer a slice of all map entities.
+// Entities returns a snapshot copy of all map entities, safe to range over
+// without racing a concurrent AddEntity/RemoveEntity call.
+//
+// Correction (août 2026, concurrency-safety audit): this used to return the
+// live m.entities map itself. The AI-tick goroutine (GameServer's
+// advanceMonsterAI, its own 200ms ticker) ranges this on every tick while
+// the packet-dispatch goroutine can call RemoveEntity on a kill -- a
+// concurrent range+delete on the same Go map is a
+// "fatal error: concurrent map iteration and map write" that crashes the
+// whole process, not just a stale read. Every one of the 15 call sites of
+// Entities() across the repo (verified) only ever reads from the returned
+// value, none writes through it, so returning a copy is fully transparent.
 func (m *MapEngine) Entities() map[string]d2interface.MapEntity {
-	return m.entities
+	m.entitiesMu.Lock()
+	defer m.entitiesMu.Unlock()
+
+	snapshot := make(map[string]d2interface.MapEntity, len(m.entities))
+	for id, entity := range m.entities {
+		snapshot[id] = entity
+	}
+
+	return snapshot
 }
 
 // Seed returns the map generation seed.
@@ -229,6 +256,9 @@ func (m *MapEngine) Seed() int64 {
 
 // AddEntity adds an entity to a slice containing all entities.
 func (m *MapEngine) AddEntity(entity d2interface.MapEntity) {
+	m.entitiesMu.Lock()
+	defer m.entitiesMu.Unlock()
+
 	m.entities[entity.ID()] = entity
 }
 
@@ -237,6 +267,9 @@ func (m *MapEngine) RemoveEntity(entity d2interface.MapEntity) {
 	if entity == nil {
 		return
 	}
+
+	m.entitiesMu.Lock()
+	defer m.entitiesMu.Unlock()
 
 	delete(m.entities, entity.ID())
 }
@@ -288,14 +321,30 @@ func (m *MapEngine) GetCenterPosition() (x, y float64) {
 
 // Advance calls the Advance() method for all entities,
 // processing a single tick.
+// Correction (août 2026, concurrency-safety audit): this used to range
+// m.entities directly and unguarded. A snapshot is taken under
+// entitiesMu and the lock released *before* calling each entity's own
+// Advance -- deliberately not held across those calls, because at least
+// one entity (Missile, via mapEntity.Step's "if the path is complete it
+// calls entity.done()") can synchronously call back into RemoveEntity
+// from inside its own Advance -- holding entitiesMu here would make that
+// a reentrant Lock() on a non-reentrant sync.Mutex, an unconditional
+// deadlock, not just a rare one.
 func (m *MapEngine) Advance(tickTime float64) {
 	if m.IsLoading {
 		// https://github.com/OpenDiablo2/OpenDiablo2/issues/789
 		return
 	}
 
-	for ID := range m.entities {
-		m.entities[ID].Advance(tickTime)
+	m.entitiesMu.Lock()
+	entities := make([]d2interface.MapEntity, 0, len(m.entities))
+	for _, entity := range m.entities {
+		entities = append(entities, entity)
+	}
+	m.entitiesMu.Unlock()
+
+	for _, entity := range entities {
+		entity.Advance(tickTime)
 	}
 }
 

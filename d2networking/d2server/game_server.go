@@ -97,19 +97,37 @@ func manaRegenPerSecond(energy int) float64 {
 // all -- same as if they'd cast at nothing (see resolveMeleeHit); the
 // cast's visual effect still plays for everyone since that's relayed
 // independently of this gate.
+// Correction (août 2026, concurrency-safety audit): this used to hold
+// g.Lock() across its entire body, including calls into dexterityOf/
+// playerStateOf -- both of which, since the same audit's earlier fix, take
+// g.RLock() internally. A goroutine calling RLock() while it already holds
+// the write Lock() on the same sync.RWMutex deadlocks unconditionally
+// (confirmed the hard way: this exact deadlock hung
+// TestCanCastNowGatesOnCooldown for the full 10-minute test timeout before
+// being caught and fixed here). dexterityOf/playerStateOf are now resolved
+// before ever taking g.Lock(), and g.Lock() is only ever held around
+// g.lastCastAt's own bookkeeping, in two short, separate critical
+// sections -- mirroring the pattern tryMonsterAttack/tryTranscend already
+// used. Behavior is otherwise unchanged: lastCastAt is still only updated
+// on the success path, mana regen still uses the same last/hasCastBefore
+// captured before the cooldown check.
 func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 	now := g.clock()
 
-	g.Lock()
-	defer g.Unlock()
+	dexterity := g.dexterityOf(sourceEntityID)
+	state := g.playerStateOf(sourceEntityID)
 
+	g.Lock()
 	last, hasCastBefore := g.lastCastAt[sourceEntityID]
 
-	if hasCastBefore && now.Sub(last) < castCooldownFor(g.dexterityOf(sourceEntityID)) {
+	if hasCastBefore && now.Sub(last) < castCooldownFor(dexterity) {
+		g.Unlock()
 		return false
 	}
 
-	if state := g.playerStateOf(sourceEntityID); state != nil && state.Stats != nil {
+	g.Unlock()
+
+	if state != nil && state.Stats != nil {
 		if hasCastBefore {
 			regenPerSecond := manaRegenPerSecond(effectiveEnergy(state))
 
@@ -131,7 +149,9 @@ func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 		state.Stats.Mana -= cost
 	}
 
+	g.Lock()
 	g.lastCastAt[sourceEntityID] = now
+	g.Unlock()
 
 	return true
 }
