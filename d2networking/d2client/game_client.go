@@ -199,6 +199,14 @@ func (g *GameClient) OnPacketReceived(packet d2netpacket.NetPacket) error {
 		if err := g.handleSkillEquippedPacket(packet); err != nil {
 			return err
 		}
+	case d2netpackettype.ItemMovedToStash:
+		if err := g.handleItemMovedToStashPacket(packet); err != nil {
+			return err
+		}
+	case d2netpackettype.ItemMovedFromStash:
+		if err := g.handleItemMovedFromStashPacket(packet); err != nil {
+			return err
+		}
 	case d2netpackettype.SkillsRespeced:
 		if err := g.handleSkillsRespecedPacket(packet); err != nil {
 			return err
@@ -601,6 +609,64 @@ func (g *GameClient) handleSkillEquippedPacket(packet d2netpacket.NetPacket) err
 	case d2hero.SkillSlotRight:
 		player.RightSkill = skill
 	}
+
+	return nil
+}
+
+// handleItemMovedToStashPacket clears the local copy of the given
+// player's Inventory slot and sets the corresponding Stash slot. A no-op
+// if either index is out of range for the local slice -- Player.Inventory/
+// Stash start empty and are only ever grown by this and
+// handleItemMovedFromStashPacket, not by any full-sync packet on join
+// (ROADMAP.md: no such sync exists yet), so a stale/uninitialized local
+// copy failing this check is expected, not a bug to panic over.
+func (g *GameClient) handleItemMovedToStashPacket(packet d2netpacket.NetPacket) error {
+	moved, err := d2netpacket.UnmarshalItemMovedToStash(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[moved.PlayerID]
+	if !found {
+		return nil
+	}
+
+	if moved.InventoryIndex < 0 || moved.InventoryIndex >= len(player.Inventory) {
+		return nil
+	}
+
+	if moved.StashIndex < 0 || moved.StashIndex >= len(player.Stash) {
+		return nil
+	}
+
+	player.Inventory[moved.InventoryIndex] = ""
+	player.Stash[moved.StashIndex] = moved.ItemCode
+
+	return nil
+}
+
+// handleItemMovedFromStashPacket is handleItemMovedToStashPacket's mirror.
+func (g *GameClient) handleItemMovedFromStashPacket(packet d2netpacket.NetPacket) error {
+	moved, err := d2netpacket.UnmarshalItemMovedFromStash(packet.PacketData)
+	if err != nil {
+		return err
+	}
+
+	player, found := g.Players[moved.PlayerID]
+	if !found {
+		return nil
+	}
+
+	if moved.StashIndex < 0 || moved.StashIndex >= len(player.Stash) {
+		return nil
+	}
+
+	if moved.InventoryIndex < 0 || moved.InventoryIndex >= len(player.Inventory) {
+		return nil
+	}
+
+	player.Stash[moved.StashIndex] = ""
+	player.Inventory[moved.InventoryIndex] = moved.ItemCode
 
 	return nil
 }

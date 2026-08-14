@@ -60,6 +60,49 @@ func (h *HeroState) RemoveFromStash(index int) (itemCode string, err error) {
 	return removeFromSlots(h.Stash, index)
 }
 
+// MoveToStash moves the item at Inventory[inventoryIndex] into the first
+// empty Stash slot, reporting the moved item's code and its new stash
+// index. If Stash is full, Inventory is left untouched (the item is put
+// back rather than lost) and an error is returned. Reports itemCode even
+// on failure (the network resolver needs it to know what was in that
+// slot, and the same bounds/emptiness checks RemoveFromInventory already
+// makes are the only place it's safe to read it from -- reading
+// Inventory[inventoryIndex] directly first, before calling this, would
+// panic on an out-of-range index instead of returning this method's own
+// error).
+func (h *HeroState) MoveToStash(inventoryIndex int) (itemCode string, stashSlot int, err error) {
+	itemCode, err = h.RemoveFromInventory(inventoryIndex)
+	if err != nil {
+		return "", 0, err
+	}
+
+	stashSlot, err = h.AddToStash(itemCode)
+	if err != nil {
+		h.Inventory[inventoryIndex] = itemCode
+		return "", 0, err
+	}
+
+	return itemCode, stashSlot, nil
+}
+
+// MoveToInventory is MoveToStash's mirror: Stash[stashIndex] -> Inventory's
+// first empty slot, same rollback-on-full behavior and same reasoning for
+// reporting itemCode.
+func (h *HeroState) MoveToInventory(stashIndex int) (itemCode string, inventorySlot int, err error) {
+	itemCode, err = h.RemoveFromStash(stashIndex)
+	if err != nil {
+		return "", 0, err
+	}
+
+	inventorySlot, err = h.AddToInventory(itemCode)
+	if err != nil {
+		h.Stash[stashIndex] = itemCode
+		return "", 0, err
+	}
+
+	return itemCode, inventorySlot, nil
+}
+
 // addToSlots/removeFromSlots are the shared primitives behind Inventory and
 // Stash (and mirror AddPotionToBelt/UsePotion's own belt-slot logic in
 // devil_belt.go) -- three independent flat-slot stores with identical

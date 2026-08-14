@@ -57,6 +57,10 @@ const (
 	ItemCrafted                                            // Sent by the server, a recipe was crafted (new equipped item + remaining gold)
 	EquipSkillRequest                                      // Sent by the client, requests assigning a learned skill to a slot
 	SkillEquipped                                          // Sent by the server, a player's left/right skill slot changed
+	MoveToStashRequest                                     // Sent by the client, requests moving an inventory item to the stash
+	ItemMovedToStash                                       // Sent by the server, an item moved from inventory to stash
+	MoveToInventoryRequest                                 // Sent by the client, requests moving a stash item to the inventory
+	ItemMovedFromStash                                     // Sent by the server, an item moved from stash to inventory
 
 	UnknownPacketType = 666
 )
@@ -102,6 +106,10 @@ func (n NetPacketType) String() string {
 		ItemCrafted:                       "ItemCrafted",
 		EquipSkillRequest:                 "EquipSkillRequest",
 		SkillEquipped:                     "SkillEquipped",
+		MoveToStashRequest:                "MoveToStashRequest",
+		ItemMovedToStash:                  "ItemMovedToStash",
+		MoveToInventoryRequest:            "MoveToInventoryRequest",
+		ItemMovedFromStash:                "ItemMovedFromStash",
 	}
 
 	return strings[n]

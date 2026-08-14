@@ -248,6 +248,113 @@ func TestHandleSkillEquippedPacketUnknownPlayerNoop(t *testing.T) {
 	}
 }
 
+func TestHandleItemMovedToStashPacketMovesTheItem(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Inventory: []string{d2hero.ItemPendentifArcane},
+		Stash:     make([]string, 1),
+	})
+
+	packet, err := d2netpacket.CreateItemMovedToStashPacket("p", 0, 0, d2hero.ItemPendentifArcane)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedToStashPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedToStashPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.Inventory[0] != "" {
+		t.Errorf("expected the inventory slot cleared, got %q", player.Inventory[0])
+	}
+
+	if player.Stash[0] != d2hero.ItemPendentifArcane {
+		t.Errorf("expected the item in the local stash copy, got %q", player.Stash[0])
+	}
+}
+
+// TestHandleItemMovedToStashPacketOutOfRangeIsNoop is a regression test:
+// Player.Inventory/Stash start empty (no full-sync packet exists on join,
+// only these incremental move deltas), so a real client can genuinely
+// receive an index beyond what it's ever seen -- this must not panic.
+func TestHandleItemMovedToStashPacketOutOfRangeIsNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedToStashPacket("p", 0, 0, d2hero.ItemPendentifArcane)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedToStashPacket failed: %v", err)
+	}
+
+	// must not panic indexing an empty Inventory/Stash.
+	if err := client.handleItemMovedToStashPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestHandleItemMovedToStashPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedToStashPacket("nobody", 0, 0, d2hero.ItemPendentifArcane)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedToStashPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedToStashPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestHandleItemMovedFromStashPacketMovesTheItem(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{
+		Inventory: make([]string, 1),
+		Stash:     []string{d2hero.ItemAnneauDuDebut},
+	})
+
+	packet, err := d2netpacket.CreateItemMovedFromStashPacket("p", 0, 0, d2hero.ItemAnneauDuDebut)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedFromStashPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedFromStashPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	player := client.Players["p"]
+	if player.Stash[0] != "" {
+		t.Errorf("expected the stash slot cleared, got %q", player.Stash[0])
+	}
+
+	if player.Inventory[0] != d2hero.ItemAnneauDuDebut {
+		t.Errorf("expected the item in the local inventory copy, got %q", player.Inventory[0])
+	}
+}
+
+func TestHandleItemMovedFromStashPacketOutOfRangeIsNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedFromStashPacket("p", 0, 0, d2hero.ItemAnneauDuDebut)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedFromStashPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedFromStashPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+func TestHandleItemMovedFromStashPacketUnknownPlayerNoop(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	packet, err := d2netpacket.CreateItemMovedFromStashPacket("nobody", 0, 0, d2hero.ItemAnneauDuDebut)
+	if err != nil {
+		t.Fatalf("test setup: CreateItemMovedFromStashPacket failed: %v", err)
+	}
+
+	if err := client.handleItemMovedFromStashPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
 func TestHandleSingleSkillRespecedPacketRemovesSkill(t *testing.T) {
 	client := clientWithPlayer("p", &d2mapentity.Player{
 		Stats:  &d2hero.HeroStatsState{SkillPoints: 0},

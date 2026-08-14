@@ -144,3 +144,109 @@ func TestRemoveFromStashFailsOnEmptySlot(t *testing.T) {
 		t.Error("expected RemoveFromStash to fail on an empty slot")
 	}
 }
+
+func TestMoveToStashMovesTheItemAndClearsTheInventorySlot(t *testing.T) {
+	hero := &HeroState{}
+	hero.InitStorage()
+
+	if _, err := hero.AddToInventory(ItemPendentifArcane); err != nil {
+		t.Fatalf("test setup: AddToInventory failed: %v", err)
+	}
+
+	itemCode, stashSlot, err := hero.MoveToStash(0)
+	if err != nil {
+		t.Fatalf("expected MoveToStash to succeed, got %v", err)
+	}
+
+	if itemCode != ItemPendentifArcane {
+		t.Errorf("expected the returned itemCode %q, got %q", ItemPendentifArcane, itemCode)
+	}
+
+	if hero.Inventory[0] != "" {
+		t.Errorf("expected the inventory slot cleared, got %q", hero.Inventory[0])
+	}
+
+	if hero.Stash[stashSlot] != ItemPendentifArcane {
+		t.Errorf("expected the item in stash slot %d, got %q", stashSlot, hero.Stash[stashSlot])
+	}
+}
+
+// TestMoveToStashRollsBackWhenStashIsFull is a regression test for the
+// most important correctness property here: a full destination must not
+// destroy the item. Without the rollback, the item would vanish -- removed
+// from Inventory by RemoveFromInventory, then silently dropped when
+// AddToStash fails.
+func TestMoveToStashRollsBackWhenStashIsFull(t *testing.T) {
+	hero := &HeroState{
+		Inventory: []string{ItemPendentifArcane},
+		Stash:     []string{ItemAnneauDuDebut}, // already full, capacity 1
+	}
+
+	if _, _, err := hero.MoveToStash(0); err == nil {
+		t.Fatal("expected MoveToStash to fail when the stash is full")
+	}
+
+	if hero.Inventory[0] != ItemPendentifArcane {
+		t.Errorf("expected the item put back in the inventory, got %q", hero.Inventory[0])
+	}
+
+	if hero.Stash[0] != ItemAnneauDuDebut {
+		t.Errorf("expected the stash's existing item untouched, got %q", hero.Stash[0])
+	}
+}
+
+func TestMoveToStashFailsOnEmptyInventorySlot(t *testing.T) {
+	hero := &HeroState{}
+	hero.InitStorage()
+
+	if _, _, err := hero.MoveToStash(0); err == nil {
+		t.Error("expected MoveToStash to fail moving from an empty inventory slot")
+	}
+}
+
+func TestMoveToInventoryMovesTheItemAndClearsTheStashSlot(t *testing.T) {
+	hero := &HeroState{}
+	hero.InitStorage()
+
+	if _, err := hero.AddToStash(ItemAnneauDuDebut); err != nil {
+		t.Fatalf("test setup: AddToStash failed: %v", err)
+	}
+
+	itemCode, inventorySlot, err := hero.MoveToInventory(0)
+	if err != nil {
+		t.Fatalf("expected MoveToInventory to succeed, got %v", err)
+	}
+
+	if itemCode != ItemAnneauDuDebut {
+		t.Errorf("expected the returned itemCode %q, got %q", ItemAnneauDuDebut, itemCode)
+	}
+
+	if hero.Stash[0] != "" {
+		t.Errorf("expected the stash slot cleared, got %q", hero.Stash[0])
+	}
+
+	if hero.Inventory[inventorySlot] != ItemAnneauDuDebut {
+		t.Errorf("expected the item in inventory slot %d, got %q", inventorySlot, hero.Inventory[inventorySlot])
+	}
+}
+
+// TestMoveToInventoryRollsBackWhenInventoryIsFull mirrors
+// TestMoveToStashRollsBackWhenStashIsFull for the reverse direction.
+func TestMoveToInventoryRollsBackWhenInventoryIsFull(t *testing.T) {
+	hero := &HeroState{
+		Inventory: []string{ItemPendentifArcane}, // already full, capacity 1
+		Stash:     []string{ItemAnneauDuDebut},
+	}
+
+	if _, _, err := hero.MoveToInventory(0); err == nil {
+		t.Fatal("expected MoveToInventory to fail when the inventory is full")
+	}
+
+	if hero.Stash[0] != ItemAnneauDuDebut {
+		t.Errorf("expected the item put back in the stash, got %q", hero.Stash[0])
+	}
+
+	if hero.Inventory[0] != ItemPendentifArcane {
+		t.Errorf("expected the inventory's existing item untouched, got %q", hero.Inventory[0])
+	}
+}

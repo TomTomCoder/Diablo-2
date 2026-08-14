@@ -14,16 +14,22 @@ import (
 // Player is the player character entity.
 type Player struct {
 	mapEntity
-	name              string
-	animationMode     string
-	composite         *d2asset.Composite
-	Equipment         *d2inventory.CharacterEquipment
-	Stats             *d2hero.HeroStatsState
-	Skills            map[int]*d2hero.HeroSkill
-	LeftSkill         *d2hero.HeroSkill
-	RightSkill        *d2hero.HeroSkill
-	Class             d2enum.Hero
-	Gold              int
+	name          string
+	animationMode string
+	composite     *d2asset.Composite
+	Equipment     *d2inventory.CharacterEquipment
+	Stats         *d2hero.HeroStatsState
+	Skills        map[int]*d2hero.HeroSkill
+	LeftSkill     *d2hero.HeroSkill
+	RightSkill    *d2hero.HeroSkill
+	Class         d2enum.Hero
+	Gold          int
+	// Inventory/Stash mirror d2hero.HeroState's own fields (item codes by
+	// slot, "" meaning empty) -- previously not tracked here at all, unlike
+	// Skills/Stats, since nothing client-side ever read them before a real
+	// inventory/stash screen existed to need them.
+	Inventory         []string
+	Stash             []string
 	lastPathSize      int
 	isInTown          bool
 	isRunToggled      bool

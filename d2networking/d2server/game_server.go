@@ -842,6 +842,66 @@ func (g *GameServer) resolveEquipSkill(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(equippedPacket)
 }
 
+// resolveMoveToStash unmarshals a MoveToStashRequestPacket and, if
+// HeroState.MoveToStash succeeds (the inventory slot must hold an item,
+// the stash must have room), broadcasts the result via
+// ItemMovedToStashPacket. Same "silently do nothing on failure" shape as
+// resolveEquipSkill.
+func (g *GameServer) resolveMoveToStash(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalMoveToStashRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveMoveToStash: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	itemCode, stashSlot, err := state.MoveToStash(requestPacket.InventoryIndex)
+	if err != nil {
+		return
+	}
+
+	movedPacket, err := d2netpacket.CreateItemMovedToStashPacket(
+		requestPacket.SourceEntityID, requestPacket.InventoryIndex, stashSlot, itemCode)
+	if err != nil {
+		g.Errorf("CreateItemMovedToStashPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(movedPacket)
+}
+
+// resolveMoveToInventory is resolveMoveToStash's mirror.
+func (g *GameServer) resolveMoveToInventory(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalMoveToInventoryRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveMoveToInventory: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil {
+		return
+	}
+
+	itemCode, inventorySlot, err := state.MoveToInventory(requestPacket.StashIndex)
+	if err != nil {
+		return
+	}
+
+	movedPacket, err := d2netpacket.CreateItemMovedFromStashPacket(
+		requestPacket.SourceEntityID, requestPacket.StashIndex, inventorySlot, itemCode)
+	if err != nil {
+		g.Errorf("CreateItemMovedFromStashPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(movedPacket)
+}
+
 // resolveRespecSkills unmarshals a RespecSkillsRequestPacket and forgets
 // every skill the caster has learned (HeroState.RespecSkills -- "Respec
 // partiel"), broadcasting their refunded SkillPoints. Correction (août
@@ -2270,6 +2330,10 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveLearnSkill(packet)
 	case d2netpackettype.EquipSkillRequest:
 		g.resolveEquipSkill(packet)
+	case d2netpackettype.MoveToStashRequest:
+		g.resolveMoveToStash(packet)
+	case d2netpackettype.MoveToInventoryRequest:
+		g.resolveMoveToInventory(packet)
 	case d2netpackettype.RespecSkillsRequest:
 		g.resolveRespecSkills(packet)
 	case d2netpackettype.RespecSingleSkillRequest:

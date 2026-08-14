@@ -1176,6 +1176,95 @@ func TestResolveEquipSkillUnknownPlayerNoop(t *testing.T) {
 	server.resolveEquipSkill(packet)
 }
 
+func TestResolveMoveToStashMovesTheItem(t *testing.T) {
+	state := &d2hero.HeroState{
+		Inventory: []string{d2hero.ItemPendentifArcane},
+		Stash:     make([]string, 1),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateMoveToStashRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToStashRequestPacket failed: %v", err)
+	}
+
+	server.resolveMoveToStash(packet)
+
+	if state.Inventory[0] != "" {
+		t.Errorf("expected the inventory slot cleared, got %q", state.Inventory[0])
+	}
+
+	if state.Stash[0] != d2hero.ItemPendentifArcane {
+		t.Errorf("expected the item moved to the stash, got %q", state.Stash[0])
+	}
+}
+
+func TestResolveMoveToStashFailsOnEmptySlotIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Inventory: make([]string, 1),
+		Stash:     make([]string, 1),
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateMoveToStashRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToStashRequestPacket failed: %v", err)
+	}
+
+	server.resolveMoveToStash(packet)
+
+	if state.Stash[0] != "" {
+		t.Errorf("expected the stash untouched when the inventory slot was empty, got %q", state.Stash[0])
+	}
+}
+
+func TestResolveMoveToStashUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateMoveToStashRequestPacket("nobody", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToStashRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveMoveToStash(packet)
+}
+
+func TestResolveMoveToInventoryMovesTheItem(t *testing.T) {
+	state := &d2hero.HeroState{
+		Inventory: make([]string, 1),
+		Stash:     []string{d2hero.ItemAnneauDuDebut},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateMoveToInventoryRequestPacket("p", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToInventoryRequestPacket failed: %v", err)
+	}
+
+	server.resolveMoveToInventory(packet)
+
+	if state.Stash[0] != "" {
+		t.Errorf("expected the stash slot cleared, got %q", state.Stash[0])
+	}
+
+	if state.Inventory[0] != d2hero.ItemAnneauDuDebut {
+		t.Errorf("expected the item moved to the inventory, got %q", state.Inventory[0])
+	}
+}
+
+func TestResolveMoveToInventoryUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateMoveToInventoryRequestPacket("nobody", 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateMoveToInventoryRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveMoveToInventory(packet)
+}
+
 func TestResolveRespecSkillsRefundsAllPoints(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats:  &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
