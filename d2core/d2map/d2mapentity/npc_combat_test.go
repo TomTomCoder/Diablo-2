@@ -110,6 +110,7 @@ func TestNPCAttackDamageRange(t *testing.T) {
 
 	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
 	gotMin, gotMax = noMonstat.AttackDamageRange(d2enum.DifficultyNormal)
+
 	if gotMin != 0 || gotMax != 0 {
 		t.Errorf("expected AttackDamageRange (0, 0) with no monstat record, got (%d, %d)", gotMin, gotMax)
 	}
