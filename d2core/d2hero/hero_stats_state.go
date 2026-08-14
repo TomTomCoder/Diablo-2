@@ -76,6 +76,14 @@ type HeroStatsState struct {
 	// MagicImmuneUntil is when the hero's magic immunity (Éveil du Nexus,
 	// Ésotérisme's ultimate: "immunité magique pendant 8 secondes") expires.
 	// Zero value means not immune. See ApplyMagicImmunity/IsMagicImmune.
+	//
+	// Deliberately not saved (json:"-"), same reasoning as Stamina below:
+	// this is a seconds-long combat timer, and the only place Save is ever
+	// called is on leaving gameplay (GameServer's SavePlayer handler,
+	// d2gamescreen.Game's OnUnload) -- by the time a save is reloaded, any
+	// real remaining window on an 8-second buff has long since elapsed
+	// regardless. Resetting it across a save/load is the correct behavior,
+	// not lost state worth restoring.
 	MagicImmuneUntil time.Time `json:"-"`
 
 	// ResonanceMagiqueBonusUntil is when the temporary damage bonus armed by
@@ -84,6 +92,11 @@ type HeroStatsState struct {
 	// bonus armed. Unlike the other *Until fields, this one is also cleared
 	// the moment it's used -- see ApplyResonanceMagiqueBonus/
 	// ConsumeResonanceMagiqueBonus.
+	//
+	// Deliberately not saved (json:"-") -- same reasoning as
+	// MagicImmuneUntil just above: a 3-second combo window has no meaning
+	// once a save/load round-trip (only ever triggered on leaving gameplay)
+	// has happened in between.
 	ResonanceMagiqueBonusUntil time.Time `json:"-"`
 
 	// values which are not saved/loaded(computed)
