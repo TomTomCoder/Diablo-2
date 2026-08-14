@@ -246,6 +246,53 @@ loop: // this is a label for the loop, so the switch can break the loop (and not
 	return indexData
 }
 
+// EncodeFrame RLE-encodes indexData (palette-indexed pixels, width*height
+// bytes, row-major top-to-bottom, 0 meaning transparent) into DC6's own
+// scanline format -- the inverse of DecodeFrame, which this package never
+// had before (only ever needed to read real DC6 files, not author new
+// ones). Rows are encoded bottom-to-top to match DecodeFrame's own
+// convention (see its own y := int(frame.Height) - 1 starting point).
+//
+// ponytail: no run-splitting optimization beyond what's needed for
+// correctness -- an opaque run adjacent to more opaque pixels than
+// maxRunLength (0x7f) just becomes multiple runs, exactly as real DC6
+// encoders do; this isn't trying to produce the smallest possible file.
+func EncodeFrame(indexData []byte, width, height uint32) []byte {
+	var out []byte
+
+	w, h := int(width), int(height)
+
+	for y := h - 1; y >= 0; y-- {
+		row := y * w
+		x := 0
+
+		for x < w {
+			runLength := 0
+
+			if indexData[row+x] == 0 {
+				for x+runLength < w && runLength < maxRunLength && indexData[row+x+runLength] == 0 {
+					runLength++
+				}
+
+				out = append(out, byte(endOfScanLine|runLength))
+			} else {
+				for x+runLength < w && runLength < maxRunLength && indexData[row+x+runLength] != 0 {
+					runLength++
+				}
+
+				out = append(out, byte(runLength))
+				out = append(out, indexData[row+x:row+x+runLength]...)
+			}
+
+			x += runLength
+		}
+
+		out = append(out, endOfScanLine)
+	}
+
+	return out
+}
+
 func scanlineType(b int) scanlineState {
 	if b == endOfScanLine {
 		return endOfLine
