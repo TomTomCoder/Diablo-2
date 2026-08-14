@@ -1,5 +1,20 @@
 # Devil — Prompts de génération d'assets visuels (style Final Fantasy)
 
+> **⚠️ Correction (août 2026) — sections 1 à 3 obsolètes.** Ce document a été
+> écrit avant que le studio ne fournisse de vrais assets. Les **sections 1-3**
+> ci-dessous (variantes Homme/Femme du Mage, progression d'armure) décrivent
+> encore l'ancienne palette cramoisi/or et un Mage armé d'un bâton -- or les
+> vrais turnarounds reçus depuis (`devil_mage_character_design.md`, réécrit en
+> conséquence) montrent un Mage qui lance ses sorts **à mains nues, sans
+> bâton**, avec une palette différente. Générer de nouvelles images à partir
+> de ces trois sections produirait un art incohérent avec les assets déjà
+> livrés -- se référer à `devil_mage_character_design.md` (et
+> `devil_warrior_character_design.md` pour le Warrior) pour l'apparence
+> actuelle à la place. **Les sections 4 à 8** (auras de compétences, icônes
+> d'objets, qualités d'objets, monstres/gardiens, artwork d'environnement)
+> couvrent des catégories d'assets que le studio n'a pas encore fournies et
+> restent valables.
+
 Ce document fournit des prompts prêts à l'emploi pour un générateur d'images externe
 (Midjourney, DALL-E, Stable Diffusion...). **Aucun outil de génération d'image n'est
 disponible dans cet environnement de code** — ces prompts doivent être exécutés par
