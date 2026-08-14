@@ -48,37 +48,78 @@ var DevilCraftingRecipes = map[string]*DevilCraftingRecipe{
 	},
 }
 
-// Craft attempts recipeID against h: the hero's own RightHand weapon must
-// match the recipe's input item code, and Gold must cover its cost. On
-// success, Gold is debited, the weapon's ItemCode becomes the recipe's
-// output -- resolveAttackDamage's existing ItemFireDamagePercent lookup
-// picks up the new item's bonuses automatically, no further wiring needed
-// -- and recipeID is marked discovered in h's Codex (DiscoverRecipe),
-// devil_game_design_reference.md §8's "chaque recette découverte (par
-// quête ou utilisation)".
+// consumeFromInventory looks for at least quantity slots in h.Inventory
+// holding itemCode; if found, clears all of them and returns the index of
+// one of them (for the caller to place a craft's output into, reusing the
+// slot rather than needing a separate empty one). Leaves the inventory
+// untouched and returns ok: false otherwise -- including for a
+// non-positive quantity, which has no sensible "consume" behavior.
+func (h *HeroState) consumeFromInventory(itemCode string, quantity int) (outputSlot int, ok bool) {
+	if quantity <= 0 {
+		return 0, false
+	}
+
+	matches := make([]int, 0, quantity)
+
+	for i, code := range h.Inventory {
+		if code == itemCode {
+			matches = append(matches, i)
+			if len(matches) == quantity {
+				break
+			}
+		}
+	}
+
+	if len(matches) < quantity {
+		return 0, false
+	}
+
+	for _, i := range matches {
+		h.Inventory[i] = ""
+	}
+
+	return matches[0], true
+}
+
+// Craft attempts recipeID against h: its input item must be found either
+// equipped (RightHand) or in h.Inventory (InputQuantity copies, see
+// consumeFromInventory), and Gold must cover its cost. On success, Gold is
+// debited, the input is replaced in place by the recipe's output -- the
+// equipped weapon's ItemCode is swapped directly (resolveAttackDamage's
+// existing ItemFireDamagePercent lookup picks up the new item's bonuses
+// automatically, no further wiring needed), or one consumed inventory slot
+// becomes the output -- and recipeID is marked discovered in h's Codex
+// (DiscoverRecipe), devil_game_design_reference.md §8's "chaque recette
+// découverte (par quête ou utilisation)".
 //
-// ponytail: only checks/mutates the equipped weapon slot, not a real
-// inventory/stash -- Devil doesn't have an inventory grid model yet
-// (ROADMAP.md Phase 5), so "does the player have this item" can only mean
-// "is it equipped" for now. InputQuantity is unused for the same reason
-// (nothing to stack N of outside a slot).
+// The equipped slot is checked first, matching Craft's original
+// equipped-only behavior exactly when the item happens to be equipped;
+// the inventory is only consulted as a fallback.
 func (h *HeroState) Craft(recipeID string) error {
 	recipe, ok := DevilCraftingRecipes[recipeID]
 	if !ok {
 		return errors.New("unknown recipe")
 	}
 
-	if h.Equipment.RightHand == nil || h.Equipment.RightHand.ItemCode != recipe.InputItemCode {
-		return errors.New("required input item not equipped")
-	}
-
 	if h.Gold < recipe.InputGoldCost {
 		return errors.New("not enough gold")
 	}
 
-	h.Gold -= recipe.InputGoldCost
-	h.Equipment.RightHand.ItemCode = recipe.OutputItemCode
-	h.DiscoverRecipe(recipeID)
+	if h.Equipment.RightHand != nil && h.Equipment.RightHand.ItemCode == recipe.InputItemCode {
+		h.Gold -= recipe.InputGoldCost
+		h.Equipment.RightHand.ItemCode = recipe.OutputItemCode
+		h.DiscoverRecipe(recipeID)
 
-	return nil
+		return nil
+	}
+
+	if slot, found := h.consumeFromInventory(recipe.InputItemCode, recipe.InputQuantity); found {
+		h.Gold -= recipe.InputGoldCost
+		h.Inventory[slot] = recipe.OutputItemCode
+		h.DiscoverRecipe(recipeID)
+
+		return nil
+	}
+
+	return errors.New("required input item not equipped or in inventory")
 }
