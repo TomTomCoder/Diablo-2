@@ -16,6 +16,7 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2audio"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2maprenderer"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2screen"
@@ -386,6 +387,21 @@ func (v *Game) OnInvestSkillPoint(skillID int) {
 
 	if err := v.gameClient.SendPacketToServer(ip); err != nil {
 		v.Errorf("InvestSkillPointRequestPacket: player %s, skill %d: %v", v.gameClient.PlayerID, skillID, err)
+	}
+}
+
+// OnEquipSkill sends a request to assign an already-learned skill to the
+// given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
+// picking a skill from the left/right skill-select popup.
+func (v *Game) OnEquipSkill(slot d2hero.SkillSlot, skillID int) {
+	ep, err := d2netpacket.CreateEquipSkillRequestPacket(v.gameClient.PlayerID, int(slot), skillID)
+	if err != nil {
+		v.Errorf("EquipSkillRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(ep); err != nil {
+		v.Errorf("EquipSkillRequestPacket: player %s, slot %d, skill %d: %v", v.gameClient.PlayerID, slot, skillID, err)
 	}
 }
 

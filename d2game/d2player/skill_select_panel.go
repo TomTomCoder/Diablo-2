@@ -72,8 +72,16 @@ type SkillPanel struct {
 	isOpen               bool
 	regenerateImageCache bool
 	isLeftPanel          bool
+	onEquip              func(slot d2hero.SkillSlot, skillID int)
 
 	*d2util.Logger
+}
+
+// SetOnEquipCb sets the callback run when the player picks a skill from
+// this panel, requesting it be equipped to this panel's slot
+// (d2hero.HeroState.EquipSkill).
+func (s *SkillPanel) SetOnEquipCb(cb func(slot d2hero.SkillSlot, skillID int)) {
+	s.onEquip = cb
 }
 
 // Open opens the hero skills panel
@@ -293,8 +301,19 @@ func (s *SkillPanel) getSkillIdxAtPos(x, y int) int {
 	return skillIndex
 }
 
-// HandleClick will change the hero's active(left or right) skill and return true.
-// Returns false if the given X, Y is out of panel boundaries.
+// HandleClick requests that the hero's active(left or right) skill be
+// changed to the one clicked, and returns true. Returns false if the
+// given X, Y is out of panel boundaries.
+//
+// Correction (août 2026): this used to assign s.hero.LeftSkill/RightSkill
+// directly -- the only client-facing UI path to EquipSkill, yet the only
+// one that never actually went through it. HeroState.EquipSkill (the
+// server's own authoritative copy) was never told, so the choice never
+// survived a save/reload and other clients never learned it either --
+// silent purely-cosmetic state on the one Player mirror that happened to
+// render the HUD. Now sends the same request/response round trip
+// InvestSkillPoint uses: the local LeftSkill/RightSkill only actually
+// updates once handleSkillEquippedPacket confirms it server-side.
 func (s *SkillPanel) HandleClick(x, y int) bool {
 	if !s.isOpen || !s.IsInRect(x, y) {
 		return false
@@ -306,11 +325,16 @@ func (s *SkillPanel) HandleClick(x, y int) bool {
 		return false
 	}
 
-	if s.isLeftPanel {
-		s.hero.LeftSkill = clickedSkill
-	} else {
-		s.hero.RightSkill = clickedSkill
+	if s.onEquip == nil {
+		return true
 	}
+
+	slot := d2hero.SkillSlotRight
+	if s.isLeftPanel {
+		slot = d2hero.SkillSlotLeft
+	}
+
+	s.onEquip(slot, clickedSkill.ID)
 
 	return true
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2ui"
 )
@@ -22,6 +23,13 @@ func NewSkillSelectMenu(asset *d2asset.AssetManager, ui *d2ui.UIManager, l d2uti
 	}
 
 	return skillSelectMenu
+}
+
+// SetOnEquipCb sets the callback run when the player picks a skill from
+// either panel, on both panels -- see SkillPanel.SetOnEquipCb.
+func (sm *SkillSelectMenu) SetOnEquipCb(cb func(slot d2hero.SkillSlot, skillID int)) {
+	sm.LeftPanel.SetOnEquipCb(cb)
+	sm.RightPanel.SetOnEquipCb(cb)
 }
 
 // HandleClick will propagate the click to the panels.
