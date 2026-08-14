@@ -28,6 +28,11 @@ import (
 // data without erroring, which nothing in this repo had verified before
 // (see ROADMAP.md's own investigation: no test anywhere imports d2cof/
 // d2dcc together with d2asset.Composite, and none calls LoadComposite).
+//
+// Covers 8 directions and three real player animation modes (Neutral,
+// Walk, Attack1) rather than just one static pose -- a placeholder
+// character still needs to actually move and attack, not just stand
+// still, even with plain color-block art.
 func TestLoadCompositeWithGeneratedPlaceholderAssets(t *testing.T) {
 	root := t.TempDir()
 
@@ -40,34 +45,19 @@ func TestLoadCompositeWithGeneratedPlaceholderAssets(t *testing.T) {
 		token       = "SO"
 		layerType   = d2enum.CompositeTypeTorso
 		weaponClass = d2enum.WeaponClassHandToHand
-		mode        = d2enum.PlayerAnimationModeTownNeutral
+		directions  = 8
 		frames      = 4
 		speed       = 10
 	)
 
+	modes := []d2enum.PlayerAnimationMode{
+		d2enum.PlayerAnimationModeTownNeutral,
+		d2enum.PlayerAnimationModeWalk,
+		d2enum.PlayerAnimationModeAttack1,
+	}
+
 	palette := placeholdergen.BuildPalette(map[byte][3]byte{1: {200, 40, 40}})
 	writePlaceholderFile(t, root, d2resource.PaletteUnits, palette)
-
-	cof := placeholdergen.BuildMinimalCOF(layerType, weaponClass, frames, speed)
-	cofPath := "/data/global/chars/" + token + "/COF/" + token + mode.String() + weaponClass.String() + ".COF"
-	writePlaceholderFile(t, root, cofPath, cof.Marshal())
-
-	dc6 := placeholdergen.BuildFlatColorDC6(16, 16, frames, 1)
-	// layerValue defaults to "lit" whenever Composite has no equipment set
-	// for this layer type -- see Composite.createMode's own fallback.
-	dc6Path := "/data/global/chars/" + token + "/" + layerType.String() + "/" +
-		token + layerType.String() + "lit" + mode.String() + weaponClass.String() + ".dc6"
-	writePlaceholderFile(t, root, dc6Path, dc6.Marshal())
-
-	// Composite.createMode looks this up via
-	// strings.ToUpper(token+animationMode.String()+weaponClass) -- the key
-	// must match that exactly, case included.
-	animKey := strings.ToUpper(token + mode.String() + weaponClass.String())
-
-	animData, err := placeholdergen.BuildMinimalAnimData(animKey, frames, speed)
-	if err != nil {
-		t.Fatalf("BuildMinimalAnimData failed: %v", err)
-	}
 
 	assetManager, err := NewAssetManager(d2util.LogLevelNone)
 	if err != nil {
@@ -78,20 +68,74 @@ func TestLoadCompositeWithGeneratedPlaceholderAssets(t *testing.T) {
 		t.Fatalf("AddSource failed: %v", err)
 	}
 
+	// Records.Animation.Data holds every mode's entry -- a real Composite
+	// swaps modes against the same shared AnimData.d2 the whole game
+	// loaded once at startup, not a per-mode file.
+	animData, err := placeholdergen.BuildMinimalAnimData(animKey(token, modes[0], weaponClass), frames, speed)
+	if err != nil {
+		t.Fatalf("BuildMinimalAnimData failed: %v", err)
+	}
+
+	for _, mode := range modes[1:] {
+		if err = animData.AddEntry(animKey(token, mode, weaponClass)); err != nil {
+			t.Fatalf("AddEntry failed: %v", err)
+		}
+
+		animData.PushRecord(animKey(token, mode, weaponClass))
+
+		record := animData.GetRecord(animKey(token, mode, weaponClass))
+		record.SetFramesPerDirection(frames)
+		record.SetSpeed(speed)
+	}
+
 	assetManager.Records.Animation.Data = animData
+
+	for _, mode := range modes {
+		writeGeneratedMode(t, root, token, mode, weaponClass, layerType, directions, frames, speed)
+	}
 
 	composite, err := assetManager.LoadComposite(d2enum.ObjectTypePlayer, token, d2resource.PaletteUnits)
 	if err != nil {
 		t.Fatalf("LoadComposite failed: %v", err)
 	}
 
-	if err := composite.SetMode(mode, weaponClass.String()); err != nil {
-		t.Fatalf("SetMode failed against generated placeholder assets: %v", err)
-	}
+	for _, mode := range modes {
+		if err := composite.SetMode(mode, weaponClass.String()); err != nil {
+			t.Fatalf("SetMode(%s) failed against generated placeholder assets: %v", mode.String(), err)
+		}
 
-	if composite.GetFrameCount() != frames {
-		t.Errorf("expected GetFrameCount() %d, got %d", frames, composite.GetFrameCount())
+		if composite.GetFrameCount() != frames {
+			t.Errorf("mode %s: expected GetFrameCount() %d, got %d", mode.String(), frames, composite.GetFrameCount())
+		}
 	}
+}
+
+// animKey mirrors Composite.createMode's own lookup key exactly:
+// strings.ToUpper(token + animationMode.String() + weaponClass).
+func animKey(token string, mode d2enum.PlayerAnimationMode, weaponClass d2enum.WeaponClass) string {
+	return strings.ToUpper(token + mode.String() + weaponClass.String())
+}
+
+// writeGeneratedMode builds and writes the COF + single-layer DC6 for one
+// (token, mode, weaponClass) combination at the exact paths
+// Composite.createMode/loadCompositeLayer expect.
+func writeGeneratedMode(
+	t *testing.T, root, token string, mode d2enum.PlayerAnimationMode, weaponClass d2enum.WeaponClass,
+	layerType d2enum.CompositeType, directions, frames, speed int,
+) {
+	t.Helper()
+
+	cof := placeholdergen.BuildMinimalCOF(layerType, weaponClass, frames, directions, speed)
+	cofPath := "/data/global/chars/" + token + "/COF/" + token + mode.String() + weaponClass.String() + ".COF"
+	writePlaceholderFile(t, root, cofPath, cof.Marshal())
+
+	//nolint:gosec // frames/directions here are always small, fixed test constants
+	dc6 := placeholdergen.BuildFlatColorDC6(16, 16, uint32(frames), uint32(directions), 1)
+	// layerValue defaults to "lit" whenever Composite has no equipment set
+	// for this layer type -- see Composite.createMode's own fallback.
+	dc6Path := "/data/global/chars/" + token + "/" + layerType.String() + "/" +
+		token + layerType.String() + "lit" + mode.String() + weaponClass.String() + ".dc6"
+	writePlaceholderFile(t, root, dc6Path, dc6.Marshal())
 }
 
 // writePlaceholderFile writes data at root+subPath, creating parent

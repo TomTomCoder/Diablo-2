@@ -48,32 +48,42 @@ func BuildPalette(colors map[byte][3]byte) []byte {
 	return data
 }
 
-// BuildFlatColorDC6 builds a DC6 with framesPerDirection identical
+// BuildFlatColorDC6 builds a DC6 with directions*framesPerDirection
 // frames, each a solid colorIndex-filled width x height rectangle on a
-// transparent (index 0) background. One direction only -- see
-// BuildMinimalCOF's own doc comment for why that's structurally fine.
-func BuildFlatColorDC6(width, height, framesPerDirection uint32, colorIndex byte) *d2dc6.DC6 {
+// transparent (index 0) background. Frames are stored direction-major
+// (all of direction 0's frames, then direction 1's, ...), matching real
+// DC6 files -- the wrapping d2interface.Animation is what maps
+// (direction, frame) to an index into this flat list.
+//
+// Correction (août 2026): directions used to be hardcoded to 1. A real
+// character needs 8 (or 16/32/64) directions to look like anything but a
+// single frozen pose from one angle; since every frame here is identical
+// anyway (a flat color block), adding more directions costs nothing but
+// repeating the same encoded bytes.
+func BuildFlatColorDC6(width, height, framesPerDirection, directions uint32, colorIndex byte) *d2dc6.DC6 {
 	pixels := make([]byte, width*height)
 	for i := range pixels {
 		pixels[i] = colorIndex
 	}
 
 	encoded := d2dc6.EncodeFrame(pixels, width, height)
+	totalFrames := directions * framesPerDirection
 
 	dc6 := &d2dc6.DC6{
 		Version:            6,
 		Flags:              1,
 		Encoding:           1,
 		Termination:        []byte{0xEE, 0xEE, 0xEE, 0xEE},
-		Directions:         1,
+		Directions:         directions,
 		FramesPerDirection: framesPerDirection,
-		FramePointers:      make([]uint32, framesPerDirection),
-		Frames:             make([]*d2dc6.DC6Frame, framesPerDirection),
+		FramePointers:      make([]uint32, totalFrames),
+		Frames:             make([]*d2dc6.DC6Frame, totalFrames),
 	}
 
-	for i := uint32(0); i < framesPerDirection; i++ {
-		// FrameData is shared across frames deliberately -- every frame
-		// looks identical (a static color block), so there's no reason to
+	for i := uint32(0); i < totalFrames; i++ {
+		// FrameData is shared across every frame deliberately -- every
+		// frame looks identical (a static color block) regardless of
+		// direction or position in the cycle, so there's no reason to
 		// repeat the encode.
 		dc6.Frames[i] = &d2dc6.DC6Frame{
 			Width:  width,
@@ -89,18 +99,20 @@ func BuildFlatColorDC6(width, height, framesPerDirection uint32, colorIndex byte
 	return dc6
 }
 
-// BuildMinimalCOF builds a COF with exactly one layer (layerType), one
-// direction, and framesPerDirection frames, using weaponClass for that
-// single layer.
+// BuildMinimalCOF builds a COF with exactly one layer (layerType),
+// `directions` directions, and framesPerDirection frames, using
+// weaponClass for that single layer.
 //
-// ponytail: one layer/one direction is the floor this codebase's own
-// d2cof parser and d2asset.Composite.createMode actually require (no
-// fixed real-D2 layer count or direction count is enforced) -- this
-// isn't attempting a faithful multi-layer/8-direction reproduction, just
-// the minimum that renders as *something*.
-func BuildMinimalCOF(layerType d2enum.CompositeType, weaponClass d2enum.WeaponClass, framesPerDirection, speed int) *d2cof.COF {
+// ponytail: one layer is the floor this codebase's own d2cof parser and
+// d2asset.Composite.createMode actually require (no fixed real-D2 layer
+// count is enforced) -- this isn't attempting a faithful multi-layer
+// reproduction, just the minimum that renders as *something*. Direction
+// count, unlike layer count, is passed through rather than hardcoded --
+// see BuildFlatColorDC6's own correction note for why 1 direction alone
+// is too thin for real movement.
+func BuildMinimalCOF(layerType d2enum.CompositeType, weaponClass d2enum.WeaponClass, framesPerDirection, directions, speed int) *d2cof.COF {
 	cof := d2cof.New()
-	cof.NumberOfDirections = 1
+	cof.NumberOfDirections = directions
 	cof.FramesPerDirection = framesPerDirection
 	cof.NumberOfLayers = 1
 	cof.Speed = speed
@@ -113,11 +125,14 @@ func BuildMinimalCOF(layerType d2enum.CompositeType, weaponClass d2enum.WeaponCl
 	cof.CompositeLayers = map[d2enum.CompositeType]int{layerType: 0}
 	cof.AnimationFrames = make([]d2enum.AnimationFrame, framesPerDirection)
 
-	cof.Priority = make([][][]d2enum.CompositeType, 1)
-	cof.Priority[0] = make([][]d2enum.CompositeType, framesPerDirection)
+	cof.Priority = make([][][]d2enum.CompositeType, directions)
 
-	for frame := 0; frame < framesPerDirection; frame++ {
-		cof.Priority[0][frame] = []d2enum.CompositeType{layerType}
+	for dir := 0; dir < directions; dir++ {
+		cof.Priority[dir] = make([][]d2enum.CompositeType, framesPerDirection)
+
+		for frame := 0; frame < framesPerDirection; frame++ {
+			cof.Priority[dir][frame] = []d2enum.CompositeType{layerType}
+		}
 	}
 
 	return cof

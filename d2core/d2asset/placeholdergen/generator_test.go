@@ -37,7 +37,7 @@ func TestBuildPaletteEncodesBGRTriplets(t *testing.T) {
 func TestBuildFlatColorDC6DecodesToASolidRectangle(t *testing.T) {
 	const width, height, frames = 4, 3, 2
 
-	dc6 := BuildFlatColorDC6(width, height, frames, 5)
+	dc6 := BuildFlatColorDC6(width, height, frames, 1, 5)
 
 	if dc6.Directions != 1 || dc6.FramesPerDirection != frames {
 		t.Fatalf("expected 1 direction / %d frames, got %d/%d", frames, dc6.Directions, dc6.FramesPerDirection)
@@ -61,11 +61,37 @@ func TestBuildFlatColorDC6DecodesToASolidRectangle(t *testing.T) {
 	}
 }
 
+// TestBuildFlatColorDC6MultipleDirections is a regression test:
+// Directions used to be hardcoded to 1. With 8 directions and 3 frames
+// each, the DC6 must carry 24 total frames, all still decodable.
+func TestBuildFlatColorDC6MultipleDirections(t *testing.T) {
+	const width, height, frames, directions = 4, 4, 3, 8
+
+	dc6 := BuildFlatColorDC6(width, height, frames, directions, 7)
+
+	if dc6.Directions != directions || dc6.FramesPerDirection != frames {
+		t.Fatalf("expected %d directions / %d frames, got %d/%d", directions, frames, dc6.Directions, dc6.FramesPerDirection)
+	}
+
+	if len(dc6.Frames) != directions*frames {
+		t.Fatalf("expected %d total frames, got %d", directions*frames, len(dc6.Frames))
+	}
+
+	for f := 0; f < directions*frames; f++ {
+		pixels := dc6.DecodeFrame(f)
+		for i, p := range pixels {
+			if p != 7 {
+				t.Errorf("frame %d, pixel %d: expected color index 7, got %d", f, i, p)
+			}
+		}
+	}
+}
+
 // TestBuildFlatColorDC6SurvivesMarshalAndLoad proves the generated DC6 is
 // a genuinely valid file, not just a valid in-memory struct: Marshal it
 // to bytes and Load those bytes back.
 func TestBuildFlatColorDC6SurvivesMarshalAndLoad(t *testing.T) {
-	dc6 := BuildFlatColorDC6(2, 2, 1, 9)
+	dc6 := BuildFlatColorDC6(2, 2, 1, 1, 9)
 
 	loaded, err := d2dc6.Load(dc6.Marshal())
 	if err != nil {
@@ -80,8 +106,8 @@ func TestBuildFlatColorDC6SurvivesMarshalAndLoad(t *testing.T) {
 	}
 }
 
-func TestBuildMinimalCOFHasOneLayerOneDirection(t *testing.T) {
-	cof := BuildMinimalCOF(d2enum.CompositeTypeTorso, d2enum.WeaponClassHandToHand, 3, 10)
+func TestBuildMinimalCOFHasOneLayer(t *testing.T) {
+	cof := BuildMinimalCOF(d2enum.CompositeTypeTorso, d2enum.WeaponClassHandToHand, 3, 1, 10)
 
 	if cof.NumberOfLayers != 1 || cof.NumberOfDirections != 1 || cof.FramesPerDirection != 3 {
 		t.Fatalf("expected 1 layer/1 direction/3 frames, got %d/%d/%d",
@@ -97,11 +123,34 @@ func TestBuildMinimalCOFHasOneLayerOneDirection(t *testing.T) {
 	}
 }
 
+// TestBuildMinimalCOFMultipleDirections is a regression test for the same
+// reason as TestBuildFlatColorDC6MultipleDirections: Priority must be
+// shaped [directions][frames][1 layer], not hardcoded to one direction.
+func TestBuildMinimalCOFMultipleDirections(t *testing.T) {
+	const directions, frames = 8, 3
+
+	cof := BuildMinimalCOF(d2enum.CompositeTypeTorso, d2enum.WeaponClassHandToHand, frames, directions, 10)
+
+	if cof.NumberOfDirections != directions {
+		t.Fatalf("expected %d directions, got %d", directions, cof.NumberOfDirections)
+	}
+
+	if len(cof.Priority) != directions {
+		t.Fatalf("expected Priority to have %d directions, got %d", directions, len(cof.Priority))
+	}
+
+	for dir := 0; dir < directions; dir++ {
+		if len(cof.Priority[dir]) != frames || len(cof.Priority[dir][0]) != 1 {
+			t.Fatalf("direction %d: expected Priority shaped [%d][1], got %v", dir, frames, cof.Priority[dir])
+		}
+	}
+}
+
 // TestBuildMinimalCOFSurvivesMarshalAndUnmarshal proves the generated COF
 // is a genuinely valid file: Marshal it and Unmarshal the bytes back via
 // this codebase's own d2cof parser.
 func TestBuildMinimalCOFSurvivesMarshalAndUnmarshal(t *testing.T) {
-	original := BuildMinimalCOF(d2enum.CompositeTypeTorso, d2enum.WeaponClassHandToHand, 4, 10)
+	original := BuildMinimalCOF(d2enum.CompositeTypeTorso, d2enum.WeaponClassHandToHand, 4, 1, 10)
 
 	loaded, err := d2cof.Unmarshal(original.Marshal())
 	if err != nil {
