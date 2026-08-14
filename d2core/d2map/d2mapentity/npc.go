@@ -155,48 +155,50 @@ func (v *NPC) AttackDamageRange(difficulty d2enum.DifficultyType) (min, max int)
 // cold-elemental damage, so a monster's cold sensitivity has no bearing on
 // them). See ROADMAP.md for why the scope stops there.
 //
-// ponytail: always Normal-difficulty, same limitation as
-// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
-func (v *NPC) IsColdImmune() bool {
+// Correction (août 2026): now reads the given difficulty's real column
+// instead of always Normal -- same reasoning as MagicResistancePercent's
+// own doc comment (read at damage-resolution time entirely server-side,
+// no client call site to block it).
+func (v *NPC) IsColdImmune(difficulty d2enum.DifficultyType) bool {
 	if v.monstatRecord == nil {
 		return false
 	}
 
-	return v.monstatRecord.ColdSensitivityNormal == 0
+	return v.monstatRecord.ColdSensitivityForDifficulty(difficulty) == 0
 }
 
 // AggroDistanceTiles returns this NPC's AI activation radius in tiles
-// (monstats.txt's "aidist" column, d2records.MonStatRecord.AiDistanceNormal),
-// or 0 if it has no monstat record or the column was left blank. 0 is a
-// safe "no data" sentinel: real D2 treats a blank aidist as an implicit ~35
-// (that default lives in the game engine, not in the data file), and
-// Devil's own caller already falls back to its own flat radius constant
-// whenever this returns 0 -- same convention as AttackDamageRange.
+// (monstats.txt's "aidist" column, d2records.MonStatRecord.AiDistanceNormal/
+// Nightmare/Hell), or 0 if it has no monstat record or the column was left
+// blank. 0 is a safe "no data" sentinel: real D2 treats a blank aidist as
+// an implicit ~35 (that default lives in the game engine, not in the data
+// file), and Devil's own caller already falls back to its own flat radius
+// constant whenever this returns 0 -- same convention as AttackDamageRange.
 //
-// ponytail: always Normal-difficulty, same limitation as
-// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
-func (v *NPC) AggroDistanceTiles() int {
+// Correction (août 2026): same fix as IsColdImmune -- real difficulty
+// instead of always Normal, same reasoning (read server-side in
+// advanceMonsterAI, with a connected player's difficulty already at hand).
+func (v *NPC) AggroDistanceTiles(difficulty d2enum.DifficultyType) int {
 	if v.monstatRecord == nil {
 		return 0
 	}
 
-	return v.monstatRecord.AiDistanceNormal
+	return v.monstatRecord.AiDistanceForDifficulty(difficulty)
 }
 
 // AiDelayFrames returns this NPC's delay between AI actions in frames
-// (monstats.txt's "aidel" column, d2records.MonStatRecord.AiDelayNormal --
-// "the lower the number, the faster the AI's will attack"), or 0 if it has
-// no monstat record or the column was left blank. Same 0-is-"no data"
-// sentinel convention as AggroDistanceTiles.
+// (monstats.txt's "aidel" column, d2records.MonStatRecord.AiDelayNormal/
+// Nightmare/Hell -- "the lower the number, the faster the AI's will
+// attack"), or 0 if it has no monstat record or the column was left blank.
+// Same 0-is-"no data" sentinel convention as AggroDistanceTiles.
 //
-// ponytail: always Normal-difficulty, same limitation as
-// MonStatRecord.HPRangeForDifficulty/NPC.MagicResistancePercent.
-func (v *NPC) AiDelayFrames() int {
+// Correction (août 2026): same fix as IsColdImmune/AggroDistanceTiles.
+func (v *NPC) AiDelayFrames(difficulty d2enum.DifficultyType) int {
 	if v.monstatRecord == nil {
 		return 0
 	}
 
-	return v.monstatRecord.AiDelayNormal
+	return v.monstatRecord.AiDelayForDifficulty(difficulty)
 }
 
 // ApplyDamage reduces the NPC's HP by amount and reports whether it died.

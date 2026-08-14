@@ -137,7 +137,7 @@ func TestNPCIsColdImmune(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{ColdSensitivityNormal: 0},
 	}
-	if !immune.IsColdImmune() {
+	if !immune.IsColdImmune(d2enum.DifficultyNormal) {
 		t.Error("expected ColdSensitivityNormal=0 to mean cold immune")
 	}
 
@@ -145,13 +145,33 @@ func TestNPCIsColdImmune(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{ColdSensitivityNormal: 100},
 	}
-	if vulnerable.IsColdImmune() {
+	if vulnerable.IsColdImmune(d2enum.DifficultyNormal) {
 		t.Error("expected a nonzero ColdSensitivityNormal to not be immune")
 	}
 
 	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
-	if noMonstat.IsColdImmune() {
+	if noMonstat.IsColdImmune(d2enum.DifficultyNormal) {
 		t.Error("expected IsColdImmune false with no monstat record")
+	}
+}
+
+// TestNPCIsColdImmuneVariesByDifficulty mirrors
+// TestNPCMagicResistancePercentVariesByDifficulty.
+func TestNPCIsColdImmuneVariesByDifficulty(t *testing.T) {
+	npc := &NPC{
+		mapEntity: newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{
+			ColdSensitivityNormal: 100,
+			ColdSensitivityHell:   0,
+		},
+	}
+
+	if npc.IsColdImmune(d2enum.DifficultyNormal) {
+		t.Error("expected not cold immune at Normal")
+	}
+
+	if !npc.IsColdImmune(d2enum.DifficultyHell) {
+		t.Error("expected cold immune at Hell")
 	}
 }
 
@@ -160,7 +180,7 @@ func TestNPCAggroDistanceTiles(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{AiDistanceNormal: 12},
 	}
-	if got := npc.AggroDistanceTiles(); got != 12 {
+	if got := npc.AggroDistanceTiles(d2enum.DifficultyNormal); got != 12 {
 		t.Errorf("expected AggroDistanceTiles 12, got %d", got)
 	}
 
@@ -168,13 +188,29 @@ func TestNPCAggroDistanceTiles(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{},
 	}
-	if got := blank.AggroDistanceTiles(); got != 0 {
+	if got := blank.AggroDistanceTiles(d2enum.DifficultyNormal); got != 0 {
 		t.Errorf("expected AggroDistanceTiles 0 for a blank aidist column, got %d", got)
 	}
 
 	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
-	if got := noMonstat.AggroDistanceTiles(); got != 0 {
+	if got := noMonstat.AggroDistanceTiles(d2enum.DifficultyNormal); got != 0 {
 		t.Errorf("expected AggroDistanceTiles 0 with no monstat record, got %d", got)
+	}
+}
+
+// TestNPCAggroDistanceTilesVariesByDifficulty mirrors
+// TestNPCAttackDamageRangeVariesByDifficulty.
+func TestNPCAggroDistanceTilesVariesByDifficulty(t *testing.T) {
+	npc := &NPC{
+		mapEntity: newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{
+			AiDistanceNormal: 12,
+			AiDistanceHell:   24,
+		},
+	}
+
+	if got := npc.AggroDistanceTiles(d2enum.DifficultyHell); got != 24 {
+		t.Errorf("expected Hell AggroDistanceTiles 24, got %d", got)
 	}
 }
 
@@ -183,7 +219,7 @@ func TestNPCAiDelayFrames(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{AiDelayNormal: 9},
 	}
-	if got := npc.AiDelayFrames(); got != 9 {
+	if got := npc.AiDelayFrames(d2enum.DifficultyNormal); got != 9 {
 		t.Errorf("expected AiDelayFrames 9, got %d", got)
 	}
 
@@ -191,13 +227,29 @@ func TestNPCAiDelayFrames(t *testing.T) {
 		mapEntity:     newMapEntity(0, 0),
 		monstatRecord: &d2records.MonStatRecord{},
 	}
-	if got := blank.AiDelayFrames(); got != 0 {
+	if got := blank.AiDelayFrames(d2enum.DifficultyNormal); got != 0 {
 		t.Errorf("expected AiDelayFrames 0 for a blank aidel column, got %d", got)
 	}
 
 	noMonstat := &NPC{mapEntity: newMapEntity(0, 0)}
-	if got := noMonstat.AiDelayFrames(); got != 0 {
+	if got := noMonstat.AiDelayFrames(d2enum.DifficultyNormal); got != 0 {
 		t.Errorf("expected AiDelayFrames 0 with no monstat record, got %d", got)
+	}
+}
+
+// TestNPCAiDelayFramesVariesByDifficulty mirrors
+// TestNPCAttackDamageRangeVariesByDifficulty.
+func TestNPCAiDelayFramesVariesByDifficulty(t *testing.T) {
+	npc := &NPC{
+		mapEntity: newMapEntity(0, 0),
+		monstatRecord: &d2records.MonStatRecord{
+			AiDelayNormal: 9,
+			AiDelayHell:   3,
+		},
+	}
+
+	if got := npc.AiDelayFrames(d2enum.DifficultyHell); got != 3 {
+		t.Errorf("expected Hell AiDelayFrames 3, got %d", got)
 	}
 }
 

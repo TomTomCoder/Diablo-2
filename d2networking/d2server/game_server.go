@@ -421,8 +421,16 @@ func (g *GameServer) advanceMonsterAI() {
 		dist := npcPos.Distance(&playerPos.Vector)
 		monsterKey := npc.MonsterKey()
 
+		// Correction (août 2026): the aggroed player's real Difficulty, not
+		// always Normal -- see NPC.MagicResistancePercent's own doc comment
+		// for why this is safe to wire in (read entirely server-side here).
+		difficulty := d2enum.DifficultyNormal
+		if player := g.playerStateOf(playerID); player != nil {
+			difficulty = player.Difficulty
+		}
+
 		aggroFallback := float64(monsterAggroRadiusSubtiles)
-		if tiles := npc.AggroDistanceTiles(); tiles > 0 {
+		if tiles := npc.AggroDistanceTiles(difficulty); tiles > 0 {
 			aggroFallback = float64(tiles * subtilesPerTile)
 		}
 
@@ -495,7 +503,7 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 		damageMin, damageMax := npc.AttackDamageRange(difficulty)
 		fallbackDamage = d2hero.RollDamageInRange(damageMin, damageMax, monsterAttackDamage)
 
-		if frames := npc.AiDelayFrames(); frames > 0 {
+		if frames := npc.AiDelayFrames(difficulty); frames > 0 {
 			cooldownFallback = time.Duration(float64(frames) / gameTickFps * float64(time.Second))
 		}
 	}
@@ -1248,7 +1256,7 @@ func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID st
 		g.awardGold(sourceEntityID)
 		g.awardExperience(sourceEntityID)
 		g.restoreManaOnKill(sourceEntityID)
-	} else if skillID == d2hero.SkillEclatDeGlace && !npc.IsColdImmune() {
+	} else if skillID == d2hero.SkillEclatDeGlace && !npc.IsColdImmune(difficulty) {
 		until := g.clock().Add(eclatDeGlaceSlowDuration)
 		npc.ApplySlow(until)
 		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)

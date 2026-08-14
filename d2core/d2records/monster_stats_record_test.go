@@ -87,3 +87,75 @@ func TestAttackDamageRangeForDifficulty(t *testing.T) {
 		}
 	}
 }
+
+func TestColdSensitivityForDifficulty(t *testing.T) {
+	record := &MonStatRecord{
+		ColdSensitivityNormal:    100,
+		ColdSensitivityNightmare: 50,
+		ColdSensitivityHell:      0,
+	}
+
+	cases := []struct {
+		name       string
+		difficulty d2enum.DifficultyType
+		want       int
+	}{
+		{"Normal", d2enum.DifficultyNormal, 100},
+		{"Nightmare", d2enum.DifficultyNightmare, 50},
+		{"Hell", d2enum.DifficultyHell, 0},
+	}
+
+	for _, c := range cases {
+		if got := record.ColdSensitivityForDifficulty(c.difficulty); got != c.want {
+			t.Errorf("%s: expected %d, got %d", c.name, c.want, got)
+		}
+	}
+}
+
+func TestAiDistanceForDifficulty(t *testing.T) {
+	record := &MonStatRecord{
+		AiDistanceNormal:    12,
+		AiDistanceNightmare: 18,
+		AiDistanceHell:      24,
+	}
+
+	cases := []struct {
+		name       string
+		difficulty d2enum.DifficultyType
+		want       int
+	}{
+		{"Normal", d2enum.DifficultyNormal, 12},
+		{"Nightmare", d2enum.DifficultyNightmare, 18},
+		{"Hell", d2enum.DifficultyHell, 24},
+	}
+
+	for _, c := range cases {
+		if got := record.AiDistanceForDifficulty(c.difficulty); got != c.want {
+			t.Errorf("%s: expected %d, got %d", c.name, c.want, got)
+		}
+	}
+}
+
+func TestAiDelayForDifficulty(t *testing.T) {
+	record := &MonStatRecord{
+		AiDelayNormal:    9,
+		AiDelayNightmare: 6,
+		AiDelayHell:      3,
+	}
+
+	cases := []struct {
+		name       string
+		difficulty d2enum.DifficultyType
+		want       int
+	}{
+		{"Normal", d2enum.DifficultyNormal, 9},
+		{"Nightmare", d2enum.DifficultyNightmare, 6},
+		{"Hell", d2enum.DifficultyHell, 3},
+	}
+
+	for _, c := range cases {
+		if got := record.AiDelayForDifficulty(c.difficulty); got != c.want {
+			t.Errorf("%s: expected %d, got %d", c.name, c.want, got)
+		}
+	}
+}

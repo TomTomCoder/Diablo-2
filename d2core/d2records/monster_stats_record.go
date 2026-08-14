@@ -706,14 +706,11 @@ func (r *MonStatRecord) HPRangeForDifficulty(difficulty d2enum.DifficultyType) (
 // rejouable en trois niveaux de difficulté [...] leurs résistances
 // augmentent modérément").
 //
-// ponytail: d2mapentity.NPC.MagicResistancePercent currently always uses
-// ResistanceMagicNormal regardless of the actual game difficulty -- this
-// method exists so that can be fixed the same way HPRangeForDifficulty
-// was, but wiring it in means threading a difficulty value through
-// NPC.MagicResistancePercent and its call site in
-// GameServer.applyResolvedDamage, which this environment can't visually
-// verify without running the actual game -- same risk boundary as
-// HPRangeForDifficulty. See ROADMAP.md.
+// Wired into d2mapentity.NPC.MagicResistancePercent, which takes the same
+// difficulty parameter and passes it straight through -- unlike
+// HPRangeForDifficulty (still Normal-only, see its own doc comment), this
+// is read at hit-resolution time entirely server-side
+// (GameServer.applyResolvedDamage), with no client call site to block it.
 func (r *MonStatRecord) MagicResistanceForDifficulty(difficulty d2enum.DifficultyType) int {
 	switch difficulty {
 	case d2enum.DifficultyNightmare:
@@ -732,10 +729,10 @@ func (r *MonStatRecord) MagicResistanceForDifficulty(difficulty d2enum.Difficult
 // §3's "leurs résistances augmentent modérément" applying to monster power
 // scaling generally, not just resistances specifically).
 //
-// ponytail: d2mapentity.NPC.AttackDamageRange currently always uses the
-// Normal-difficulty columns regardless of the actual game difficulty --
-// same risk boundary as HPRangeForDifficulty/MagicResistanceForDifficulty,
-// not wired in for the same reason. See ROADMAP.md.
+// Wired into d2mapentity.NPC.AttackDamageRange the same way as
+// MagicResistanceForDifficulty into MagicResistancePercent -- read at
+// attack-resolution time entirely server-side (GameServer.tryMonsterAttack),
+// same reasoning as that method's own doc comment.
 func (r *MonStatRecord) AttackDamageRangeForDifficulty(difficulty d2enum.DifficultyType) (min, max int) {
 	switch difficulty {
 	case d2enum.DifficultyNightmare:
@@ -744,5 +741,50 @@ func (r *MonStatRecord) AttackDamageRangeForDifficulty(difficulty d2enum.Difficu
 		return r.DamageMinA1Hell, r.DamageMaxA1Hell
 	default:
 		return r.DamageMinA1Normal, r.DamageMaxA1Normal
+	}
+}
+
+// ColdSensitivityForDifficulty returns this monster's cold-elemental
+// sensitivity for the given difficulty (monstats.txt's
+// coldeffect/coldeffect(N)/coldeffect(H) columns -- 0 meaning immune, same
+// semantics as ColdSensitivityNormal's own doc comment). Same reasoning as
+// MagicResistanceForDifficulty: a mirror of HPRangeForDifficulty for a
+// value that's actually safe to wire in (read entirely server-side).
+func (r *MonStatRecord) ColdSensitivityForDifficulty(difficulty d2enum.DifficultyType) int {
+	switch difficulty {
+	case d2enum.DifficultyNightmare:
+		return r.ColdSensitivityNightmare
+	case d2enum.DifficultyHell:
+		return r.ColdSensitivityHell
+	default:
+		return r.ColdSensitivityNormal
+	}
+}
+
+// AiDistanceForDifficulty returns this monster's AI aggro radius in tiles
+// for the given difficulty (monstats.txt's aidist/aidist(N)/aidist(H)
+// columns). Same reasoning as ColdSensitivityForDifficulty.
+func (r *MonStatRecord) AiDistanceForDifficulty(difficulty d2enum.DifficultyType) int {
+	switch difficulty {
+	case d2enum.DifficultyNightmare:
+		return r.AiDistanceNightmare
+	case d2enum.DifficultyHell:
+		return r.AiDistanceHell
+	default:
+		return r.AiDistanceNormal
+	}
+}
+
+// AiDelayForDifficulty returns this monster's delay between AI actions in
+// frames for the given difficulty (monstats.txt's aidel/aidel(N)/aidel(H)
+// columns). Same reasoning as ColdSensitivityForDifficulty.
+func (r *MonStatRecord) AiDelayForDifficulty(difficulty d2enum.DifficultyType) int {
+	switch difficulty {
+	case d2enum.DifficultyNightmare:
+		return r.AiDelayNightmare
+	case d2enum.DifficultyHell:
+		return r.AiDelayHell
+	default:
+		return r.AiDelayNormal
 	}
 }
