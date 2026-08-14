@@ -161,7 +161,19 @@ func (g *GameServer) broadcastPlayerMana(sourceEntityID string) {
 
 // playerStateOf returns sourceEntityID's HeroState, or nil if they aren't a
 // connected player.
+//
+// ponytail: found via a concurrency-safety audit (août 2026) -- g.connections
+// is read from both the packet-dispatch goroutine (this function, called by
+// nearly every resolve* handler) and written from registerConnection/
+// OnClientDisconnected. RLock/RUnlock here closes this specific read against
+// those writes; see ROADMAP.md for the fuller concurrency finding this was
+// part of, and why a complete fix (also covering *d2hero.HeroStatsState/
+// *d2mapentity.NPC field mutations racing against the AI-tick goroutine)
+// isn't attempted in the same pass.
 func (g *GameServer) playerStateOf(sourceEntityID string) *d2hero.HeroState {
+	g.RLock()
+	defer g.RUnlock()
+
 	connection, ok := g.connections[sourceEntityID]
 	if !ok {
 		return nil
@@ -404,6 +416,9 @@ func (g *GameServer) advanceMonsterAI() {
 // position off their PlayerState (the server has no map-entity for
 // players -- see GameServer.connections).
 func (g *GameServer) nearestPlayer(from d2vector.Position) (playerID string, pos d2vector.Position, found bool) {
+	g.RLock()
+	defer g.RUnlock()
+
 	nearestDist := math.MaxFloat64
 
 	for id, connection := range g.connections {
@@ -464,12 +479,11 @@ func (g *GameServer) tryMonsterAttack(npcID, playerID string) {
 	g.lastMonsterAttackAt[npcID] = now
 	g.Unlock()
 
-	connection, ok := g.connections[playerID]
-	if !ok {
-		return
-	}
-
-	state := connection.GetPlayerState()
+	// ponytail: reads g.connections through the already-RLock-protected
+	// playerStateOf rather than indexing g.connections directly here --
+	// see that function's own comment for the concurrency finding this
+	// closes (found via an audit, août 2026).
+	state := g.playerStateOf(playerID)
 	if state == nil || state.Stats == nil {
 		return
 	}
@@ -1832,8 +1846,17 @@ func (g *GameServer) Start() error {
 }
 
 // Stop stops the game server
+// Correction (août 2026): this used to call g.Lock() with no matching
+// Unlock() anywhere in the function -- every subsequent g.Lock() call
+// anywhere in the codebase (canCastNow, tryMonsterAttack, tryTranscend,
+// registerConnection, ActivateEvent, IsEventActive) would block forever
+// once Stop had run once. Not a rare path either: OnClientDisconnected
+// calls Stop whenever the local/host client disconnects, i.e. on ordinary
+// solo-play shutdown. Found via a concurrency-safety audit.
 func (g *GameServer) Stop() {
 	g.Lock()
+	defer g.Unlock()
+
 	g.cancel()
 	g.connections = make(map[string]ClientConnection)
 
@@ -1860,7 +1883,12 @@ func (g *GameServer) packetManager() {
 	}
 }
 
+// ponytail: RLock added by the same concurrency-safety audit as
+// playerStateOf/nearestPlayer -- see playerStateOf's own comment.
 func (g *GameServer) sendPacketToClients(packet d2netpacket.NetPacket) {
+	g.RLock()
+	defer g.RUnlock()
+
 	for _, c := range g.connections {
 		if err := c.SendPacketToClient(packet); err != nil {
 			g.Errorf("GameServer: error sending packet: %s to client %s: %s", packet.PacketType, c.GetUniqueID(), err)
@@ -2089,9 +2117,18 @@ func (g *GameServer) handleClientConnection(client ClientConnection, x, y float6
 // OnClientDisconnected removes the given client from the list
 // of client connections.
 // If this client was the host, disconnects all clients and kills GameServer.
+// ponytail: g.connections' delete is now locked (a concurrency-safety
+// audit, août 2026, found it was the one unguarded write against
+// playerStateOf/nearestPlayer/sendPacketToClients's reads) -- released
+// before calling sendPacketToClients/Stop below, both of which take their
+// own lock internally and would deadlock if called while this one is still
+// held (sync.RWMutex isn't reentrant).
 func (g *GameServer) OnClientDisconnected(client ClientConnection) {
 	g.Infof("Client disconnected with an id of %s", client.GetUniqueID())
+
+	g.Lock()
 	delete(g.connections, client.GetUniqueID())
+	g.Unlock()
 
 	if client.GetConnectionType() == d2clientconnectiontype.Local {
 		g.Info("Host disconnected, game server shuting down")
@@ -2122,9 +2159,13 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 			return err
 		}
 
-		playerState := g.connections[client.GetUniqueID()].GetPlayerState()
-		playerState.X = movePacket.DestX
-		playerState.Y = movePacket.DestY
+		// ponytail: reads through playerStateOf (RLock-protected, also
+		// nil-safe) rather than indexing g.connections directly -- same
+		// concurrency finding as playerStateOf's own comment.
+		if playerState := g.playerStateOf(client.GetUniqueID()); playerState != nil {
+			playerState.X = movePacket.DestX
+			playerState.Y = movePacket.DestY
+		}
 
 		g.sendPacketToClients(packet)
 	case d2netpackettype.CastSkill:
@@ -2154,7 +2195,12 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 			return err
 		}
 
-		playerState := g.connections[client.GetUniqueID()].GetPlayerState()
+		// ponytail: same playerStateOf fix as the MovePlayer case above.
+		playerState := g.playerStateOf(client.GetUniqueID())
+		if playerState == nil {
+			return nil
+		}
+
 		playerState.LeftSkill = savePacket.Player.LeftSkill.Shallow.SkillID
 		playerState.RightSkill = savePacket.Player.RightSkill.Shallow.SkillID
 		playerState.Stats = savePacket.Player.Stats
