@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2inventory"
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
@@ -192,7 +194,7 @@ func TestHandleSkillEquippedPacketAssignsLeftAndRightIndependently(t *testing.T)
 		t.Fatalf("test setup: CreateSkillEquippedPacket failed: %v", err)
 	}
 
-	if err := client.handleSkillEquippedPacket(leftPacket); err != nil {
+	if err = client.handleSkillEquippedPacket(leftPacket); err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
@@ -446,6 +448,43 @@ func TestHandleCastSkillPacketUnknownPlayerNoop(t *testing.T) {
 	client := clientWithPlayer("p", &d2mapentity.Player{})
 
 	packet, err := d2netpacket.CreateCastPacket("nobody", d2hero.SkillTraitDeFeu, 0, 0)
+	if err != nil {
+		t.Fatalf("test setup: CreateCastPacket failed: %v", err)
+	}
+
+	if err := client.handleCastSkillPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+}
+
+// TestHandleCastSkillPacketDevilSkillDoesNotPanic is a regression test for
+// a real, previously-uncaught crash: Skill.Details is the stock skills.txt
+// table, which has no entry for any Devil skill (SkillTraitDeFeu etc.) --
+// skillRecord used to come back nil and get dereferenced immediately
+// (skillRecord.Cltmissile inside createMissileEntities), guaranteed to
+// panic the instant a real, *known* player cast any Devil skill. The
+// existing TestHandleCastSkillPacketUnknownPlayerNoop above also uses a
+// Devil skill ID, but targets an unknown player, so it returns early
+// before ever reaching the vulnerable code -- this test uses a real,
+// known player instead, to actually exercise that path.
+func TestHandleCastSkillPacketDevilSkillDoesNotPanic(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{})
+
+	// g.asset.Records.Skill.Details[id] needs a real, non-nil AssetManager
+	// to reach at all (a nil *AssetManager panics on the first field
+	// access, before the map lookup this test actually cares about) -- a
+	// freshly constructed one has an empty Skill.Details map, and a Go map
+	// read on a missing key returns the zero value rather than panicking,
+	// which is exactly the real-world case being tested here (Devil skill
+	// IDs are never in this stock table).
+	assetManager, err := d2asset.NewAssetManager(d2util.LogLevelNone)
+	if err != nil {
+		t.Fatalf("test setup: NewAssetManager failed: %v", err)
+	}
+
+	client.asset = assetManager
+
+	packet, err := d2netpacket.CreateCastPacket("p", d2hero.SkillTraitDeFeu, 5, 5)
 	if err != nil {
 		t.Fatalf("test setup: CreateCastPacket failed: %v", err)
 	}

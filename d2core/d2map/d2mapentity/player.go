@@ -192,7 +192,21 @@ func (p *Player) SetAnimationMode(animationMode d2enum.PlayerAnimationMode) erro
 }
 
 // rotate sets direction and changes animation
+//
+// ponytail: guards against a nil composite -- a real Player's composite is
+// always set at construction time (MapEntityFactory.NewPlayer panics
+// itself if composite setup fails, so a live gameplay Player is never in
+// this state), but package-external test fixtures (d2networking/d2client's
+// own tests build a bare &Player{} literal, since composite is a private
+// field they can't set) hit this every time any composite-touching method
+// runs. Guarding here rather than only in the one caller that needed it
+// (handleCastSkillPacket) means every SetDirection call, not just that
+// one, is finally testable from outside this package.
 func (p *Player) rotate(direction int) {
+	if p.composite == nil {
+		return
+	}
+
 	newAnimationMode := p.GetAnimationMode()
 
 	if newAnimationMode.String() != p.composite.GetAnimationMode() {

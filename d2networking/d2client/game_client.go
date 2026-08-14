@@ -834,6 +834,26 @@ func (g *GameClient) handleCastSkillPacket(packet d2netpacket.NetPacket) error {
 
 	skillRecord := g.asset.Records.Skill.Details[playerCast.SkillID]
 
+	// Correction (août 2026): Skill.Details is the stock skills.txt table
+	// this client-side visual-effect code was originally written against
+	// -- none of Devil's own skills (SkillTraitDeFeu etc.) are in it, so
+	// skillRecord is nil for every one of them. Every line below this
+	// dereferences it (skillRecord.Cltmissile inside createMissileEntities,
+	// skillRecord.Summon, skillRecord.Anim), a guaranteed nil-pointer panic
+	// the instant a real player actually cast a Devil skill -- never caught
+	// before because no UI trigger had ever sent a real CastPacket with a
+	// Devil skill ID (the one existing test using a Devil skill ID targets
+	// an *unknown* player, returning above before reaching this code).
+	// Server-side combat resolution (resolveMeleeHit) already works
+	// correctly for Devil skills entirely independent of this table --
+	// this only gates client-side missile/summon/cast-animation visuals,
+	// which have nothing to render yet regardless (no Devil skill sprites
+	// exist, ROADMAP.md Phase 6), so skipping them silently costs nothing
+	// real today.
+	if skillRecord == nil {
+		return nil
+	}
+
 	missileEntities, err := g.createMissileEntities(skillRecord, player, castX, castY)
 	if err != nil {
 		return err
