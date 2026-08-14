@@ -1,5 +1,7 @@
 package d2hero
 
+import "sort"
+
 // SkillTree identifies which of Devil's three skill trees a skill belongs
 // to (devil_game_design_reference.md §7).
 type SkillTree int
@@ -37,6 +39,16 @@ type DevilSkillDef struct {
 	// a bonus to; add Cold/Lightning fields the same way if/when an item
 	// ever does.
 	DealsFireDamage bool
+
+	// Passive marks a skill that's never cast -- an always-on bonus once
+	// learned (Absorption d'énergie/Transcendance/Maîtrise
+	// élémentaire/Résonance magique/Régénération accélérée, each already
+	// documented "passive -- never cast" at their own definition below).
+	// Explicit field rather than inferring it from ManaCost == 0, so
+	// nothing downstream has to guess: d2game/d2player's skill-select
+	// popup (skill_select_panel.go) needs to exclude these from the
+	// equippable list the same way D2's own SkillRecord.Passive does.
+	Passive bool
 }
 
 // SkillEclatDeGlace is Devil's own skill ID for "Éclat de glace"
@@ -440,6 +452,7 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 12, // tier 3, per the design's level table
 		ManaCost:      0,  // passive -- never cast, always on once learned
+		Passive:       true,
 	},
 	SkillTranscendance: {
 		ID:            SkillTranscendance,
@@ -447,6 +460,7 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 18, // tier 4, per the design's level table
 		ManaCost:      0,  // passive -- never cast, always on once learned
+		Passive:       true,
 	},
 	SkillTempeteDeLames: {
 		ID:             SkillTempeteDeLames,
@@ -469,6 +483,7 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeElementalisme,
 		RequiredLevel: 18, // tier 4, alongside Orbe glaciale
 		ManaCost:      0,  // passive -- never cast, always on once learned
+		Passive:       true,
 	},
 	SkillResonanceMagique: {
 		ID:            SkillResonanceMagique,
@@ -476,6 +491,7 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeArcane,
 		RequiredLevel: 18, // tier 4, alongside Prison de glace
 		ManaCost:      0,  // passive -- never cast, always on once learned
+		Passive:       true,
 	},
 	SkillRegenerationAcceleree: {
 		ID:            SkillRegenerationAcceleree,
@@ -483,6 +499,7 @@ var DevilSkills = map[int]*DevilSkillDef{
 		Tree:          TreeEsoterisme,
 		RequiredLevel: 1, // tier 1, alongside Bouclier de mana
 		ManaCost:      0, // passive -- never cast, always on once learned
+		Passive:       true,
 	},
 }
 
@@ -496,6 +513,55 @@ func CanLearnSkill(skillID, heroLevel int) bool {
 	}
 
 	return heroLevel >= def.RequiredLevel
+}
+
+// SkillGridPosition returns the skill tree UI page/column/row for skillID,
+// derived deterministically from its Tree/RequiredLevel/ID rather than a
+// per-skill layout the design never specifies (it only specifies which
+// tree and tier a skill belongs to, devil_game_design_reference.md §7) --
+// this exists purely so d2game/d2player's skill tree panel has *some*
+// distinct, stable position to render each skill at, instead of every
+// skill defaulting to (0,0) and rendering on top of each other.
+//
+// page is 1-indexed (1/2/3, matching d2game/d2player/skilltree.go's
+// firstTab/secondTab/thirdTab+1 convention) -- Élémentalisme/Arcane/
+// Ésotérisme, in SkillTree's own iota order. Within a tree, skills are
+// ordered by RequiredLevel (the design's own tier progression) then ID as
+// a stable tiebreak, laid out 2 per row so ~10 skills per tree stays a
+// reasonable height rather than one very tall single column. Returns all
+// zeroes for an unknown skillID.
+func SkillGridPosition(skillID int) (page, column, row int) {
+	def, ok := DevilSkills[skillID]
+	if !ok {
+		return 0, 0, 0
+	}
+
+	const columns = 2
+
+	sameTree := make([]int, 0, len(DevilSkills))
+
+	for id, other := range DevilSkills {
+		if other.Tree == def.Tree {
+			sameTree = append(sameTree, id)
+		}
+	}
+
+	sort.Slice(sameTree, func(i, j int) bool {
+		a, b := DevilSkills[sameTree[i]], DevilSkills[sameTree[j]]
+		if a.RequiredLevel != b.RequiredLevel {
+			return a.RequiredLevel < b.RequiredLevel
+		}
+
+		return sameTree[i] < sameTree[j]
+	})
+
+	for index, id := range sameTree {
+		if id == skillID {
+			return int(def.Tree) + 1, index % columns, index / columns
+		}
+	}
+
+	return int(def.Tree) + 1, 0, 0
 }
 
 // SkillBaseSortDamage returns skillID's base_sort damage, or fallback if

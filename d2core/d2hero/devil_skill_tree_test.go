@@ -328,6 +328,10 @@ func TestSkillAbsorptionEnergieIsAFreePassive(t *testing.T) {
 	if skill.BaseSortDamage != 0 {
 		t.Errorf("expected Absorption d'énergie to deal no direct base_sort damage, got %d", skill.BaseSortDamage)
 	}
+
+	if !skill.Passive {
+		t.Error("expected Absorption d'énergie to be marked Passive")
+	}
 }
 
 func TestSkillTranscendanceHasHigherTierThanAbsorptionEnergie(t *testing.T) {
@@ -451,5 +455,62 @@ func TestSkillManaCostFallback(t *testing.T) {
 
 	if got := SkillManaCost(unknownSkillID, fallback); got != fallback {
 		t.Errorf("expected fallback %d for an unknown skill, got %d", fallback, got)
+	}
+}
+
+// TestSkillGridPositionPageMatchesTreePlusOne guards the exact convention
+// d2game/d2player/skilltree.go's setTab() relies on: an icon is only shown
+// on the currently-open tab when its SkillPage equals tab+1 (tabs are
+// 0-indexed, pages 1-indexed) -- get this wrong and a tab silently renders
+// zero icons instead of erroring.
+func TestSkillGridPositionPageMatchesTreePlusOne(t *testing.T) {
+	cases := []struct {
+		skillID  int
+		wantPage int
+	}{
+		{SkillTraitDeFeu, int(TreeElementalisme) + 1},
+		{SkillTelekinesie, int(TreeArcane) + 1},
+		{SkillBouclierDeMana, int(TreeEsoterisme) + 1},
+	}
+
+	for _, c := range cases {
+		page, _, _ := SkillGridPosition(c.skillID)
+		if page != c.wantPage {
+			t.Errorf("skill %d: expected page %d, got %d", c.skillID, c.wantPage, page)
+		}
+	}
+}
+
+// TestSkillGridPositionGivesEveryElementalismeSkillADistinctSlot is the
+// regression this whole mechanism exists for: before it, every skill's
+// SkillDescriptionRecord defaulted to (page 0, column 0, row 0), so every
+// icon in a tree rendered stacked exactly on top of every other one.
+func TestSkillGridPositionGivesEveryElementalismeSkillADistinctSlot(t *testing.T) {
+	seen := map[[2]int]int{}
+
+	for id, def := range DevilSkills {
+		if def.Tree != TreeElementalisme {
+			continue
+		}
+
+		_, column, row := SkillGridPosition(id)
+		key := [2]int{column, row}
+
+		if other, taken := seen[key]; taken {
+			t.Errorf("skills %d and %d both landed at column %d, row %d", other, id, column, row)
+		}
+
+		seen[key] = id
+	}
+
+	if len(seen) == 0 {
+		t.Fatal("test setup: no Élémentalisme skills found in DevilSkills")
+	}
+}
+
+func TestSkillGridPositionUnknownSkillReturnsZero(t *testing.T) {
+	page, column, row := SkillGridPosition(unknownSkillID)
+	if page != 0 || column != 0 || row != 0 {
+		t.Errorf("expected (0, 0, 0) for an unknown skill, got (%d, %d, %d)", page, column, row)
 	}
 }

@@ -30,17 +30,42 @@ const SkillTraitDeFeu = 1000
 // leaving it nil -- see that function's own "Bug fix" comment, and
 // ROADMAP.md's "Round-trip complet vérifié" entry for the regression test.
 func NewDevilHeroSkill(skillID int) *HeroSkill {
-	if _, ok := DevilSkills[skillID]; !ok {
+	def, ok := DevilSkills[skillID]
+	if !ok {
 		return nil
 	}
+
+	// Correction (août 2026): SkillPage/SkillColumn/SkillRow used to be
+	// left at their zero value here -- every single Devil skill landed at
+	// the same (page 0, column 0, row 0), which is a real problem, not a
+	// cosmetic one: d2game/d2player/skilltree.go's setTab() only shows an
+	// icon whose SkillPage matches the open tab (1/2/3), so with every
+	// skill stuck at SkillPage 0 the skill tree panel would render every
+	// tab completely empty. SkillGridPosition (this package) derives a
+	// real, distinct, deterministic position from Tree/RequiredLevel/ID
+	// instead. Leftskill/Passive/ListRow were similarly left at their zero
+	// value (false/false/0): skill_select_panel.go reads Leftskill to
+	// decide what the *left*-click popup shows, so with it always false no
+	// Devil skill was ever offered there -- only the right-click popup
+	// worked. Devil's design draws no left/right distinction between
+	// skills, so every non-passive skill is eligible for both; Passive
+	// mirrors DevilSkillDef.Passive so the panel correctly excludes the 5
+	// always-on skills that are never meant to be equipped/cast at all.
+	page, column, row := SkillGridPosition(skillID)
 
 	return &HeroSkill{
 		SkillRecord: &d2records.SkillRecord{
 			ID:        skillID,
 			Charclass: "",
+			Leftskill: true,
+			Passive:   def.Passive,
 		},
 		SkillDescriptionRecord: &d2records.SkillDescriptionRecord{
-			IconCel: 0,
+			IconCel:     0,
+			SkillPage:   page,
+			SkillColumn: column,
+			SkillRow:    row,
+			ListRow:     page, // group the equip popup by tree, same as the skill tree tabs
 		},
 		SkillPoints: 1,
 		Shallow:     &shallowHeroSkill{SkillID: skillID, SkillPoints: 1},
