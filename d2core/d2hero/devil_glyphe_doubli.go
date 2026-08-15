@@ -7,11 +7,10 @@ import "errors"
 // implements a real (if simplified) rare-item gate for the "1 compétence"
 // half of "Glyphe d'oubli" (§10), the same practice as
 // UseRespecEssence/ItemEssenceDeBossOrdinaire for Respec complet. See
-// ItemGlypheDOubli's own doc comment.
-//
-// The "1 point d'attribut" half (RespecSingleAttributePoint) isn't
-// covered by a matching UseGlypheDOubliOnAttribute here -- not because it
-// couldn't use the exact same item/gate, but for time, see ROADMAP.md.
+// ItemGlypheDOubli's own doc comment. UseGlypheDOubliOnAttribute below is
+// the "1 point d'attribut" half -- a single use of the item is one or the
+// other, matching RespecSingleSkill/RespecSingleAttributePoint's own
+// "not both" split.
 //
 // Errors (and consumes nothing) if h has no glyph in inventory, or
 // skillID wasn't learned (RespecSingleSkill's own failure mode).
@@ -34,4 +33,28 @@ func (h *HeroState) UseGlypheDOubliOnSkill(skillID int) (pointsRefunded int, err
 	}
 
 	return pointsRefunded, nil
+}
+
+// UseGlypheDOubliOnAttribute consumes one ItemGlypheDOubli from h's
+// inventory and, if found, refunds one point from attr
+// (RespecSingleAttributePoint) -- the "1 point d'attribut" half of
+// "Glyphe d'oubli", see UseGlypheDOubliOnSkill's own doc comment.
+//
+// Errors (and consumes nothing) if h has no glyph in inventory, or attr
+// has no points spent on it (RespecSingleAttributePoint's own failure
+// mode, via HeroStatsState.RefundAttributePoint).
+func (h *HeroState) UseGlypheDOubliOnAttribute(attr Attribute) error {
+	slot, found := h.consumeFromInventory(ItemGlypheDOubli, 1)
+	if !found {
+		return errors.New("no glyphe d'oubli in inventory")
+	}
+
+	if err := h.RespecSingleAttributePoint(attr); err != nil {
+		// Same rollback discipline as UseGlypheDOubliOnSkill: restore to
+		// the exact slot cleared, never append.
+		h.Inventory[slot] = ItemGlypheDOubli
+		return err
+	}
+
+	return nil
 }

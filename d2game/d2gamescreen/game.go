@@ -512,6 +512,24 @@ func (v *Game) OnRespecSingleSkill(skillID int) {
 	}
 }
 
+// OnRespecSingleAttributePoint sends a request to refund one point from
+// attr by consuming a Glyphe d'oubli from inventory
+// (d2hero.HeroState.UseGlypheDOubliOnAttribute), triggered by clicking one
+// of the four attribute "+" buttons while Glyphe d'oubli is armed
+// (ArmGlypheDOubli) -- the attribute half of OnRespecSingleSkill's own
+// mechanism, see its doc comment.
+func (v *Game) OnRespecSingleAttributePoint(attr d2hero.Attribute) {
+	rp, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket(v.gameClient.PlayerID, int(attr))
+	if err != nil {
+		v.Errorf("RespecSingleAttributePointRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(rp); err != nil {
+		v.Errorf("RespecSingleAttributePointRequestPacket: player %s, attribute %d: %v", v.gameClient.PlayerID, attr, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.

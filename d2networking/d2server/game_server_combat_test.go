@@ -1773,7 +1773,10 @@ func TestResolveSpendAttributePointUnknownPlayerNoop(t *testing.T) {
 }
 
 func TestResolveRespecSingleAttributePointRefundsOnlyThatAttribute(t *testing.T) {
-	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Strength: 11, StrengthSpent: 1}}
+	state := &d2hero.HeroState{
+		Stats:     &d2hero.HeroStatsState{StatsPoints: 0, Strength: 11, StrengthSpent: 1},
+		Inventory: []string{d2hero.ItemGlypheDOubli},
+	}
 	server := serverWithConnection(state)
 
 	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("p", int(d2hero.AttributeStrength))
@@ -1801,6 +1804,7 @@ func TestResolveRespecSingleAttributePointBroadcastsShrunkHealth(t *testing.T) {
 		Stats: &d2hero.HeroStatsState{
 			StatsPoints: 0, Vitality: 11, VitalitySpent: 1, LifePerVit: 4, Health: 44, MaxHealth: 44,
 		},
+		Inventory: []string{d2hero.ItemGlypheDOubli},
 	}
 	conn := &fakeClientConnection{state: state}
 	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
@@ -1827,7 +1831,10 @@ func TestResolveRespecSingleAttributePointBroadcastsShrunkHealth(t *testing.T) {
 }
 
 func TestResolveRespecSingleAttributePointFailsIfNothingSpentIsNoop(t *testing.T) {
-	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Strength: 10}}
+	state := &d2hero.HeroState{
+		Stats:     &d2hero.HeroStatsState{StatsPoints: 0, Strength: 10},
+		Inventory: []string{d2hero.ItemGlypheDOubli}, // present, so this actually exercises the "nothing spent" path, not "no glyph"
+	}
 	server := serverWithConnection(state)
 
 	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("p", int(d2hero.AttributeStrength))
@@ -1839,6 +1846,31 @@ func TestResolveRespecSingleAttributePointFailsIfNothingSpentIsNoop(t *testing.T
 
 	if state.Stats.StatsPoints != 0 {
 		t.Errorf("expected no refund with nothing spent, got %d", state.Stats.StatsPoints)
+	}
+}
+
+// TestResolveRespecSingleAttributePointWithoutGlyphIsNoop mirrors
+// TestResolveRespecSingleSkillWithoutGlyphIsNoop: without the item, this
+// must not refund the point at all, or "Glyphe d'oubli" would be freely
+// available, defeating the rare-item gate it exists to implement.
+func TestResolveRespecSingleAttributePointWithoutGlyphIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{StatsPoints: 0, Strength: 11, StrengthSpent: 1}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSingleAttributePointRequestPacket("p", int(d2hero.AttributeStrength))
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleAttributePointRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleAttributePoint(packet)
+
+	if state.Stats.Strength != 11 || state.Stats.StrengthSpent != 1 {
+		t.Errorf("expected Strength untouched without the glyph, got Strength=%d StrengthSpent=%d",
+			state.Stats.Strength, state.Stats.StrengthSpent)
+	}
+
+	if state.Stats.StatsPoints != 0 {
+		t.Errorf("expected no refund without the glyph, got %d", state.Stats.StatsPoints)
 	}
 }
 

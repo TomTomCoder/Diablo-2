@@ -123,18 +123,20 @@ func NewHeroStatsPanel(asset *d2asset.AssetManager,
 
 // HeroStatsPanel represents the hero status panel
 type HeroStatsPanel struct {
-	asset           *d2asset.AssetManager
-	uiManager       *d2ui.UIManager
-	panel           *d2ui.Sprite
-	heroState       *d2hero.HeroStatsState
-	heroName        string
-	heroClass       d2enum.Hero
-	labels          *StatsPanelLabels
-	onCloseCb       func()
-	panelGroup      *d2ui.WidgetGroup
-	newStatPoints   *d2ui.WidgetGroup
-	remainingPoints *d2ui.Label
-	onSpendPointCb  func(attr d2hero.Attribute)
+	asset               *d2asset.AssetManager
+	uiManager           *d2ui.UIManager
+	panel               *d2ui.Sprite
+	heroState           *d2hero.HeroStatsState
+	heroName            string
+	heroClass           d2enum.Hero
+	labels              *StatsPanelLabels
+	onCloseCb           func()
+	panelGroup          *d2ui.WidgetGroup
+	newStatPoints       *d2ui.WidgetGroup
+	remainingPoints     *d2ui.Label
+	onSpendPointCb      func(attr d2hero.Attribute)
+	onForgetAttributeCb func(attr d2hero.Attribute)
+	glypheDOubliArmed   bool
 
 	originX int
 	originY int
@@ -230,6 +232,22 @@ func (s *HeroStatsPanel) loadNewStatPoints() {
 		button = s.uiManager.NewButton(d2ui.ButtonTypeAddSkill, d2resource.PaletteSky)
 		button.SetPosition(i.x, i.y)
 		button.OnActivated(func() {
+			// Glyphe d'oubli ("armed" mode): same reuse of an already-
+			// clickable widget as skillTree.ArmGlypheDOubli, for the same
+			// reason -- this button's click is already claimed by
+			// SpendAttributePoint, and extending d2ui.ClickableWidget with
+			// a second click type would touch every other clickable widget
+			// in the engine. See ArmGlypheDOubli's own doc comment.
+			if s.glypheDOubliArmed {
+				s.glypheDOubliArmed = false
+
+				if s.onForgetAttributeCb != nil {
+					s.onForgetAttributeCb(attr)
+				}
+
+				return
+			}
+
 			if s.onSpendPointCb != nil {
 				s.onSpendPointCb(attr)
 			}
@@ -243,6 +261,23 @@ func (s *HeroStatsPanel) loadNewStatPoints() {
 // attribute (d2hero.HeroStatsState.SpendAttributePoint).
 func (s *HeroStatsPanel) SetOnSpendPointCb(cb func(attr d2hero.Attribute)) {
 	s.onSpendPointCb = cb
+}
+
+// SetOnForgetAttributeCb sets the callback run when the player, with
+// Glyphe d'oubli armed, clicks one of the four attribute "+" buttons,
+// requesting a point be refunded from that attribute instead of spent.
+func (s *HeroStatsPanel) SetOnForgetAttributeCb(cb func(attr d2hero.Attribute)) {
+	s.onForgetAttributeCb = cb
+}
+
+// ArmGlypheDOubli arms Glyphe d'oubli for attributes: the next click on
+// one of the four "+" buttons requests refunding a point from that
+// attribute (RespecSingleAttributePoint) instead of spending one, then
+// disarms itself. See skillTree.ArmGlypheDOubli's own doc comment for the
+// full reasoning (same pattern, applied to this panel's buttons instead
+// of the skill tree's icons).
+func (s *HeroStatsPanel) ArmGlypheDOubli() {
+	s.glypheDOubliArmed = true
 }
 
 func (s *HeroStatsPanel) setLayout() {

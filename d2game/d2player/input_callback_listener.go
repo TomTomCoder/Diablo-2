@@ -16,4 +16,5 @@ type inputCallbackListener interface {
 	OnMoveFromBelt(beltIndex int)
 	OnUseRespecEssence()
 	OnRespecSingleSkill(skillID int)
+	OnRespecSingleAttributePoint(attr d2hero.Attribute)
 }

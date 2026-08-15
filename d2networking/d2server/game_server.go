@@ -1216,7 +1216,14 @@ func (g *GameServer) resolveRespecSingleAttributePoint(packet d2netpacket.NetPac
 	}
 
 	attr := d2hero.Attribute(requestPacket.Attribute)
-	if err = state.RespecSingleAttributePoint(attr); err != nil {
+
+	// Correction (août 2026): same fix as resolveRespecSingleSkill's own --
+	// this used to call state.RespecSingleAttributePoint directly, with no
+	// item requirement, leaving "Glyphe d'oubli"'s attribute half
+	// mechanism-ready but ungated. Nothing sent this request before now
+	// (no UI trigger existed), so this doesn't change any real
+	// player-observed behavior.
+	if err = state.UseGlypheDOubliOnAttribute(attr); err != nil {
 		return
 	}
 

@@ -261,6 +261,7 @@ func NewGameControls(
 
 	gc.heroStatsPanel.SetOnCloseCb(gc.onCloseHeroStatsPanel)
 	gc.heroStatsPanel.SetOnSpendPointCb(gc.inputListener.OnSpendAttributePoint)
+	gc.heroStatsPanel.SetOnForgetAttributeCb(gc.inputListener.OnRespecSingleAttributePoint)
 	gc.questLog.SetOnCloseCb(gc.onCloseQuestLog)
 	gc.inventory.SetOnCloseCb(gc.onCloseInventory)
 	gc.skilltree.SetOnCloseCb(gc.onCloseSkilltree)
@@ -420,7 +421,15 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 	case d2enum.UseRespecEssence:
 		g.inputListener.OnUseRespecEssence()
 	case d2enum.ArmGlypheDOubli:
+		// Arms both panels: the player doesn't pre-commit to
+		// forgetting a skill vs. an attribute point when pressing this
+		// key, only when they click a specific icon/button afterwards.
+		// Clicking one disarms only that panel's own flag -- the other
+		// stays armed harmlessly until its own next click or a repeat
+		// of this keybinding, since neither panel shares state with
+		// the other.
 		g.skilltree.ArmGlypheDOubli()
+		g.heroStatsPanel.ArmGlypheDOubli()
 	default:
 		return false
 	}
