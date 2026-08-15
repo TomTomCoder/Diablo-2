@@ -377,6 +377,9 @@ func (g *GameControls) OnKeyRepeat(event d2interface.KeyEvent) bool {
 }
 
 // OnKeyDown handles key presses
+// nolint:gocyclo // a flat one-case-per-keybinding dispatch switch, not
+// real branching complexity -- same practice as NewGameControls' own
+// nolint:funlen just above.
 func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 	if event.Key() == d2enum.KeyEscape {
 		g.onEscKey()
@@ -413,6 +416,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.inputListener.OnToggleOverload()
 	case d2enum.ToggleDevilInventory:
 		g.toggleDevilInventoryPanel()
+	case d2enum.UseRespecEssence:
+		g.inputListener.OnUseRespecEssence()
 	default:
 		return false
 	}

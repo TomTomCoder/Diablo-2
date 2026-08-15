@@ -1479,6 +1479,74 @@ func TestResolveRespecSkillsAlreadyUsedAtThisDifficultyIsNoop(t *testing.T) {
 	}
 }
 
+func TestResolveRespecCompletConsumesEssenceAndRefunds(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:     &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills:    map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {SkillPoints: 1}},
+		Inventory: []string{d2hero.ItemEssenceDeBossOrdinaire},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecCompletRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecCompletRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecComplet(packet)
+
+	if len(state.Skills) != 0 {
+		t.Errorf("expected Skills cleared, got %d entries", len(state.Skills))
+	}
+
+	if state.Stats.SkillPoints != 1 {
+		t.Errorf("expected SkillPoints refunded to 1, got %d", state.Stats.SkillPoints)
+	}
+
+	if state.Inventory[0] != "" {
+		t.Errorf("expected the essence consumed (slot cleared), got %q", state.Inventory[0])
+	}
+}
+
+// TestResolveRespecCompletWithoutEssenceIsNoop is a regression test for the
+// real point of this mechanism: without the item, nothing should happen --
+// otherwise Respec complet would be freely available, defeating the whole
+// rare-item gate it exists to implement.
+func TestResolveRespecCompletWithoutEssenceIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:     &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills:    map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {SkillPoints: 1}},
+		Inventory: []string{""},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecCompletRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecCompletRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecComplet(packet)
+
+	if len(state.Skills) != 1 {
+		t.Errorf("expected Skills untouched without the essence, got %d entries", len(state.Skills))
+	}
+
+	if state.Stats.SkillPoints != 0 {
+		t.Errorf("expected no refund without the essence, got %d", state.Stats.SkillPoints)
+	}
+}
+
+func TestResolveRespecCompletUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateRespecCompletRequestPacket("nobody")
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecCompletRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveRespecComplet(packet)
+}
+
 func TestResolveRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
 	state := &d2hero.HeroState{
 		Stats: &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},

@@ -300,6 +300,7 @@ func (km *KeyMap) ResetToDefault() {
 		d2enum.CraftItem:            {d2enum.KeyX, -1},
 		d2enum.ToggleOverload:       {d2enum.KeyG, -1},
 		d2enum.ToggleDevilInventory: {d2enum.KeyJ, -1},
+		d2enum.UseRespecEssence:     {d2enum.KeyK, -1},
 	}
 
 	for gameEvent, keys := range defaultControls {

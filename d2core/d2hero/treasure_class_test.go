@@ -94,11 +94,12 @@ func TestRollTreasureClassZeroPicksYieldsNoDrops(t *testing.T) {
 // codes, not something malformed.
 func TestTCBasicMonsterRollsWithoutError(t *testing.T) {
 	known := map[string]bool{
-		ItemPotionDeMana:          true,
-		ItemPendentifArcane:       true,
-		ItemAnneauDuDebut:         true,
-		ItemRobeDuNovice:          true,
-		ItemCeintureDeCuirRunique: true,
+		ItemPotionDeMana:           true,
+		ItemPendentifArcane:        true,
+		ItemAnneauDuDebut:          true,
+		ItemRobeDuNovice:           true,
+		ItemCeintureDeCuirRunique:  true,
+		ItemEssenceDeBossOrdinaire: true,
 	}
 
 	for i := 0; i < 100; i++ {

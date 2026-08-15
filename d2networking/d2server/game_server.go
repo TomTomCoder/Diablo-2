@@ -1041,6 +1041,40 @@ func (g *GameServer) resolveRespecSkills(packet d2netpacket.NetPacket) {
 	g.sendPacketToClients(respecedPacket)
 }
 
+// resolveRespecComplet unmarshals a RespecCompletRequestPacket and, if
+// HeroState.UseRespecEssence succeeds (an Essence de Boss (Ordinaire) was
+// found and consumed), broadcasts the same shape of result as
+// resolveRespecSkills -- both are a full respec, they just differ in how
+// they're gated (once-per-difficulty vs. consuming a rare item). Silently
+// does nothing on any failure (unknown player, no essence in inventory).
+func (g *GameServer) resolveRespecComplet(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalRespecCompletRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveRespecComplet: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	if _, err = state.UseRespecEssence(); err != nil {
+		return
+	}
+
+	respecedPacket, err := d2netpacket.CreateSkillsRespecedPacket(
+		requestPacket.SourceEntityID, state.Stats.SkillPoints, state.Stats.StatsPoints,
+		state.Stats.Strength, state.Stats.Energy, state.Stats.Dexterity, state.Stats.Vitality,
+		state.Stats.MaxHealth, state.Stats.Health, state.Stats.MaxMana, state.Stats.Mana)
+	if err != nil {
+		g.Errorf("CreateSkillsRespecedPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(respecedPacket)
+}
+
 // resolveRespecSingleSkill unmarshals a RespecSingleSkillRequestPacket and
 // forgets exactly the requested skill (HeroState.RespecSingleSkill --
 // "Glyphe d'oubli"), broadcasting the forgotten skill and the caster's
@@ -2506,6 +2540,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveToggleOverload(packet)
 	case d2netpackettype.RespecSkillsRequest:
 		g.resolveRespecSkills(packet)
+	case d2netpackettype.RespecCompletRequest:
+		g.resolveRespecComplet(packet)
 	case d2netpackettype.RespecSingleSkillRequest:
 		g.resolveRespecSingleSkill(packet)
 	case d2netpackettype.InvestSkillPointRequest:

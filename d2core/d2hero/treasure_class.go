@@ -76,12 +76,17 @@ func RollTreasureClass(tc *TreasureClass) ([]string, error) {
 }
 
 // tcBasicMonsterNoDropWeight/tcBasicMonsterPotionWeight/
-// tcBasicMonsterEquipmentWeight are TCBasicMonster's own entry weights --
-// see its doc comment for why they're explicitly provisional.
+// tcBasicMonsterEquipmentWeight/tcBasicMonsterEssenceWeight are
+// TCBasicMonster's own entry weights -- see its doc comment for why
+// they're explicitly provisional. tcBasicMonsterEssenceWeight is rarer
+// than every equipment piece (1 vs. 5): ItemEssenceDeBossOrdinaire gates
+// a full respec, meant to feel like a genuine rare find, not a routine
+// drop -- see that item's own doc comment for why it exists at all.
 const (
 	tcBasicMonsterNoDropWeight    = 100
 	tcBasicMonsterPotionWeight    = 30
 	tcBasicMonsterEquipmentWeight = 5
+	tcBasicMonsterEssenceWeight   = 1
 )
 
 // TCBasicMonster is Devil's only Treasure Class so far -- every monster
@@ -112,6 +117,7 @@ var TCBasicMonster = &TreasureClass{
 		{ItemCode: ItemAnneauDuDebut, Weight: tcBasicMonsterEquipmentWeight},
 		{ItemCode: ItemRobeDuNovice, Weight: tcBasicMonsterEquipmentWeight},
 		{ItemCode: ItemCeintureDeCuirRunique, Weight: tcBasicMonsterEquipmentWeight},
+		{ItemCode: ItemEssenceDeBossOrdinaire, Weight: tcBasicMonsterEssenceWeight},
 	},
 	Picks: 1,
 }

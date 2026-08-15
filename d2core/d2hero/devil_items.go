@@ -67,6 +67,23 @@ const ItemCeintureDeCuirRunique = "dvl_ceinture_cuir_runique"
 // HeroState.UsePotion in devil_belt.go.
 const ItemPotionDeMana = "dvl_potion_de_mana"
 
+// ItemEssenceDeBossOrdinaire is a placeholder consumable that gates
+// Respec complet (HeroState.UseRespecEssence, devil_respec_essence.go) --
+// §10 specifies the real trigger as "combiner 4 essences de boss dans le
+// Cube de Nexus", which needs boss content (Phase 4) that doesn't exist.
+// Rather than skip the rare-item gate entirely (a free-standing button
+// with no item requirement would invent an *easier* access path than the
+// design specifies, the line this session has held throughout), this
+// implements an actual gate -- just a simplified one, one placeholder
+// item instead of 4 real boss essences, obtainable via TCBasicMonster's
+// existing drop table rather than the Cube de Nexus (Craft's recipe
+// shape assumes one input item transforms into one output item, not
+// "consume N items, trigger a stat-reset mechanism" -- a bigger, separate
+// change not attempted here). The name itself signals this is a stand-in,
+// not the real boss-essence system -- "Ordinaire" ("ordinary"), since a
+// real boss essence implies a real boss that doesn't exist yet.
+const ItemEssenceDeBossOrdinaire = "dvl_essence_de_boss_ordinaire"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -161,6 +178,10 @@ var DevilItems = map[string]*DevilItemDef{
 		Code:              ItemPotionDeMana,
 		Name:              "Potion de Mana",
 		ManaRestoreAmount: 10,
+	},
+	ItemEssenceDeBossOrdinaire: {
+		Code: ItemEssenceDeBossOrdinaire,
+		Name: "Essence de Boss (Ordinaire)",
 	},
 }
 

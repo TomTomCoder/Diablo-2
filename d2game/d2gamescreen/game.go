@@ -479,6 +479,22 @@ func (v *Game) OnMoveFromBelt(beltIndex int) {
 	}
 }
 
+// OnUseRespecEssence sends a request for a full respec by consuming an
+// Essence de Boss (Ordinaire) from inventory
+// (d2hero.HeroState.UseRespecEssence), triggered by the UseRespecEssence
+// keybinding.
+func (v *Game) OnUseRespecEssence() {
+	rp, err := d2netpacket.CreateRespecCompletRequestPacket(v.gameClient.PlayerID)
+	if err != nil {
+		v.Errorf("RespecCompletRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(rp); err != nil {
+		v.Errorf("RespecCompletRequestPacket: player %s: %v", v.gameClient.PlayerID, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.

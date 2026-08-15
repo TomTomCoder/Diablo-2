@@ -111,4 +111,12 @@ const (
 	// one's target, so nothing about its existing (if data-mismatched)
 	// behavior changes.
 	ToggleDevilInventory
+
+	// UseRespecEssence consumes an Essence de Boss (Ordinaire) from
+	// inventory for a full respec (d2hero.HeroState.UseRespecEssence) --
+	// a keybinding for the same reason as CraftItem/ToggleOverload: no
+	// existing clickable element to redirect, and picking which item to
+	// "use" isn't a position-based choice a screen would need anyway
+	// (the server itself finds the item in inventory).
+	UseRespecEssence
 )

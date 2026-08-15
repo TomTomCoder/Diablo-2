@@ -107,6 +107,44 @@ func UnmarshalSkillsRespeced(packet []byte) (SkillsRespecedPacket, error) {
 	return p, nil
 }
 
+// RespecCompletRequestPacket is sent by a client, requesting a full respec
+// by consuming an Essence de Boss (Ordinaire) from inventory
+// (d2hero.HeroState.UseRespecEssence -- "Respec complet"'s real,
+// simplified rare-item gate; see ItemEssenceDeBossOrdinaire's own doc
+// comment). A separate request type from RespecSkillsRequestPacket even
+// though they trigger similar-shaped mechanisms: RespecSkills has the "1
+// fois par difficulté" gate this doesn't.
+type RespecCompletRequestPacket struct {
+	SourceEntityID string `json:"sourceEntityId"`
+}
+
+// CreateRespecCompletRequestPacket returns a NetPacket which declares a
+// RespecCompletRequestPacket for the given entity.
+func CreateRespecCompletRequestPacket(entityID string) (NetPacket, error) {
+	requestPacket := RespecCompletRequestPacket{SourceEntityID: entityID}
+
+	b, err := json.Marshal(requestPacket)
+	if err != nil {
+		return NetPacket{PacketType: d2netpackettype.RespecCompletRequest}, err
+	}
+
+	return NetPacket{
+		PacketType: d2netpackettype.RespecCompletRequest,
+		PacketData: b,
+	}, nil
+}
+
+// UnmarshalRespecCompletRequest unmarshals the given data to a
+// RespecCompletRequestPacket struct.
+func UnmarshalRespecCompletRequest(packet []byte) (RespecCompletRequestPacket, error) {
+	var p RespecCompletRequestPacket
+	if err := json.Unmarshal(packet, &p); err != nil {
+		return p, err
+	}
+
+	return p, nil
+}
+
 // RespecSingleSkillRequestPacket is sent by a client, requesting that one
 // specific learned skill be forgotten and refunded
 // (d2hero.HeroState.RespecSingleSkill -- "Glyphe d'oubli").
