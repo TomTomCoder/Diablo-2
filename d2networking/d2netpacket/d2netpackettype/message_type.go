@@ -65,6 +65,7 @@ const (
 	ItemMovedToBelt                                        // Sent by the server, a potion moved from inventory to belt
 	MoveFromBeltRequest                                    // Sent by the client, requests moving a belt potion to the inventory
 	ItemMovedFromBelt                                      // Sent by the server, a potion moved from belt to inventory
+	ToggleOverloadRequest                                  // Sent by the client, requests toggling Surcharge (Overload) on/off
 
 	UnknownPacketType = 666
 )
@@ -118,6 +119,7 @@ func (n NetPacketType) String() string {
 		ItemMovedToBelt:                   "ItemMovedToBelt",
 		MoveFromBeltRequest:               "MoveFromBeltRequest",
 		ItemMovedFromBelt:                 "ItemMovedFromBelt",
+		ToggleOverloadRequest:             "ToggleOverloadRequest",
 	}
 
 	return strings[n]

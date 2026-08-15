@@ -42,6 +42,23 @@ func TestHandlePlayerStatusEffectPacketManaShield(t *testing.T) {
 	}
 }
 
+func TestHandlePlayerStatusEffectPacketOverload(t *testing.T) {
+	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{}})
+
+	packet, err := d2netpacket.CreatePlayerStatusEffectPacket("p", d2netpacket.PlayerStatusOverload, true, time.Time{})
+	if err != nil {
+		t.Fatalf("test setup: CreatePlayerStatusEffectPacket failed: %v", err)
+	}
+
+	if err := client.handlePlayerStatusEffectPacket(packet); err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+
+	if !client.Players["p"].Stats.OverloadActive {
+		t.Error("expected OverloadActive to be applied")
+	}
+}
+
 func TestHandlePlayerStatusEffectPacketMagicImmune(t *testing.T) {
 	client := clientWithPlayer("p", &d2mapentity.Player{Stats: &d2hero.HeroStatsState{}})
 

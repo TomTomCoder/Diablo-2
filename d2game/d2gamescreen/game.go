@@ -419,6 +419,21 @@ func (v *Game) OnCraft(recipeID string) {
 	}
 }
 
+// OnToggleOverload sends a request to toggle Surcharge (Overload) on/off
+// (d2hero.HeroStatsState.OverloadActive), triggered by the ToggleOverload
+// keybinding.
+func (v *Game) OnToggleOverload() {
+	tp, err := d2netpacket.CreateToggleOverloadRequestPacket(v.gameClient.PlayerID)
+	if err != nil {
+		v.Errorf("ToggleOverloadRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(tp); err != nil {
+		v.Errorf("ToggleOverloadRequestPacket: player %s: %v", v.gameClient.PlayerID, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.

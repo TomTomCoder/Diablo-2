@@ -13,6 +13,7 @@ const (
 	PlayerStatusManaShield    = "manaShield"    // ManaShieldActive
 	PlayerStatusArmureDeGlace = "armureDeGlace" // ArmureDeGlaceActive
 	PlayerStatusMagicImmune   = "magicImmune"   // MagicImmuneUntil (via Until, Active unused)
+	PlayerStatusOverload      = "overload"      // OverloadActive
 )
 
 // PlayerStatusEffectPacket carries a change to one of the caster's own

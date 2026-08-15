@@ -142,6 +142,14 @@ func (g *GameServer) canCastNow(sourceEntityID string, skillID int) bool {
 		}
 
 		cost := d2hero.SkillManaCost(skillID, defaultManaCost)
+
+		// Surcharge (Overload): "consomme du mana supplémentaire" (§6) --
+		// see OverloadActive's own doc comment for why the magnitude here
+		// is an explicit placeholder.
+		if state.Stats.OverloadActive {
+			cost = cost * overloadManaCostPercent / 100
+		}
+
 		if state.Stats.Mana < cost {
 			return false
 		}
@@ -1367,6 +1375,19 @@ func (g *GameServer) applyHit(npc *d2mapentity.NPC, sourceEntityID string, skill
 // placeholder pending real balance numbers.
 const amplificationDamagePercent = 150
 
+// overloadManaCostPercent/overloadDamagePercent are Surcharge (Overload)'s
+// two magnitudes (§6 "Équivalent du Crushing Blow : consomme du mana
+// supplémentaire pour infliger un % fixe de la vie actuelle de
+// l'entité") -- see OverloadActive's own doc comment. The design names
+// both effects but gives neither a number nor a trigger; 150 (+50% mana
+// cost) and 10 (+10% of the target's current HP) are placeholders
+// pending real balance numbers, chosen to feel like a meaningful but not
+// overwhelming trade-off rather than derived from any cited source.
+const (
+	overloadManaCostPercent = 150
+	overloadDamagePercent   = 10
+)
+
 // amplifiedDamage scales damage by amplificationDamagePercent if amplified,
 // otherwise returns it unchanged. Factored out of applyResolvedDamage so the
 // scaling itself is testable without a live d2mapentity.NPC.
@@ -1378,6 +1399,18 @@ func amplifiedDamage(damage int, amplified bool) int {
 	return damage * amplificationDamagePercent / 100
 }
 
+// overloadBonusDamage returns Surcharge (Overload)'s bonus damage --
+// overloadDamagePercent of the target's currentHP if overloadActive, 0
+// otherwise. Factored out of applyResolvedDamage for the same reason as
+// amplifiedDamage: testable without a live d2mapentity.NPC.
+func overloadBonusDamage(currentHP int, overloadActive bool) int {
+	if !overloadActive {
+		return 0
+	}
+
+	return currentHP * overloadDamagePercent / 100
+}
+
 // applyResolvedDamage applies an already-computed damage amount to npc:
 // Amplification's damage scaling, death/gold-award/XP-award, Éclat de
 // glace's slow, and the NPCHit broadcast. Factored out of applyHit so
@@ -1387,10 +1420,19 @@ func amplifiedDamage(damage int, amplified bool) int {
 func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID string, skillID, damage int) {
 	damage = amplifiedDamage(damage, npc.IsAmplified(g.clock()))
 
+	attacker := g.playerStateOf(sourceEntityID)
+
+	// Surcharge (Overload): "un % fixe de la vie actuelle de l'entité" (§6)
+	// -- npc.HP here is the target's current HP, before this hit's own
+	// damage is applied below, matching that wording.
+	if attacker != nil && attacker.Stats != nil {
+		damage += overloadBonusDamage(npc.HP, attacker.Stats.OverloadActive)
+	}
+
 	// Correction (août 2026): the attacking player's real Difficulty, not
 	// always Normal -- see NPC.MagicResistancePercent's own doc comment.
 	difficulty := d2enum.DifficultyNormal
-	if attacker := g.playerStateOf(sourceEntityID); attacker != nil {
+	if attacker != nil {
 		difficulty = attacker.Difficulty
 	}
 
@@ -1623,6 +1665,30 @@ func (g *GameServer) resolveBouclierDeManaHit(sourceEntityID string) {
 
 	state.Stats.ManaShieldActive = !state.Stats.ManaShieldActive
 	g.broadcastPlayerStatusEffect(sourceEntityID, d2netpacket.PlayerStatusManaShield, state.Stats.ManaShieldActive, time.Time{})
+}
+
+// resolveToggleOverload unmarshals a ToggleOverloadRequestPacket and
+// toggles sourceEntityID's own HeroStatsState.OverloadActive -- Overload
+// isn't one of the 30 tree skills (see OverloadActive's own doc comment),
+// so unlike resolveBouclierDeManaHit/resolveArmureDeGlaceHit this has its
+// own dedicated request packet instead of riding a CastPacket's SkillID.
+// The mana surcharge (canCastNow) and bonus damage (applyResolvedDamage)
+// it enables are applied at their own call sites. A no-op if
+// sourceEntityID isn't a resolved connected player with stats.
+func (g *GameServer) resolveToggleOverload(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalToggleOverloadRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveToggleOverload: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.Stats.OverloadActive = !state.Stats.OverloadActive
+	g.broadcastPlayerStatusEffect(requestPacket.SourceEntityID, d2netpacket.PlayerStatusOverload, state.Stats.OverloadActive, time.Time{})
 }
 
 // resolveArmureDeGlaceHit toggles sourceEntityID's own
@@ -2398,6 +2464,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveMoveToBelt(packet)
 	case d2netpackettype.MoveFromBeltRequest:
 		g.resolveMoveFromBelt(packet)
+	case d2netpackettype.ToggleOverloadRequest:
+		g.resolveToggleOverload(packet)
 	case d2netpackettype.RespecSkillsRequest:
 		g.resolveRespecSkills(packet)
 	case d2netpackettype.RespecSingleSkillRequest:

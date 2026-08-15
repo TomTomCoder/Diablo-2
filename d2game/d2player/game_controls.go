@@ -401,6 +401,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.toggleHelpOverlay()
 	case d2enum.CraftItem:
 		g.inputListener.OnCraft(d2hero.RecipeUpgradeBatonApprenti)
+	case d2enum.ToggleOverload:
+		g.inputListener.OnToggleOverload()
 	default:
 		return false
 	}

@@ -92,4 +92,13 @@ const (
 	// crafting a real, triggerable player action today. Revisit once a
 	// second recipe exists and picking one actually matters.
 	CraftItem
+
+	// ToggleOverload triggers Surcharge (Overload) on/off
+	// (d2hero.HeroStatsState.OverloadActive). A keybinding for the same
+	// reason as CraftItem -- Overload isn't one of the 30 tree skills
+	// with an icon already on the skill tree grid (§6 lists it as a
+	// separate generic mechanic), so there's no existing clickable
+	// element to redirect the way EquipSkill/InvestSkillPoint/
+	// SpendAttributePoint were.
+	ToggleOverload
 )

@@ -10,4 +10,5 @@ type inputCallbackListener interface {
 	OnSpendAttributePoint(attr d2hero.Attribute)
 	OnLearnSkill(skillID int)
 	OnCraft(recipeID string)
+	OnToggleOverload()
 }

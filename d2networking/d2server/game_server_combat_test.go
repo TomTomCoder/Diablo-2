@@ -469,6 +469,16 @@ func TestAmplifiedDamage(t *testing.T) {
 	}
 }
 
+func TestOverloadBonusDamage(t *testing.T) {
+	if got := overloadBonusDamage(200, false); got != 0 {
+		t.Errorf("expected no bonus damage without Overload active, got %d", got)
+	}
+
+	if got, want := overloadBonusDamage(200, true), 200*overloadDamagePercent/100; got != want {
+		t.Errorf("expected %d%% of current HP (%d) as bonus damage, got %d", overloadDamagePercent, want, got)
+	}
+}
+
 func TestResolveTeleportationHitMovesThePlayer(t *testing.T) {
 	state := &d2hero.HeroState{X: 0, Y: 0}
 	server := serverWithConnection(state)
@@ -2145,5 +2155,99 @@ func TestResonanceMagiqueBonusPercentReachesChampStatique(t *testing.T) {
 
 	if got := server.resonanceMagiqueBonusPercent(state, d2hero.SkillChampStatique); got != want {
 		t.Errorf("expected Champ statique to consume the armed bonus (%d), got %d", want, got)
+	}
+}
+
+func TestResolveToggleOverloadTogglesOverloadActive(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateToggleOverloadRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateToggleOverloadRequestPacket failed: %v", err)
+	}
+
+	if state.Stats.OverloadActive {
+		t.Fatal("expected OverloadActive to start false")
+	}
+
+	server.resolveToggleOverload(packet)
+
+	if !state.Stats.OverloadActive {
+		t.Error("expected first toggle to turn OverloadActive on")
+	}
+
+	server.resolveToggleOverload(packet)
+
+	if state.Stats.OverloadActive {
+		t.Error("expected second toggle to turn OverloadActive back off")
+	}
+}
+
+func TestResolveToggleOverloadUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateToggleOverloadRequestPacket("nobody")
+	if err != nil {
+		t.Fatalf("test setup: CreateToggleOverloadRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveToggleOverload(packet)
+}
+
+func TestResolveToggleOverloadBroadcastsToggle(t *testing.T) {
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateToggleOverloadRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateToggleOverloadRequestPacket failed: %v", err)
+	}
+
+	server.resolveToggleOverload(packet)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	status, err := d2netpacket.UnmarshalPlayerStatusEffect(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerStatusEffectPacket: %v", err)
+	}
+
+	if status.Effect != d2netpacket.PlayerStatusOverload || !status.Active {
+		t.Errorf("expected effect %q active=true, got %q active=%v", d2netpacket.PlayerStatusOverload, status.Effect, status.Active)
+	}
+}
+
+// TestCanCastNowChargesOverloadSurcharge is a regression test for
+// Overload's mana surcharge actually being charged, not just declared:
+// without OverloadActive gating the cost, this would silently charge the
+// skill's normal cost instead.
+func TestCanCastNowChargesOverloadSurcharge(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Mana: 10, MaxMana: 10, OverloadActive: true}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	// Trait de feu costs 3; with Overload's placeholder +50% surcharge
+	// that's 4 (integer division), not 3.
+	if !server.canCastNow("p", d2hero.SkillTraitDeFeu) {
+		t.Fatal("expected the cast to succeed with enough mana")
+	}
+
+	wantCost := 3 * overloadManaCostPercent / 100
+	if got := 10 - stats.Mana; got != wantCost {
+		t.Errorf("expected the surcharged cost (%d) deducted, got %d", wantCost, got)
+	}
+}
+
+func TestCanCastNowWithoutOverloadChargesNormalCost(t *testing.T) {
+	stats := &d2hero.HeroStatsState{Mana: 10, MaxMana: 10, OverloadActive: false}
+	server := serverWithConnection(&d2hero.HeroState{Stats: stats})
+
+	server.canCastNow("p", d2hero.SkillTraitDeFeu)
+
+	if stats.Mana != 7 {
+		t.Errorf("expected the normal cost (3) deducted without Overload, got mana %d", stats.Mana)
 	}
 }

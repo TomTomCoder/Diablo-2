@@ -471,6 +471,8 @@ func (g *GameClient) handlePlayerStatusEffectPacket(packet d2netpacket.NetPacket
 		player.Stats.ManaShieldActive = status.Active
 	case d2netpacket.PlayerStatusArmureDeGlace:
 		player.Stats.ArmureDeGlaceActive = status.Active
+	case d2netpacket.PlayerStatusOverload:
+		player.Stats.OverloadActive = status.Active
 	case d2netpacket.PlayerStatusMagicImmune:
 		player.Stats.ApplyMagicImmunity(status.Until)
 	}

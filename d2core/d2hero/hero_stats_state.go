@@ -73,6 +73,21 @@ type HeroStatsState struct {
 	// SkillArmureDeGlace, see GameServer.resolveArmureDeGlaceHit.
 	ArmureDeGlaceActive bool `json:"armureDeGlaceActive"`
 
+	// OverloadActive is Devil's "Surcharge" (§6 "Mécaniques offensives
+	// clés": "Équivalent du Crushing Blow : consomme du mana supplémentaire
+	// pour infliger un % fixe de la vie actuelle de l'entité"). Unlike
+	// ManaShieldActive/ArmureDeGlaceActive, Overload isn't one of the 30
+	// tree skills (§6 lists it as a separate generic mechanic, not a
+	// SkillTree entry), so it has no SkillID to toggle via a cast --
+	// toggled instead by a dedicated keybinding/request
+	// (GameServer.resolveToggleOverload), same shape otherwise. While
+	// true, GameServer.canCastNow charges overloadManaCostPercent instead
+	// of a skill's normal cost, and applyResolvedDamage adds
+	// overloadDamagePercent of the target's current HP on top of the
+	// normal hit -- ROADMAP.md documents the trigger/magnitude here as
+	// explicitly provisional: §6 names the effect but specifies neither.
+	OverloadActive bool `json:"overloadActive"`
+
 	// MagicImmuneUntil is when the hero's magic immunity (Éveil du Nexus,
 	// Ésotérisme's ultimate: "immunité magique pendant 8 secondes") expires.
 	// Zero value means not immune. See ApplyMagicImmunity/IsMagicImmune.
