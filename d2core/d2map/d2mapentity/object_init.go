@@ -6,13 +6,20 @@ import (
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 )
 
+// objectInitFnWaypoint is the objects.txt "InitFn" column value that marks
+// an object as a waypoint -- the only value initObject dispatches to
+// initWaypoint. Named here (rather than left as a bare 17 in the map
+// below) since Object.IsWaypoint also depends on it, see its own doc
+// comment.
+const objectInitFnWaypoint = 17
+
 // Finds an init function for the given object
 func initObject(ob *Object) (bool, error) {
 	funcs := map[int]func(*Object) error{
-		8:  initTorch,
-		14: initTorch,
-		17: initWaypoint,
-		34: initTorchRnd,
+		8:                    initTorch,
+		14:                   initTorch,
+		objectInitFnWaypoint: initWaypoint,
+		34:                   initTorchRnd,
 	}
 
 	fun, ok := funcs[ob.objectRecord.InitFn]

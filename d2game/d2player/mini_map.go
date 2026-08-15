@@ -49,8 +49,10 @@ const (
 	miniMapBackgroundColor = 0x00000090 // translucent black
 	miniMapExploredColor   = 0x808080ff // opaque gray
 	miniMapPlayerColor     = 0xffff00ff // opaque yellow
+	miniMapWaypointColor   = 0x00c8ffff // opaque cyan, distinct from both of the above
 
-	miniMapCenterSubtile = 2 // GetSubTileFlags' own 5x5 grid center, see its doc comment
+	miniMapCenterSubtile = 2                    // GetSubTileFlags' own 5x5 grid center, see its doc comment
+	miniMapWaypointScale = miniMapTileScale * 2 // larger than a plain tile dot, to stand out as a point of interest
 )
 
 // Toggle negates Visible.
@@ -116,9 +118,12 @@ func miniMapWindow(playerX, playerY, mapWidth, mapHeight int) (minX, minY, maxX,
 }
 
 // Render draws a small top-left corner overlay: a translucent background,
-// one filled square per explored+walkable tile within miniMapWindow, and a
-// distinct marker for the player's own current tile. A no-op if not
-// Visible, or if mapEngine/player is nil.
+// one filled square per explored+walkable tile within miniMapWindow, a
+// distinct marker for the player's own current tile, and a larger distinct
+// marker for each explored waypoint (see d2mapentity.WaypointTiles) --
+// devil_game_design_reference.md §4.1's "icônes de points d'intérêt",
+// waypoints only for now. A no-op if not Visible, or if mapEngine/player
+// is nil.
 func (m *MiniMap) Render(target d2interface.Surface, mapEngine *d2mapengine.MapEngine, player *d2mapentity.Player) {
 	if !m.Visible || mapEngine == nil || player == nil {
 		return
@@ -162,5 +167,35 @@ func (m *MiniMap) Render(target d2interface.Surface, mapEngine *d2mapengine.MapE
 			target.DrawRect(miniMapTileScale, miniMapTileScale, dotColor)
 			target.Pop()
 		}
+	}
+
+	m.renderWaypoints(target, mapEngine, minX, minY, maxX, maxY)
+}
+
+// renderWaypoints draws a larger, distinct marker for each explored
+// waypoint within [minX,maxX) x [minY,maxY) -- devil_game_design_reference.md
+// §4.1's "icônes de points d'intérêt", waypoints only for now (Boss/
+// rare-chest markers aren't included: no boss placement or a rare-chest
+// identification mechanism exists yet, ROADMAP.md). Split out of Render
+// to keep its own cyclomatic complexity down, same practice as this
+// session's other extractions.
+//
+// Only explored waypoints are drawn ("dès leur découverte") -- one
+// sitting in an unexplored part of the level shouldn't leak through the
+// overlay before the player has actually found it.
+func (m *MiniMap) renderWaypoints(target d2interface.Surface, mapEngine *d2mapengine.MapEngine, minX, minY, maxX, maxY int) {
+	for _, waypointTile := range d2mapentity.WaypointTiles(mapEngine.Entities()) {
+		x, y := waypointTile[0], waypointTile[1]
+		if x < minX || x >= maxX || y < minY || y >= maxY {
+			continue
+		}
+
+		if !mapEngine.IsExplored(x, y) {
+			continue
+		}
+
+		target.PushTranslation((x-minX)*miniMapTileScale, (y-minY)*miniMapTileScale)
+		target.DrawRect(miniMapWaypointScale, miniMapWaypointScale, d2util.Color(miniMapWaypointColor))
+		target.Pop()
 	}
 }
