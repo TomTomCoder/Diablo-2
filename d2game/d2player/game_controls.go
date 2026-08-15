@@ -266,6 +266,7 @@ func NewGameControls(
 	gc.skilltree.SetOnCloseCb(gc.onCloseSkilltree)
 	gc.skilltree.SetOnInvestSkillPointCb(gc.inputListener.OnInvestSkillPoint)
 	gc.skilltree.SetOnLearnSkillCb(gc.inputListener.OnLearnSkill)
+	gc.skilltree.SetOnForgetSkillCb(gc.inputListener.OnRespecSingleSkill)
 	gc.devilInventoryPanel.SetOnCloseCb(gc.onCloseDevilInventoryPanel)
 	gc.devilInventoryPanel.SetOnMoveToStashCb(gc.inputListener.OnMoveToStash)
 	gc.devilInventoryPanel.SetOnMoveToInventoryCb(gc.inputListener.OnMoveToInventory)
@@ -376,10 +377,10 @@ func (g *GameControls) OnKeyRepeat(event d2interface.KeyEvent) bool {
 	return false
 }
 
-// OnKeyDown handles key presses
-// nolint:gocyclo // a flat one-case-per-keybinding dispatch switch, not
-// real branching complexity -- same practice as NewGameControls' own
-// nolint:funlen just above.
+// OnKeyDown handles key presses -- a flat one-case-per-keybinding dispatch
+// switch, not real branching complexity, same practice as
+// NewGameControls' own nolint:funlen just above.
+// nolint:gocyclo // flat dispatch switch, not real complexity
 func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 	if event.Key() == d2enum.KeyEscape {
 		g.onEscKey()
@@ -418,6 +419,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.toggleDevilInventoryPanel()
 	case d2enum.UseRespecEssence:
 		g.inputListener.OnUseRespecEssence()
+	case d2enum.ArmGlypheDOubli:
+		g.skilltree.ArmGlypheDOubli()
 	default:
 		return false
 	}

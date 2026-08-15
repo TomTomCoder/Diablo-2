@@ -15,4 +15,5 @@ type inputCallbackListener interface {
 	OnMoveToInventory(stashIndex int)
 	OnMoveFromBelt(beltIndex int)
 	OnUseRespecEssence()
+	OnRespecSingleSkill(skillID int)
 }

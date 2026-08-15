@@ -495,6 +495,23 @@ func (v *Game) OnUseRespecEssence() {
 	}
 }
 
+// OnRespecSingleSkill sends a request to forget one specific learned
+// skill by consuming a Glyphe d'oubli from inventory
+// (d2hero.HeroState.UseGlypheDOubliOnSkill), triggered by clicking a
+// known skill icon in the skill tree while Glyphe d'oubli is armed
+// (ArmGlypheDOubli).
+func (v *Game) OnRespecSingleSkill(skillID int) {
+	rp, err := d2netpacket.CreateRespecSingleSkillRequestPacket(v.gameClient.PlayerID, skillID)
+	if err != nil {
+		v.Errorf("RespecSingleSkillRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(rp); err != nil {
+		v.Errorf("RespecSingleSkillRequestPacket: player %s, skill %d: %v", v.gameClient.PlayerID, skillID, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.

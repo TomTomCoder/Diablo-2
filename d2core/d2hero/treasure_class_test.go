@@ -100,6 +100,7 @@ func TestTCBasicMonsterRollsWithoutError(t *testing.T) {
 		ItemRobeDuNovice:           true,
 		ItemCeintureDeCuirRunique:  true,
 		ItemEssenceDeBossOrdinaire: true,
+		ItemGlypheDOubli:           true,
 	}
 
 	for i := 0; i < 100; i++ {

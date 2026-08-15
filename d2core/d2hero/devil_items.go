@@ -84,6 +84,18 @@ const ItemPotionDeMana = "dvl_potion_de_mana"
 // real boss essence implies a real boss that doesn't exist yet.
 const ItemEssenceDeBossOrdinaire = "dvl_essence_de_boss_ordinaire"
 
+// ItemGlypheDOubli is a placeholder consumable that gates "Glyphe
+// d'oubli" -- §10: "1 compétence ou 1 point d'attribut", via "un objet
+// rare (drop ou craft)". Same reasoning as
+// ItemEssenceDeBossOrdinaire (a real, simplified rare-item gate rather
+// than either waiting on unspecified content or inventing a free
+// access path) applied to a mechanism the design already describes as
+// item-gated, unlike Respec complet's boss-essence requirement, so this
+// one doesn't even need to simplify away a "combine N items" step --
+// just the specific rare item/craft recipe that would drop/produce it,
+// which the design doesn't name. See HeroState.UseGlypheDOubliOnSkill.
+const ItemGlypheDOubli = "dvl_glyphe_doubli"
+
 // DevilItemDef is Devil's own item data model -- separate from Diablo 2's
 // items.txt (Devil's equipment is magic-only: staffs, orbs, robes,
 // amulets, rings, grimoires -- not weapons/armor in D2's sense). See
@@ -182,6 +194,10 @@ var DevilItems = map[string]*DevilItemDef{
 	ItemEssenceDeBossOrdinaire: {
 		Code: ItemEssenceDeBossOrdinaire,
 		Name: "Essence de Boss (Ordinaire)",
+	},
+	ItemGlypheDOubli: {
+		Code: ItemGlypheDOubli,
+		Name: "Glyphe d'Oubli",
 	},
 }
 

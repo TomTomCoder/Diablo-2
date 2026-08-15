@@ -87,6 +87,7 @@ const (
 	tcBasicMonsterPotionWeight    = 30
 	tcBasicMonsterEquipmentWeight = 5
 	tcBasicMonsterEssenceWeight   = 1
+	tcBasicMonsterGlyphWeight     = 1
 )
 
 // TCBasicMonster is Devil's only Treasure Class so far -- every monster
@@ -118,6 +119,7 @@ var TCBasicMonster = &TreasureClass{
 		{ItemCode: ItemRobeDuNovice, Weight: tcBasicMonsterEquipmentWeight},
 		{ItemCode: ItemCeintureDeCuirRunique, Weight: tcBasicMonsterEquipmentWeight},
 		{ItemCode: ItemEssenceDeBossOrdinaire, Weight: tcBasicMonsterEssenceWeight},
+		{ItemCode: ItemGlypheDOubli, Weight: tcBasicMonsterGlyphWeight},
 	},
 	Picks: 1,
 }

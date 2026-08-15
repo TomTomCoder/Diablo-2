@@ -119,4 +119,14 @@ const (
 	// "use" isn't a position-based choice a screen would need anyway
 	// (the server itself finds the item in inventory).
 	UseRespecEssence
+
+	// ArmGlypheDOubli arms "Glyphe d'oubli" (d2game/d2player's
+	// skillTree.ArmGlypheDOubli): the next click on a known skill icon in
+	// the skill tree requests forgetting it instead of investing a point.
+	// A keybinding rather than a new click gesture, since the skill
+	// icons' click is already claimed by invest/learn -- see
+	// skillTree.ArmGlypheDOubli's own doc comment for why arming is a
+	// mode rather than extending d2ui.ClickableWidget with a second click
+	// type.
+	ArmGlypheDOubli
 )

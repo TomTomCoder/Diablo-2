@@ -1554,6 +1554,7 @@ func TestResolveRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
 			d2hero.SkillTraitDeFeu:   {SkillPoints: 1},
 			d2hero.SkillEclatDeGlace: {SkillPoints: 1},
 		},
+		Inventory: []string{d2hero.ItemGlypheDOubli},
 	}
 	server := serverWithConnection(state)
 
@@ -1579,8 +1580,9 @@ func TestResolveRespecSingleSkillRefundsOnlyThatSkill(t *testing.T) {
 
 func TestResolveRespecSingleSkillFailsIfNotLearnedIsNoop(t *testing.T) {
 	state := &d2hero.HeroState{
-		Stats:  &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
-		Skills: make(map[int]*d2hero.HeroSkill),
+		Stats:     &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills:    make(map[int]*d2hero.HeroSkill),
+		Inventory: []string{d2hero.ItemGlypheDOubli}, // present, so this actually exercises the "not learned" path, not "no glyph"
 	}
 	server := serverWithConnection(state)
 
@@ -1593,6 +1595,34 @@ func TestResolveRespecSingleSkillFailsIfNotLearnedIsNoop(t *testing.T) {
 
 	if state.Stats.SkillPoints != 0 {
 		t.Errorf("expected no refund for a skill that was never learned, got %d", state.Stats.SkillPoints)
+	}
+}
+
+// TestResolveRespecSingleSkillWithoutGlyphIsNoop is the real point of
+// UseGlypheDOubliOnSkill's gate: without the item, this must not forget
+// the skill at all -- otherwise "Glyphe d'oubli" would be freely
+// available, defeating the rare-item gate it exists to implement (same
+// reasoning as TestResolveRespecCompletWithoutEssenceIsNoop).
+func TestResolveRespecSingleSkillWithoutGlyphIsNoop(t *testing.T) {
+	state := &d2hero.HeroState{
+		Stats:  &d2hero.HeroStatsState{Level: 6, SkillPoints: 0},
+		Skills: map[int]*d2hero.HeroSkill{d2hero.SkillTraitDeFeu: {SkillPoints: 1}},
+	}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateRespecSingleSkillRequestPacket("p", d2hero.SkillTraitDeFeu)
+	if err != nil {
+		t.Fatalf("test setup: CreateRespecSingleSkillRequestPacket failed: %v", err)
+	}
+
+	server.resolveRespecSingleSkill(packet)
+
+	if _, known := state.Skills[d2hero.SkillTraitDeFeu]; !known {
+		t.Error("expected Trait de feu untouched without the glyph in inventory")
+	}
+
+	if state.Stats.SkillPoints != 0 {
+		t.Errorf("expected no refund without the glyph, got %d", state.Stats.SkillPoints)
 	}
 }
 

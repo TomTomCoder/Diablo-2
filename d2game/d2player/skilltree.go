@@ -142,6 +142,8 @@ type skillTree struct {
 	stats                *d2hero.HeroStatsState
 	onInvestSkillPointCb func(skillID int)
 	onLearnSkillCb       func(skillID int)
+	onForgetSkillCb      func(skillID int)
+	glypheDOubliArmed    bool
 
 	*d2util.Logger
 	l d2util.LogLevel
@@ -158,6 +160,26 @@ func (s *skillTree) SetOnInvestSkillPointCb(cb func(skillID int)) {
 // not-yet-known skill's preview icon, requesting to learn it.
 func (s *skillTree) SetOnLearnSkillCb(cb func(skillID int)) {
 	s.onLearnSkillCb = cb
+}
+
+// SetOnForgetSkillCb sets the callback run when the player, with Glyphe
+// d'oubli armed, clicks a known skill icon, requesting to forget it.
+func (s *skillTree) SetOnForgetSkillCb(cb func(skillID int)) {
+	s.onForgetSkillCb = cb
+}
+
+// ArmGlypheDOubli arms Glyphe d'oubli: the next click on a known skill
+// icon requests forgetting it (RespecSingleSkill) instead of investing a
+// point, then disarms itself regardless of whether that click landed on
+// a known skill or not. A keybinding-triggered mode rather than a new
+// click gesture (e.g. right-click), since the left-click on these icons
+// is already claimed by invest/learn, and extending d2ui.ClickableWidget
+// itself to support a second click type would touch every other
+// clickable widget in the engine (Button/Checkbox/LabelButton/Scrollbar/
+// TextBox/globeWidget), a far bigger blast radius than reusing the one
+// this package already owns and fully controls.
+func (s *skillTree) ArmGlypheDOubli() {
+	s.glypheDOubliArmed = true
 }
 
 func (s *skillTree) load() {
@@ -208,6 +230,22 @@ func (s *skillTree) load() {
 		si := newSkillIcon(s.uiManager, s.resources.skillSprite, s.l, skill)
 
 		si.OnActivated(func() {
+			// Glyphe d'oubli ("armed" mode): reuses this same already-
+			// clickable icon rather than a new gesture, since the click
+			// itself is already claimed by invest/learn below -- arming
+			// changes what the *next* click on any known skill means,
+			// instead of needing a second, distinct interaction. See
+			// ArmGlypheDOubli's own doc comment.
+			if s.glypheDOubliArmed {
+				s.glypheDOubliArmed = false
+
+				if _, known := s.skills[skillID]; known && s.onForgetSkillCb != nil {
+					s.onForgetSkillCb(skillID)
+				}
+
+				return
+			}
+
 			if _, known := s.skills[skillID]; known {
 				if s.onInvestSkillPointCb != nil {
 					s.onInvestSkillPointCb(skillID)

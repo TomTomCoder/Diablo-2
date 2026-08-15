@@ -1092,7 +1092,15 @@ func (g *GameServer) resolveRespecSingleSkill(packet d2netpacket.NetPacket) {
 		return
 	}
 
-	if _, err = state.RespecSingleSkill(requestPacket.SkillID); err != nil {
+	// Correction (août 2026): this used to call state.RespecSingleSkill
+	// directly, with no item requirement at all -- "Glyphe d'oubli" (§10:
+	// "1 compétence ou 1 point d'attribut" via "un objet rare") was
+	// mechanism-ready but never actually gated on the item its own name
+	// implies. Nothing sent this request before now (no UI trigger
+	// existed), so this doesn't change any real player-observed
+	// behavior -- it's what makes the real item requirement land at the
+	// same moment a trigger for this packet first exists.
+	if _, err = state.UseGlypheDOubliOnSkill(requestPacket.SkillID); err != nil {
 		return
 	}
 
