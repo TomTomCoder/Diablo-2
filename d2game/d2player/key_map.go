@@ -294,11 +294,12 @@ func (km *KeyMap) ResetToDefault() {
 		d2enum.SayNowYouDie:    {d2enum.KeyKP6, -1},
 		d2enum.SayRetreat:      {d2enum.KeyKP7, -1},
 
-		d2enum.TakeScreenShot: {d2enum.KeyPrintScreen, -1},
-		d2enum.ClearScreen:    {d2enum.KeySpace, -1},
-		d2enum.ClearMessages:  {d2enum.KeyN, -1},
-		d2enum.CraftItem:      {d2enum.KeyX, -1},
-		d2enum.ToggleOverload: {d2enum.KeyG, -1},
+		d2enum.TakeScreenShot:       {d2enum.KeyPrintScreen, -1},
+		d2enum.ClearScreen:          {d2enum.KeySpace, -1},
+		d2enum.ClearMessages:        {d2enum.KeyN, -1},
+		d2enum.CraftItem:            {d2enum.KeyX, -1},
+		d2enum.ToggleOverload:       {d2enum.KeyG, -1},
+		d2enum.ToggleDevilInventory: {d2enum.KeyJ, -1},
 	}
 
 	for gameEvent, keys := range defaultControls {

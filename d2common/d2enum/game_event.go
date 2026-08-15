@@ -101,4 +101,14 @@ const (
 	// element to redirect the way EquipSkill/InvestSkillPoint/
 	// SpendAttributePoint were.
 	ToggleOverload
+
+	// ToggleDevilInventory opens Devil's own real Inventory/Stash screen
+	// (d2game/d2player's devilInventoryPanel) -- not the pre-existing
+	// ToggleInventoryPanel above, which opens a panel built for stock
+	// Diablo 2's spatial item-grid data model, incompatible with Devil's
+	// own flat HeroState.Inventory/Stash (see devilInventoryPanel's own
+	// doc comment). A new, separate keybinding rather than replacing that
+	// one's target, so nothing about its existing (if data-mismatched)
+	// behavior changes.
+	ToggleDevilInventory
 )

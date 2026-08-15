@@ -195,6 +195,8 @@ func NewGameControls(
 
 	skilltree := newSkillTree(hero.Skills, hero.Class, hero.Stats, asset, l, ui)
 
+	devilInventoryPanel := newDevilInventoryPanel(ui, l)
+
 	miniPanel := newMiniPanel(asset, ui, l, isSinglePlayer)
 
 	heroState, err := d2hero.NewHeroStateFactory(asset)
@@ -207,20 +209,21 @@ func NewGameControls(
 	const blackAlpha50percent = 0x0000007f
 
 	gc := &GameControls{
-		asset:          asset,
-		ui:             ui,
-		renderer:       renderer,
-		hero:           hero,
-		heroState:      heroState,
-		escapeMenu:     escapeMenu,
-		inputListener:  inputListener,
-		mapRenderer:    mapRenderer,
-		inventory:      inventory,
-		skilltree:      skilltree,
-		heroStatsPanel: heroStatsPanel,
-		questLog:       questLog,
-		HelpOverlay:    helpOverlay,
-		keyMap:         keyMap,
+		asset:               asset,
+		ui:                  ui,
+		renderer:            renderer,
+		hero:                hero,
+		heroState:           heroState,
+		escapeMenu:          escapeMenu,
+		inputListener:       inputListener,
+		mapRenderer:         mapRenderer,
+		inventory:           inventory,
+		skilltree:           skilltree,
+		devilInventoryPanel: devilInventoryPanel,
+		heroStatsPanel:      heroStatsPanel,
+		questLog:            questLog,
+		HelpOverlay:         helpOverlay,
+		keyMap:              keyMap,
 		bottomMenuRect: &d2geom.Rectangle{
 			Left:   menuBottomRectX,
 			Top:    menuBottomRectY,
@@ -263,6 +266,9 @@ func NewGameControls(
 	gc.skilltree.SetOnCloseCb(gc.onCloseSkilltree)
 	gc.skilltree.SetOnInvestSkillPointCb(gc.inputListener.OnInvestSkillPoint)
 	gc.skilltree.SetOnLearnSkillCb(gc.inputListener.OnLearnSkill)
+	gc.devilInventoryPanel.SetOnCloseCb(gc.onCloseDevilInventoryPanel)
+	gc.devilInventoryPanel.SetOnMoveToStashCb(gc.inputListener.OnMoveToStash)
+	gc.devilInventoryPanel.SetOnMoveToInventoryCb(gc.inputListener.OnMoveToInventory)
 	gc.hud.skillSelectMenu.SetOnEquipCb(gc.inputListener.OnEquipSkill)
 
 	gc.escapeMenu.SetOnCloseCb(gc.hud.miniPanel.restoreDisabled)
@@ -295,6 +301,7 @@ type GameControls struct {
 	inventory              *Inventory
 	hud                    *HUD
 	skilltree              *skillTree
+	devilInventoryPanel    *devilInventoryPanel
 	heroStatsPanel         *HeroStatsPanel
 	PartyPanel             *PartyPanel
 	questLog               *QuestLog
@@ -403,6 +410,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.inputListener.OnCraft(d2hero.RecipeUpgradeBatonApprenti)
 	case d2enum.ToggleOverload:
 		g.inputListener.OnToggleOverload()
+	case d2enum.ToggleDevilInventory:
+		g.toggleDevilInventoryPanel()
 	default:
 		return false
 	}
@@ -608,6 +617,7 @@ func (g *GameControls) clearLeftScreenSide() {
 func (g *GameControls) clearRightScreenSide() {
 	g.inventory.Close()
 	g.skilltree.Close()
+	g.devilInventoryPanel.Close()
 	g.hud.skillSelectMenu.ClosePanels()
 	g.updateLayout()
 }
@@ -705,6 +715,14 @@ func (g *GameControls) onCloseSkilltree() {
 	g.updateLayout()
 }
 
+func (g *GameControls) toggleDevilInventoryPanel() {
+	g.openRightPanel(g.devilInventoryPanel)
+}
+
+func (g *GameControls) onCloseDevilInventoryPanel() {
+	g.updateLayout()
+}
+
 func (g *GameControls) openEscMenu() {
 	g.clearScreen()
 	g.hud.miniPanel.closeDisabled()
@@ -717,6 +735,7 @@ func (g *GameControls) Load() {
 	g.hud.Load()
 	g.inventory.Load()
 	g.skilltree.load()
+	g.devilInventoryPanel.load(g.hero)
 	g.heroStatsPanel.Load()
 
 	if g.PartyPanel != nil {

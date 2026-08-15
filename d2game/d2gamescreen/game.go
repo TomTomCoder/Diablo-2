@@ -434,6 +434,36 @@ func (v *Game) OnToggleOverload() {
 	}
 }
 
+// OnMoveToStash sends a request to move an inventory item to the stash
+// (d2hero.HeroState.MoveToStash), triggered by clicking an Inventory slot
+// in devilInventoryPanel.
+func (v *Game) OnMoveToStash(inventoryIndex int) {
+	mp, err := d2netpacket.CreateMoveToStashRequestPacket(v.gameClient.PlayerID, inventoryIndex)
+	if err != nil {
+		v.Errorf("MoveToStashRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(mp); err != nil {
+		v.Errorf("MoveToStashRequestPacket: player %s, index %d: %v", v.gameClient.PlayerID, inventoryIndex, err)
+	}
+}
+
+// OnMoveToInventory sends a request to move a stash item to the inventory
+// (d2hero.HeroState.MoveToInventory), triggered by clicking a Stash slot
+// in devilInventoryPanel.
+func (v *Game) OnMoveToInventory(stashIndex int) {
+	mp, err := d2netpacket.CreateMoveToInventoryRequestPacket(v.gameClient.PlayerID, stashIndex)
+	if err != nil {
+		v.Errorf("MoveToInventoryRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(mp); err != nil {
+		v.Errorf("MoveToInventoryRequestPacket: player %s, index %d: %v", v.gameClient.PlayerID, stashIndex, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.
