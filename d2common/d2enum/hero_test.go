@@ -28,6 +28,36 @@ func TestHeroDevilTokensDoNotFatal(t *testing.T) {
 	}
 }
 
+// TestHeroDevilCompositeTokenUsesSorceressPlaceholder is a regression
+// test for the fix that unblocked an actual playable Devil character:
+// CompositeToken must return Sorceress's real token for HeroDevil (no
+// .COF/.DC6 files exist for GetToken's real "DE"), while GetToken itself
+// stays untouched.
+func TestHeroDevilCompositeTokenUsesSorceressPlaceholder(t *testing.T) {
+	if got, want := HeroDevil.CompositeToken(), HeroSorceress.GetToken(); got != want {
+		t.Errorf("expected HeroDevil.CompositeToken() to be Sorceress's own token %q, got %q", want, got)
+	}
+
+	if HeroDevil.GetToken() == HeroDevil.CompositeToken() {
+		t.Error("expected CompositeToken to differ from GetToken's real (unusable) \"DE\" identity")
+	}
+}
+
+// TestCompositeTokenMatchesGetTokenForRealClasses is a regression test:
+// CompositeToken must be a pure pass-through to GetToken for every real
+// Diablo II class -- only HeroDevil gets a placeholder substitution.
+func TestCompositeTokenMatchesGetTokenForRealClasses(t *testing.T) {
+	realClasses := []Hero{
+		HeroBarbarian, HeroNecromancer, HeroPaladin, HeroAssassin, HeroSorceress, HeroAmazon, HeroDruid,
+	}
+
+	for _, hero := range realClasses {
+		if got, want := hero.CompositeToken(), hero.GetToken(); got != want {
+			t.Errorf("expected CompositeToken() == GetToken() for %v, got %q vs %q", hero, got, want)
+		}
+	}
+}
+
 func TestHeroDevilStringAndFromStringRoundTrip(t *testing.T) {
 	if HeroDevil.String() != "Devil" {
 		t.Errorf(`expected HeroDevil.String() == "Devil", got %q`, HeroDevil.String())

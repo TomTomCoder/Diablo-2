@@ -88,7 +88,12 @@ func (f *MapEntityFactory) NewPlayer(id, name string, x, y, direction int, heroT
 		d2enum.CompositeTypeShield:    equipment.Shield.GetItemCode(),
 	}
 
-	composite, err := f.asset.LoadComposite(d2enum.ObjectTypePlayer, heroType.GetToken(),
+	// Correction (août 2026): heroType.GetToken() ("DE" for HeroDevil) has
+	// no .COF/.DC6 files anywhere, and LoadComposite panics on error --
+	// CompositeToken() gives Devil a real, working placeholder skin
+	// (Sorceress's own token) instead, unblocking an actual playable
+	// character today. See CompositeToken's own doc comment.
+	composite, err := f.asset.LoadComposite(d2enum.ObjectTypePlayer, heroType.CompositeToken(),
 		d2resource.PaletteUnits)
 	if err != nil {
 		panic(err)

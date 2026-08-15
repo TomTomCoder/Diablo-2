@@ -495,10 +495,29 @@ func (v *SelectHeroClass) onExitButtonClicked() {
 
 func (v *SelectHeroClass) onOkButtonClicked() {
 	heroName := v.heroNameTextbox.GetText()
-	defaultStats := v.asset.Records.Character.Stats[v.selectedHero]
-	statsState := v.CreateHeroStatsState(v.selectedHero, defaultStats)
 
-	playerState, err := v.CreateHeroState(heroName, v.selectedHero, statsState)
+	// Correction (août 2026): this used to create the saved character as
+	// v.selectedHero -- whichever of the 7 real classes the player's
+	// portrait click happened to pick -- while unconditionally overriding
+	// its skills/equipment with Devil's own starting kit a few lines
+	// below regardless of that choice. The result was never internally
+	// consistent: every character made through this screen already
+	// played as Devil (Devil's own starting gear/skill), but was tagged
+	// Class == HeroBarbarian/HeroSorceress/etc., so every Devil-specific
+	// mechanic built this session (skill tree gating, Glyphe d'oubli,
+	// Overload, Marque ardente, the stats panel...) silently never
+	// recognized the character as Devil at all -- only reachable before
+	// now by constructing a HeroState directly in a test, never through
+	// real character creation. Now explicit: this screen only ever makes
+	// Devil characters (v.selectedHero still picks which class's real
+	// assets render the in-game composite, see CompositeToken's own doc
+	// comment -- it just no longer lies about what the character *is*).
+	const heroClass = d2enum.HeroDevil
+
+	defaultStats := v.asset.Records.Character.Stats[heroClass]
+	statsState := v.CreateHeroStatsState(heroClass, defaultStats)
+
+	playerState, err := v.CreateHeroState(heroName, heroClass, statsState)
 	if err != nil {
 		v.Errorf("failed to create hero state!, err: %v", err.Error())
 		return
@@ -515,7 +534,7 @@ func (v *SelectHeroClass) onOkButtonClicked() {
 		return
 	}
 
-	playerState.Equipment = v.InventoryItemFactory.DefaultHeroItems[v.selectedHero]
+	playerState.Equipment = v.InventoryItemFactory.DefaultHeroItems[heroClass]
 
 	// ponytail: overrides whatever D2 weapon DefaultHeroItems assigned --
 	// Devil's own starting gear.
