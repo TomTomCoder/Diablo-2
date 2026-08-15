@@ -1,0 +1,438 @@
+package d2mapengine
+
+import (
+	"strings"
+	"sync"
+
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2records"
+
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapentity"
+
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2fileformats/d2dt1"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2geom"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2util"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2asset"
+	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2map/d2mapstamp"
+)
+
+const (
+	logPrefix = "Map Engine"
+)
+
+// MapEngine loads the tiles which make up the isometric map and the entities
+type MapEngine struct {
+	asset *d2asset.AssetManager
+	*d2mapstamp.StampFactory
+	*d2mapentity.MapEntityFactory
+	seed          int64                            // The map seed
+	entitiesMu    sync.Mutex                       // guards entities -- see Entities/AddEntity/RemoveEntity/Advance
+	entities      map[string]d2interface.MapEntity // Entities on the map
+	tiles         []MapTile
+	explored      []bool                    // Which tiles have ever been seen, see MarkExplored/IsExplored
+	size          d2geom.Size               // Size of the map, in tiles
+	levelType     d2records.LevelTypeRecord // Level type of this map
+	dt1TileData   []d2dt1.Tile              // DT1 tile data
+	startSubTileX int                       // Starting X position
+	startSubTileY int                       // Starting Y position
+	dt1Files      []string                  // List of DS1 strings
+
+	// https://github.com/OpenDiablo2/OpenDiablo2/issues/789
+	IsLoading bool // (temp) Whether we have processed the GenerateMapPacket(only for remote client)
+
+	*d2util.Logger
+}
+
+const (
+	subtilesPerTile = 5
+)
+
+// CreateMapEngine creates a new instance of the map engine and returns a pointer to it.
+func CreateMapEngine(l d2util.LogLevel, asset *d2asset.AssetManager) *MapEngine {
+	entity, _ := d2mapentity.NewMapEntityFactory(asset)
+	stamp := d2mapstamp.NewStampFactory(asset, l, entity)
+
+	engine := &MapEngine{
+		asset:            asset,
+		MapEntityFactory: entity,
+		StampFactory:     stamp,
+		// This will be set to true when we are using a remote client connection, and then set to false after we process the GenerateMapPacket
+		IsLoading: false,
+	}
+
+	engine.Logger = d2util.NewLogger()
+	engine.Logger.SetLevel(l)
+	engine.Logger.SetPrefix(logPrefix)
+
+	return engine
+}
+
+// NewSizedMapEngine returns a *MapEngine with size and empty tiles/explored
+// grids already allocated (see ResetMap), but no DT1/level-type data
+// loaded and no *d2asset.AssetManager needed -- for tests and any other
+// caller that only needs tile-grid bookkeeping (Size/TileAt/MarkExplored/
+// IsExplored), not real rendering. d2player's own MiniMap tests are the
+// first caller: MapEngine's fields are unexported, so a test in a
+// different package (unlike this package's own internal tests) can't
+// build one directly, and ResetMap itself requires a real AssetManager
+// (m.asset.Records.Level.Types) this kind of test doesn't have, per the
+// same limitation documented throughout d2mapentity's own NPC/Player
+// tests.
+func NewSizedMapEngine(width, height int) *MapEngine {
+	return &MapEngine{
+		size:     d2geom.Size{Width: width, Height: height},
+		tiles:    make([]MapTile, width*height),
+		explored: make([]bool, width*height),
+	}
+}
+
+// GetStartingPosition returns the starting position on the map in sub-tiles.
+func (m *MapEngine) GetStartingPosition() (x, y int) {
+	return m.startSubTileX, m.startSubTileY
+}
+
+// ResetMap clears all map and entity data and reloads it from the cached files.
+func (m *MapEngine) ResetMap(levelType d2enum.RegionIdType, width, height int) {
+	m.entitiesMu.Lock()
+	m.entities = make(map[string]d2interface.MapEntity)
+	m.entitiesMu.Unlock()
+
+	m.levelType = *m.asset.Records.Level.Types[levelType]
+	m.size = d2geom.Size{Width: width, Height: height}
+	m.tiles = make([]MapTile, width*height)
+	// Reallocated alongside m.tiles, not touched anywhere else: a level
+	// transition (which reallocates m.tiles here) must also clear prior
+	// exploration -- real Diablo 2's own automap is per-level too.
+	m.explored = make([]bool, width*height)
+	m.dt1TileData = make([]d2dt1.Tile, 0)
+	m.dt1Files = make([]string, 0)
+
+	for idx := range m.levelType.Files {
+		m.addDT1(m.levelType.Files[idx])
+	}
+}
+
+func (m *MapEngine) addDT1(fileName string) {
+	if fileName == "" || fileName == "0" {
+		return
+	}
+
+	fileName = strings.ToLower(fileName)
+	for i := 0; i < len(m.dt1Files); i++ {
+		if m.dt1Files[i] == fileName {
+			return
+		}
+	}
+
+	dt1, err := m.asset.LoadDT1(fileName)
+	if err != nil {
+		m.Error(err.Error())
+	}
+
+	m.dt1TileData = append(m.dt1TileData, dt1.Tiles...)
+	m.dt1Files = append(m.dt1Files, fileName)
+}
+
+// AddDS1 loads DT1 files and performs string replacements on them. It
+// appends the tile data and files to MapEngine.dt1TileData and
+// MapEngine.dt1Files.
+func (m *MapEngine) AddDS1(fileName string) {
+	if fileName == "" || fileName == "0" {
+		return
+	}
+
+	ds1, err := m.asset.LoadDS1(fileName)
+	if err != nil {
+		m.Fatalf("Loading ds1: %v", err)
+	}
+
+	for idx := range ds1.Files {
+		dt1File := ds1.Files[idx]
+		dt1File = strings.ToLower(dt1File)
+		dt1File = strings.ReplaceAll(dt1File, "c:", "")       // Yes they did...
+		dt1File = strings.ReplaceAll(dt1File, ".tg1", ".dt1") // Yes they did...
+		dt1File = strings.ReplaceAll(dt1File, "\\d2\\data\\global\\tiles\\", "")
+		m.addDT1(strings.ReplaceAll(dt1File, "\\", "/"))
+	}
+}
+
+// LevelType returns the level type of this map.
+func (m *MapEngine) LevelType() d2records.LevelTypeRecord {
+	return m.levelType
+}
+
+// SetSeed sets the seed of the map for generation.
+func (m *MapEngine) SetSeed(seed int64) {
+	m.Infof("Setting map engine seed to %d", seed)
+	m.seed = seed
+}
+
+// Size returns the size of the map in sub-tiles.
+func (m *MapEngine) Size() d2geom.Size {
+	return m.size
+}
+
+// Tile returns the TileRecord containing the data
+// for a single map tile.
+func (m *MapEngine) Tile(x, y int) *MapTile {
+	return &m.tiles[x+(y*m.size.Width)]
+}
+
+// Tiles returns a pointer to a slice contaning all
+// map tile data.
+func (m *MapEngine) Tiles() *[]MapTile {
+	return &m.tiles
+}
+
+// PlaceStamp places a map stamp at the specified location, creating both entities
+// and tiles. Stamps are pre-defined map areas, see d2mapstamp.
+func (m *MapEngine) PlaceStamp(stamp *d2mapstamp.Stamp, tileOffsetX, tileOffsetY int) {
+	stampSize := stamp.Size()
+	stampW := stampSize.Width
+	stampH := stampSize.Height
+
+	mapW := m.size.Width
+	mapH := m.size.Height
+
+	xMin := tileOffsetX
+	yMin := tileOffsetY
+	xMax := xMin + stampSize.Width
+	yMax := yMin + stampSize.Height
+
+	if (xMin < 0) || (yMin < 0) || (xMax > mapW) || (yMax > mapH) {
+		panic("Tried placing a stamp outside the bounds of the map")
+	}
+
+	// Copy over the map tile data
+	for y := 0; y < stampH; y++ {
+		for x := 0; x < stampW; x++ {
+			targetTileIndex := m.tileCoordinateToIndex(x+xMin, y+yMin)
+			stampTile := *stamp.Tile(x, y)
+			m.tiles[targetTileIndex].RegionType = stamp.RegionID()
+			m.tiles[targetTileIndex].Components = stampTile
+			m.tiles[targetTileIndex].PrepareTile(x, y, m)
+		}
+	}
+
+	// Copy over the entities
+	stampEntities := stamp.Entities(tileOffsetX, tileOffsetY)
+
+	m.entitiesMu.Lock()
+	for idx := range stampEntities {
+		e := stampEntities[idx]
+		m.entities[e.ID()] = e
+	}
+	m.entitiesMu.Unlock()
+}
+
+// converts x,y tile coordinate into index in MapEngine.tiles
+func (m *MapEngine) tileCoordinateToIndex(x, y int) int {
+	return x + (y * m.size.Width)
+}
+
+// SubTileAt gets the flags for the given subtile
+func (m *MapEngine) SubTileAt(subX, subY int) *d2dt1.SubTileFlags {
+	tile := m.TileAt(subX/subtilesPerTile, subY/subtilesPerTile)
+
+	return tile.GetSubTileFlags(subX%subtilesPerTile, subY%subtilesPerTile)
+}
+
+// TileAt returns a pointer to the data for the map tile at the given
+// x and y index.
+func (m *MapEngine) TileAt(tileX, tileY int) *MapTile {
+	idx := m.tileCoordinateToIndex(tileX, tileY)
+	if idx < 0 || idx >= len(m.tiles) {
+		return nil
+	}
+
+	return &m.tiles[idx]
+}
+
+// MarkExplored marks the tile at (tileX, tileY) as explored (see
+// IsExplored) -- d2player.MiniMap's own bookkeeping for an ever-growing
+// "seen" overlay, matching real Diablo 2's own per-level automap
+// behavior of only revealing tiles once visited. Out-of-bounds
+// coordinates are silently ignored, same as TileAt.
+func (m *MapEngine) MarkExplored(tileX, tileY int) {
+	idx := m.tileCoordinateToIndex(tileX, tileY)
+	if idx < 0 || idx >= len(m.explored) {
+		return
+	}
+
+	m.explored[idx] = true
+}
+
+// IsExplored reports whether the tile at (tileX, tileY) has ever been
+// marked explored (see MarkExplored). Out-of-bounds coordinates report
+// false, same as TileAt returning nil.
+func (m *MapEngine) IsExplored(tileX, tileY int) bool {
+	idx := m.tileCoordinateToIndex(tileX, tileY)
+	if idx < 0 || idx >= len(m.explored) {
+		return false
+	}
+
+	return m.explored[idx]
+}
+
+// Entities returns a snapshot copy of all map entities, safe to range over
+// without racing a concurrent AddEntity/RemoveEntity call.
+//
+// Correction (août 2026, concurrency-safety audit): this used to return the
+// live m.entities map itself. The AI-tick goroutine (GameServer's
+// advanceMonsterAI, its own 200ms ticker) ranges this on every tick while
+// the packet-dispatch goroutine can call RemoveEntity on a kill -- a
+// concurrent range+delete on the same Go map is a
+// "fatal error: concurrent map iteration and map write" that crashes the
+// whole process, not just a stale read. Every one of the 15 call sites of
+// Entities() across the repo (verified) only ever reads from the returned
+// value, none writes through it, so returning a copy is fully transparent.
+func (m *MapEngine) Entities() map[string]d2interface.MapEntity {
+	m.entitiesMu.Lock()
+	defer m.entitiesMu.Unlock()
+
+	snapshot := make(map[string]d2interface.MapEntity, len(m.entities))
+	for id, entity := range m.entities {
+		snapshot[id] = entity
+	}
+
+	return snapshot
+}
+
+// Seed returns the map generation seed.
+func (m *MapEngine) Seed() int64 {
+	return m.seed
+}
+
+// AddEntity adds an entity to a slice containing all entities.
+func (m *MapEngine) AddEntity(entity d2interface.MapEntity) {
+	m.entitiesMu.Lock()
+	defer m.entitiesMu.Unlock()
+
+	m.entities[entity.ID()] = entity
+}
+
+// RemoveEntity removes an entity from the map engine
+func (m *MapEngine) RemoveEntity(entity d2interface.MapEntity) {
+	if entity == nil {
+		return
+	}
+
+	m.entitiesMu.Lock()
+	defer m.entitiesMu.Unlock()
+
+	delete(m.entities, entity.ID())
+}
+
+// GetTiles returns a slice of all tiles matching the given style,
+// sequence and tileType.
+func (m *MapEngine) GetTiles(style, sequence int, tileType d2enum.TileType) []d2dt1.Tile {
+	tiles := make([]d2dt1.Tile, 0)
+
+	for idx := range m.dt1TileData {
+		if m.dt1TileData[idx].Style != int32(style) || m.dt1TileData[idx].Sequence != int32(sequence) ||
+			m.dt1TileData[idx].Type != int32(tileType) {
+			continue
+		}
+
+		tiles = append(tiles, m.dt1TileData[idx])
+	}
+
+	if len(tiles) == 0 {
+		m.Warningf("Unknown tile ID [%d %d %d]", style, sequence, tileType)
+		return nil
+	}
+
+	return tiles
+}
+
+// GetStartPosition returns the spawn point on entering the current map.
+func (m *MapEngine) GetStartPosition() (x, y float64) {
+	for tileY := 0; tileY < m.size.Height; tileY++ {
+		for tileX := 0; tileX < m.size.Width; tileX++ {
+			tile := m.tiles[tileX+(tileY*m.size.Width)].Components
+			for idx := range tile.Walls {
+				if tile.Walls[idx].Type.Special() && tile.Walls[idx].Style == 30 {
+					// nolint:gomnd // constant
+					return float64(tileX) + 0.5, float64(tileY) + 0.5
+				}
+			}
+		}
+	}
+
+	return m.GetCenterPosition()
+}
+
+// GetCenterPosition returns the center point of the map.
+func (m *MapEngine) GetCenterPosition() (x, y float64) {
+	// nolint:gomnd // half of size
+	return float64(m.size.Width) / 2.0, float64(m.size.Height) / 2.0
+}
+
+// Advance calls the Advance() method for all entities,
+// processing a single tick.
+// Correction (août 2026, concurrency-safety audit): this used to range
+// m.entities directly and unguarded. A snapshot is taken under
+// entitiesMu and the lock released *before* calling each entity's own
+// Advance -- deliberately not held across those calls, because at least
+// one entity (Missile, via mapEntity.Step's "if the path is complete it
+// calls entity.done()") can synchronously call back into RemoveEntity
+// from inside its own Advance -- holding entitiesMu here would make that
+// a reentrant Lock() on a non-reentrant sync.Mutex, an unconditional
+// deadlock, not just a rare one.
+func (m *MapEngine) Advance(tickTime float64) {
+	if m.IsLoading {
+		// https://github.com/OpenDiablo2/OpenDiablo2/issues/789
+		return
+	}
+
+	m.entitiesMu.Lock()
+
+	entities := make([]d2interface.MapEntity, 0, len(m.entities))
+	for _, entity := range m.entities {
+		entities = append(entities, entity)
+	}
+
+	m.entitiesMu.Unlock()
+
+	for _, entity := range entities {
+		entity.Advance(tickTime)
+	}
+}
+
+// TileExists returns true if the tile at the given coordinates exists.
+func (m *MapEngine) TileExists(tileX, tileY int) bool {
+	tileIndex := m.tileCoordinateToIndex(tileX, tileY)
+
+	if valid := (tileIndex >= 0) && (tileIndex <= len(m.tiles)); valid {
+		tile := m.tiles[tileIndex].Components
+		numFeatures := len(tile.Floors)
+		numFeatures += len(tile.Shadows)
+		numFeatures += len(tile.Walls)
+		numFeatures += len(tile.Substitutions)
+
+		return numFeatures > 0
+	}
+
+	return false
+}
+
+// GenerateMap clears the map and places the specified stamp.
+func (m *MapEngine) GenerateMap(regionType d2enum.RegionIdType, levelPreset, fileIndex int) {
+	region := m.LoadStamp(regionType, levelPreset, fileIndex)
+	regionSize := region.Size()
+	m.ResetMap(regionType, regionSize.Width, regionSize.Height)
+	m.PlaceStamp(region, 0, 0)
+}
+
+// GetTileData returns the tile with the given style, sequence, tileType and index.
+func (m *MapEngine) GetTileData(style, sequence int, tileType d2enum.TileType, index byte) *d2dt1.Tile {
+	for idx := range m.dt1TileData {
+		if m.dt1TileData[idx].Style == int32(style) && m.dt1TileData[idx].Sequence == int32(sequence) &&
+			m.dt1TileData[idx].Type == int32(tileType) && m.dt1TileData[idx].RarityFrameIndex == int32(index) {
+			return &m.dt1TileData[idx]
+		}
+	}
+
+	return nil
+}
