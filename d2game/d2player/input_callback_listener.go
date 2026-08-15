@@ -13,4 +13,5 @@ type inputCallbackListener interface {
 	OnToggleOverload()
 	OnMoveToStash(inventoryIndex int)
 	OnMoveToInventory(stashIndex int)
+	OnMoveFromBelt(beltIndex int)
 }

@@ -18,7 +18,14 @@ import (
 // grids (Devil's Inventory/Stash are both a flat 40 slots,
 // d2hero.InitStorage) of plain-text slots (inventorySlot) -- clicking an
 // Inventory slot requests MoveToStash, clicking a Stash slot requests
-// MoveToInventory. The Belt is a separate follow-up, not covered here.
+// MoveToInventory. The Belt is a third, single row (its capacity is fixed
+// for the whole game too: InitBelt is only ever called once, at character
+// creation, from the one belt item that exists) -- clicking a Belt slot
+// requests MoveFromBelt (Belt -> Inventory). The reverse direction
+// (Inventory -> Belt) isn't covered: an Inventory slot's click is already
+// claimed by MoveToStash, and a second click meaning could only come from
+// a distinct gesture (right-click, a mode toggle...) this pass doesn't
+// add -- a real, separate follow-up, not an oversight.
 //
 // ponytail: no real art of any kind exists for this (ROADMAP.md Phase 6),
 // so like DevilHUD this renders as plain text/rectangles rather than
@@ -30,6 +37,7 @@ const (
 	devilInventoryOriginX = 40
 	devilInventoryOriginY = 100
 	devilStashOriginY     = 250
+	devilBeltOriginY      = 400
 
 	devilInventoryColSpacing = 90
 	devilInventoryRowSpacing = 20
@@ -56,6 +64,7 @@ type devilInventoryPanel struct {
 	onCloseCb           func()
 	onMoveToStashCb     func(inventoryIndex int)
 	onMoveToInventoryCb func(stashIndex int)
+	onMoveFromBeltCb    func(beltIndex int)
 
 	*d2util.Logger
 }
@@ -71,6 +80,12 @@ func (p *devilInventoryPanel) SetOnMoveToStashCb(cb func(inventoryIndex int)) { 
 // Stash slot, requesting to move its item to the Inventory.
 func (p *devilInventoryPanel) SetOnMoveToInventoryCb(cb func(stashIndex int)) {
 	p.onMoveToInventoryCb = cb
+}
+
+// SetOnMoveFromBeltCb sets the callback run when the player clicks a Belt
+// slot, requesting to move its potion to the Inventory.
+func (p *devilInventoryPanel) SetOnMoveFromBeltCb(cb func(beltIndex int)) {
+	p.onMoveFromBeltCb = cb
 }
 
 // load builds the panel's widgets against player's own Inventory/Stash
@@ -94,6 +109,12 @@ func (p *devilInventoryPanel) load(player *d2mapentity.Player) {
 	p.loadGrid(&player.Stash, devilStashOriginY, func(index int) {
 		if p.onMoveToInventoryCb != nil {
 			p.onMoveToInventoryCb(index)
+		}
+	})
+
+	p.loadGrid(&player.Belt, devilBeltOriginY, func(index int) {
+		if p.onMoveFromBeltCb != nil {
+			p.onMoveFromBeltCb(index)
 		}
 	})
 

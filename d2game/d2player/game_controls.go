@@ -269,6 +269,7 @@ func NewGameControls(
 	gc.devilInventoryPanel.SetOnCloseCb(gc.onCloseDevilInventoryPanel)
 	gc.devilInventoryPanel.SetOnMoveToStashCb(gc.inputListener.OnMoveToStash)
 	gc.devilInventoryPanel.SetOnMoveToInventoryCb(gc.inputListener.OnMoveToInventory)
+	gc.devilInventoryPanel.SetOnMoveFromBeltCb(gc.inputListener.OnMoveFromBelt)
 	gc.hud.skillSelectMenu.SetOnEquipCb(gc.inputListener.OnEquipSkill)
 
 	gc.escapeMenu.SetOnCloseCb(gc.hud.miniPanel.restoreDisabled)

@@ -464,6 +464,21 @@ func (v *Game) OnMoveToInventory(stashIndex int) {
 	}
 }
 
+// OnMoveFromBelt sends a request to move a belt potion to the inventory
+// (d2hero.HeroState.MoveFromBelt), triggered by clicking a Belt slot in
+// devilInventoryPanel.
+func (v *Game) OnMoveFromBelt(beltIndex int) {
+	mp, err := d2netpacket.CreateMoveFromBeltRequestPacket(v.gameClient.PlayerID, beltIndex)
+	if err != nil {
+		v.Errorf("MoveFromBeltRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(mp); err != nil {
+		v.Errorf("MoveFromBeltRequestPacket: player %s, index %d: %v", v.gameClient.PlayerID, beltIndex, err)
+	}
+}
+
 // OnEquipSkill sends a request to assign an already-learned skill to the
 // given active-skill slot (d2hero.HeroState.EquipSkill), triggered by
 // picking a skill from the left/right skill-select popup.
