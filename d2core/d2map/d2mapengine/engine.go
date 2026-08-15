@@ -30,6 +30,7 @@ type MapEngine struct {
 	entitiesMu    sync.Mutex                       // guards entities -- see Entities/AddEntity/RemoveEntity/Advance
 	entities      map[string]d2interface.MapEntity // Entities on the map
 	tiles         []MapTile
+	explored      []bool                    // Which tiles have ever been seen, see MarkExplored/IsExplored
 	size          d2geom.Size               // Size of the map, in tiles
 	levelType     d2records.LevelTypeRecord // Level type of this map
 	dt1TileData   []d2dt1.Tile              // DT1 tile data
@@ -67,6 +68,25 @@ func CreateMapEngine(l d2util.LogLevel, asset *d2asset.AssetManager) *MapEngine 
 	return engine
 }
 
+// NewSizedMapEngine returns a *MapEngine with size and empty tiles/explored
+// grids already allocated (see ResetMap), but no DT1/level-type data
+// loaded and no *d2asset.AssetManager needed -- for tests and any other
+// caller that only needs tile-grid bookkeeping (Size/TileAt/MarkExplored/
+// IsExplored), not real rendering. d2player's own MiniMap tests are the
+// first caller: MapEngine's fields are unexported, so a test in a
+// different package (unlike this package's own internal tests) can't
+// build one directly, and ResetMap itself requires a real AssetManager
+// (m.asset.Records.Level.Types) this kind of test doesn't have, per the
+// same limitation documented throughout d2mapentity's own NPC/Player
+// tests.
+func NewSizedMapEngine(width, height int) *MapEngine {
+	return &MapEngine{
+		size:     d2geom.Size{Width: width, Height: height},
+		tiles:    make([]MapTile, width*height),
+		explored: make([]bool, width*height),
+	}
+}
+
 // GetStartingPosition returns the starting position on the map in sub-tiles.
 func (m *MapEngine) GetStartingPosition() (x, y int) {
 	return m.startSubTileX, m.startSubTileY
@@ -81,6 +101,10 @@ func (m *MapEngine) ResetMap(levelType d2enum.RegionIdType, width, height int) {
 	m.levelType = *m.asset.Records.Level.Types[levelType]
 	m.size = d2geom.Size{Width: width, Height: height}
 	m.tiles = make([]MapTile, width*height)
+	// Reallocated alongside m.tiles, not touched anywhere else: a level
+	// transition (which reallocates m.tiles here) must also clear prior
+	// exploration -- real Diablo 2's own automap is per-level too.
+	m.explored = make([]bool, width*height)
 	m.dt1TileData = make([]d2dt1.Tile, 0)
 	m.dt1Files = make([]string, 0)
 
@@ -223,6 +247,32 @@ func (m *MapEngine) TileAt(tileX, tileY int) *MapTile {
 	}
 
 	return &m.tiles[idx]
+}
+
+// MarkExplored marks the tile at (tileX, tileY) as explored (see
+// IsExplored) -- d2player.MiniMap's own bookkeeping for an ever-growing
+// "seen" overlay, matching real Diablo 2's own per-level automap
+// behavior of only revealing tiles once visited. Out-of-bounds
+// coordinates are silently ignored, same as TileAt.
+func (m *MapEngine) MarkExplored(tileX, tileY int) {
+	idx := m.tileCoordinateToIndex(tileX, tileY)
+	if idx < 0 || idx >= len(m.explored) {
+		return
+	}
+
+	m.explored[idx] = true
+}
+
+// IsExplored reports whether the tile at (tileX, tileY) has ever been
+// marked explored (see MarkExplored). Out-of-bounds coordinates report
+// false, same as TileAt returning nil.
+func (m *MapEngine) IsExplored(tileX, tileY int) bool {
+	idx := m.tileCoordinateToIndex(tileX, tileY)
+	if idx < 0 || idx >= len(m.explored) {
+		return false
+	}
+
+	return m.explored[idx]
 }
 
 // Entities returns a snapshot copy of all map entities, safe to range over

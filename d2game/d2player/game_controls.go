@@ -216,7 +216,9 @@ func NewGameControls(
 		heroState:           heroState,
 		escapeMenu:          escapeMenu,
 		inputListener:       inputListener,
+		mapEngine:           mapEngine,
 		mapRenderer:         mapRenderer,
+		miniMap:             &MiniMap{},
 		inventory:           inventory,
 		skilltree:           skilltree,
 		devilInventoryPanel: devilInventoryPanel,
@@ -299,7 +301,9 @@ type GameControls struct {
 	inputListener          inputCallbackListener
 	hero                   *d2mapentity.Player
 	heroState              *d2hero.HeroStateFactory
+	mapEngine              *d2mapengine.MapEngine
 	mapRenderer            *d2maprenderer.MapRenderer
+	miniMap                *MiniMap
 	escapeMenu             *EscapeMenu
 	ui                     *d2ui.UIManager
 	inventory              *Inventory
@@ -419,6 +423,10 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.inputListener.OnToggleOverload()
 	case d2enum.ToggleMarqueArdente:
 		g.inputListener.OnToggleMarqueArdente()
+	case d2enum.ToggleMiniMap, d2enum.ToggleAutomap:
+		// Same toggle for both: see MiniMap.Visible's own doc comment
+		// for why this isn't two separate features.
+		g.miniMap.Toggle()
 	case d2enum.ToggleDevilInventory:
 		g.toggleDevilInventoryPanel()
 	case d2enum.UseRespecEssence:
@@ -778,6 +786,12 @@ func (g *GameControls) Load() {
 		skilltreeToggle: g.toggleSkilltreePanel,
 		menuToggle:      g.openEscMenu,
 		questToggle:     g.toggleQuestLog,
+		// Correction (août 2026): this was left nil -- a real, if dead,
+		// button (d2ui.Button.Activate() no-ops on a nil onClick, so
+		// clicking it did nothing rather than panicking) now wired to
+		// the same MiniMap.Toggle the ToggleMiniMap/ToggleAutomap
+		// keybindings use.
+		automapToggle: g.miniMap.Toggle,
 	}
 	g.hud.miniPanel.load(miniPanelActions)
 }
@@ -788,6 +802,7 @@ func (g *GameControls) Advance(elapsed float64) error {
 	g.hud.Advance(elapsed)
 	g.inventory.Advance(elapsed)
 	g.questLog.Advance(elapsed)
+	g.miniMap.Advance(g.mapEngine, g.hero)
 
 	if g.PartyPanel != nil {
 		g.PartyPanel.Advance(elapsed)
@@ -886,6 +901,8 @@ func (g *GameControls) Render(target d2interface.Surface) error {
 	if err := g.escapeMenu.Render(target); err != nil {
 		return err
 	}
+
+	g.miniMap.Render(target, g.mapEngine, g.hero)
 
 	return nil
 }

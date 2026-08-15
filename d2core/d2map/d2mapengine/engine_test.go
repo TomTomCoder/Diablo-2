@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2geom"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2interface"
 	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2math/d2vector"
 )
@@ -32,6 +33,44 @@ func (f *fakeEntity) Highlight()                       {}
 func (f *fakeEntity) Advance(tickTime float64) {
 	if f.onAdvance != nil {
 		f.onAdvance()
+	}
+}
+
+func TestMarkExploredAndIsExplored(t *testing.T) {
+	m := &MapEngine{size: d2geom.Size{Width: 10, Height: 10}, explored: make([]bool, 100)}
+
+	if m.IsExplored(3, 4) {
+		t.Fatal("expected a fresh map to have no explored tiles")
+	}
+
+	m.MarkExplored(3, 4)
+
+	if !m.IsExplored(3, 4) {
+		t.Error("expected the marked tile to report explored")
+	}
+
+	if m.IsExplored(3, 5) {
+		t.Error("expected a neighboring, never-marked tile to still report unexplored")
+	}
+}
+
+// TestMarkExploredOutOfBoundsIsNoop and TestIsExploredOutOfBoundsIsFalse
+// mirror TileAt's own out-of-bounds handling (nil rather than a panic) --
+// MarkExplored/IsExplored must never index-panic on a coordinate outside
+// the map, e.g. from a player standing at the very edge of a level.
+func TestMarkExploredOutOfBoundsIsNoop(t *testing.T) {
+	m := &MapEngine{size: d2geom.Size{Width: 10, Height: 10}, explored: make([]bool, 100)}
+
+	// must not panic.
+	m.MarkExplored(-1, -1)
+	m.MarkExplored(100, 100)
+}
+
+func TestIsExploredOutOfBoundsIsFalse(t *testing.T) {
+	m := &MapEngine{size: d2geom.Size{Width: 10, Height: 10}, explored: make([]bool, 100)}
+
+	if m.IsExplored(-1, -1) || m.IsExplored(100, 100) {
+		t.Error("expected out-of-bounds coordinates to report unexplored, not panic or report true")
 	}
 }
 
