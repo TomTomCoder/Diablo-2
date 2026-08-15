@@ -22,10 +22,14 @@ import (
 // for the whole game too: InitBelt is only ever called once, at character
 // creation, from the one belt item that exists) -- clicking a Belt slot
 // requests MoveFromBelt (Belt -> Inventory). The reverse direction
-// (Inventory -> Belt) isn't covered: an Inventory slot's click is already
-// claimed by MoveToStash, and a second click meaning could only come from
-// a distinct gesture (right-click, a mode toggle...) this pass doesn't
-// add -- a real, separate follow-up, not an oversight.
+// (Inventory -> Belt) reuses the same armed-mode pattern proven out by
+// Glyphe d'oubli (see skillTree.ArmGlypheDOubli's doc comment): an
+// Inventory slot's click is already claimed by MoveToStash, so
+// ArmMoveToBelt() (keybinding, d2enum.ArmMoveToBelt) arms a flag first;
+// the next Inventory slot click requests MoveToBelt instead, then
+// disarms itself regardless of outcome. HeroState.MoveToBelt/the
+// MoveToBeltRequest packet/resolveMoveToBelt already existed (built
+// alongside MoveFromBelt) but had no UI trigger until now.
 //
 // ponytail: no real art of any kind exists for this (ROADMAP.md Phase 6),
 // so like DevilHUD this renders as plain text/rectangles rather than
@@ -65,6 +69,8 @@ type devilInventoryPanel struct {
 	onMoveToStashCb     func(inventoryIndex int)
 	onMoveToInventoryCb func(stashIndex int)
 	onMoveFromBeltCb    func(beltIndex int)
+	onMoveToBeltCb      func(inventoryIndex int)
+	moveToBeltArmed     bool
 
 	*d2util.Logger
 }
@@ -88,6 +94,21 @@ func (p *devilInventoryPanel) SetOnMoveFromBeltCb(cb func(beltIndex int)) {
 	p.onMoveFromBeltCb = cb
 }
 
+// SetOnMoveToBeltCb sets the callback run when the player, with
+// ArmMoveToBelt armed, clicks an Inventory slot, requesting its item move
+// to the Belt instead of the Stash.
+func (p *devilInventoryPanel) SetOnMoveToBeltCb(cb func(inventoryIndex int)) {
+	p.onMoveToBeltCb = cb
+}
+
+// ArmMoveToBelt arms the Inventory -> Belt direction: the next click on
+// an Inventory slot requests MoveToBelt instead of MoveToStash, then
+// disarms itself. See this panel's own doc comment for the full
+// reasoning (same armed-mode pattern as skillTree.ArmGlypheDOubli).
+func (p *devilInventoryPanel) ArmMoveToBelt() {
+	p.moveToBeltArmed = true
+}
+
 // load builds the panel's widgets against player's own Inventory/Stash
 // slices -- one inventorySlot per fixed slot index in each (see
 // inventorySlot's own doc comment for why this stays correct as content
@@ -101,6 +122,20 @@ func (p *devilInventoryPanel) load(player *d2mapentity.Player) {
 	p.panelGroup.AddWidget(p.closeButton)
 
 	p.loadGrid(&player.Inventory, devilInventoryOriginY, func(index int) {
+		// ArmMoveToBelt's armed mode (see this panel's own doc
+		// comment): a click already claimed by MoveToStash branches to
+		// MoveToBelt instead when armed, then disarms unconditionally
+		// -- same tolerance as ArmGlypheDOubli's own armed clicks.
+		if p.moveToBeltArmed {
+			p.moveToBeltArmed = false
+
+			if p.onMoveToBeltCb != nil {
+				p.onMoveToBeltCb(index)
+			}
+
+			return
+		}
+
 		if p.onMoveToStashCb != nil {
 			p.onMoveToStashCb(index)
 		}

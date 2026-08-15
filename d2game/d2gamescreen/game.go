@@ -479,6 +479,22 @@ func (v *Game) OnMoveFromBelt(beltIndex int) {
 	}
 }
 
+// OnMoveToBelt sends a request to move an inventory potion to the belt
+// (d2hero.HeroState.MoveToBelt), triggered by clicking an Inventory slot
+// in devilInventoryPanel while ArmMoveToBelt is armed -- OnMoveToStash's
+// own mirror, see devilInventoryPanel.ArmMoveToBelt's doc comment.
+func (v *Game) OnMoveToBelt(inventoryIndex int) {
+	mp, err := d2netpacket.CreateMoveToBeltRequestPacket(v.gameClient.PlayerID, inventoryIndex)
+	if err != nil {
+		v.Errorf("MoveToBeltRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(mp); err != nil {
+		v.Errorf("MoveToBeltRequestPacket: player %s, index %d: %v", v.gameClient.PlayerID, inventoryIndex, err)
+	}
+}
+
 // OnUseRespecEssence sends a request for a full respec by consuming an
 // Essence de Boss (Ordinaire) from inventory
 // (d2hero.HeroState.UseRespecEssence), triggered by the UseRespecEssence

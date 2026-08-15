@@ -14,6 +14,7 @@ type inputCallbackListener interface {
 	OnMoveToStash(inventoryIndex int)
 	OnMoveToInventory(stashIndex int)
 	OnMoveFromBelt(beltIndex int)
+	OnMoveToBelt(inventoryIndex int)
 	OnUseRespecEssence()
 	OnRespecSingleSkill(skillID int)
 	OnRespecSingleAttributePoint(attr d2hero.Attribute)

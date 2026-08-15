@@ -129,4 +129,13 @@ const (
 	// mode rather than extending d2ui.ClickableWidget with a second click
 	// type.
 	ArmGlypheDOubli
+
+	// ArmMoveToBelt arms the Inventory -> Belt direction
+	// (d2game/d2player's devilInventoryPanel.ArmMoveToBelt): the next
+	// click on an Inventory slot requests moving its item to the belt
+	// instead of the stash. Same reasoning as ArmGlypheDOubli -- an
+	// Inventory slot's click is already claimed by MoveToStash, and the
+	// underlying MoveToBelt mechanism/packet/resolver already existed
+	// (built alongside MoveFromBelt) but had no UI trigger until now.
+	ArmMoveToBelt
 )

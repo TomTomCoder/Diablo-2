@@ -272,6 +272,7 @@ func NewGameControls(
 	gc.devilInventoryPanel.SetOnMoveToStashCb(gc.inputListener.OnMoveToStash)
 	gc.devilInventoryPanel.SetOnMoveToInventoryCb(gc.inputListener.OnMoveToInventory)
 	gc.devilInventoryPanel.SetOnMoveFromBeltCb(gc.inputListener.OnMoveFromBelt)
+	gc.devilInventoryPanel.SetOnMoveToBeltCb(gc.inputListener.OnMoveToBelt)
 	gc.hud.skillSelectMenu.SetOnEquipCb(gc.inputListener.OnEquipSkill)
 
 	gc.escapeMenu.SetOnCloseCb(gc.hud.miniPanel.restoreDisabled)
@@ -430,6 +431,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		// the other.
 		g.skilltree.ArmGlypheDOubli()
 		g.heroStatsPanel.ArmGlypheDOubli()
+	case d2enum.ArmMoveToBelt:
+		g.devilInventoryPanel.ArmMoveToBelt()
 	default:
 		return false
 	}
