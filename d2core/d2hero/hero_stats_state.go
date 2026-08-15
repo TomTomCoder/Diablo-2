@@ -103,12 +103,60 @@ type HeroStatsState struct {
 	NextLevelExp int `json:"-"`
 }
 
+// devilPlaceholderCharStats stands in for the real per-class charstats.txt
+// record HeroDevil doesn't have (it isn't one of the seven Diablo II
+// classes that stock data table is loaded for) -- CreateHeroStatsState
+// dereferences classStats unconditionally, so a missing entry would panic
+// character creation outright rather than just looking wrong. Explicitly
+// provisional: none of these particular numbers (base attributes, life
+// per point of Vitality, mana per point of Energy, starting Stamina) are
+// specified anywhere in Devil's own design docs, unlike most of the
+// numbers already in this package -- chosen to fit the squishy
+// spellcaster archetype the design docs DO describe (magic-only damage,
+// no melee relevance), not derived from any cited source. Replace once
+// the studio provides real numbers.
+//
+// nolint:gochecknoglobals // a read-only stand-in record, not mutable
+// shared state -- same practice as DevilSkills/DevilCraftingRecipes.
+var devilPlaceholderCharStats = &d2records.CharStatRecord{
+	InitStr:     15,
+	InitDex:     20,
+	InitVit:     15,
+	InitEne:     25,
+	InitStamina: 70,
+	LifePerVit:  3,
+	ManaPerEne:  2,
+}
+
 // CreateHeroStatsState generates a running state from a hero stats.
 func (f *HeroStateFactory) CreateHeroStatsState(heroClass d2enum.Hero, classStats *d2records.CharStatRecord) *HeroStatsState {
+	// HeroDevil has no entry in either stock table this function would
+	// otherwise read: Character.Stats is loaded from the real game's
+	// charstats.txt (seven real classes only) -- classStats arrives nil
+	// for HeroDevil, and this dereferences it unconditionally below, so
+	// substituting the placeholder here isn't optional, it's what stops
+	// character creation from panicking outright. usePlaceholder also
+	// covers any other caller passing a nil classStats (defensive: the
+	// real 7-class lookup shouldn't ever miss, but nothing should panic
+	// if it somehow does) -- gating the experience-breakpoint lookup on
+	// the very same condition, not just on heroClass, so a nil classStats
+	// never falls through to f.asset.Records either; f.asset itself may
+	// be nil in that case (as it is for HeroDevil, which never has a real
+	// AssetManager-backed lookup to make).
+	usePlaceholder := heroClass == d2enum.HeroDevil || classStats == nil
+	if usePlaceholder {
+		classStats = devilPlaceholderCharStats
+	}
+
+	nextLevelExp := experienceForLevel(1)
+	if !usePlaceholder {
+		nextLevelExp = f.asset.Records.GetExperienceBreakpoint(heroClass, 1)
+	}
+
 	result := HeroStatsState{
 		Level:        1,
 		Experience:   0,
-		NextLevelExp: f.asset.Records.GetExperienceBreakpoint(heroClass, 1),
+		NextLevelExp: nextLevelExp,
 		Strength:     classStats.InitStr,
 		Dexterity:    classStats.InitDex,
 		Vitality:     classStats.InitVit,

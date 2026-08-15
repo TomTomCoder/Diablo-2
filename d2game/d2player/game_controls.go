@@ -44,6 +44,10 @@ const (
 	manaGlobe
 )
 
+// sorceressInventoryRecordKey is Sorceress2's InventoryRecord key --
+// HeroDevil's own fallback below, no InventoryRecord of its own existing.
+const sorceressInventoryRecordKey = "Sorceress2"
+
 const (
 	leftSkillX,
 	leftSkillY,
@@ -127,7 +131,15 @@ func NewGameControls(
 	case d2enum.HeroPaladin:
 		inventoryRecordKey = "Paladin2"
 	case d2enum.HeroSorceress:
-		inventoryRecordKey = "Sorceress2"
+		inventoryRecordKey = sorceressInventoryRecordKey
+	case d2enum.HeroDevil:
+		// ponytail: no HeroDevil-specific InventoryRecord exists (this key
+		// selects a stock inventory.txt panel layout, not something this
+		// codebase generates) -- reusing Sorceress2's layout as the
+		// closest thematic fit (a caster class) rather than inventing a
+		// new layout, same practice as Devil's own skill icons falling
+		// back to the generic sheet (NewDevilHeroSkill's Charclass "").
+		inventoryRecordKey = sorceressInventoryRecordKey
 	default:
 		return nil, fmt.Errorf("unknown hero class: %d", hero.Class)
 	}

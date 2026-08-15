@@ -287,6 +287,8 @@ func makeCloseButtonPos(close1, close2, close3 int) [numTabs]int {
 	return [numTabs]int{close1, close2, close3}
 }
 
+// nolint:funlen // a per-class data table (8 literal entries), not real
+// branching complexity -- same practice as DevilSkills/DevilCraftingRecipes.
 func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 	tabMap := map[d2enum.Hero]*heroTabData{
 		d2enum.HeroBarbarian: {
@@ -349,6 +351,28 @@ func (s *skillTree) getTab(class d2enum.Hero) *heroTabData {
 			s.makeTabString("StrSklTree25", "StrSklTree5"),
 			s.makeTabString("StrSklTree24", "StrSklTree5"),
 			s.makeTabString("StrSklTree23", "StrSklTree5"),
+			makeCloseButtonPos(
+				skillCloseButtonXLeft,
+				skillCloseButtonXLeft,
+				skillCloseButtonXRight),
+		},
+		// HeroDevil reuses Sorceress' panel/icon sheet graphics (closest
+		// thematic fit among the seven real classes, same practice as
+		// inventoryRecordKey in game_controls.go) -- but not her tab
+		// labels: those are real D2 strings.tbl entries ("Fire Spells"
+		// etc.) that would misname Devil's own trees. Devil's three tree
+		// names are already real, specified data (d2hero.SkillTree's own
+		// values), so used directly here instead of borrowing mismatched
+		// ones through s.makeTabString -- order matches SkillGridPosition's
+		// own page numbering (TreeElementalisme=page1=firstTab, and so on).
+		d2enum.HeroDevil: {
+			&skillTreeHeroTypeResources{
+				skillPanelPath: d2resource.SkillsPanelSorcerer,
+				skillIconPath:  d2resource.SorcererSkills,
+			},
+			"Élémentalisme",
+			"Arcane",
+			"Ésotérisme",
 			makeCloseButtonPos(
 				skillCloseButtonXLeft,
 				skillCloseButtonXLeft,

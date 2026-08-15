@@ -36,5 +36,7 @@ func _(s string) {
 	case "Amazon":
 	// 7
 	case "Druid":
+	// 8
+	case "Devil":
 	}
 }

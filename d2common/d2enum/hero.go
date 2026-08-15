@@ -18,6 +18,15 @@ const (
 	HeroSorceress               // Sorceress
 	HeroAmazon                  // Amazon
 	HeroDruid                   // Druid
+	// HeroDevil is Devil's own hero token (ROADMAP.md Phase 6) --
+	// previously Devil reused one of the seven Diablo II class tokens
+	// above purely for cosmetic resource lookups (skill icon sheets,
+	// inventory panel layout...); every one of those lookups now has a
+	// HeroDevil case pointing at the same generic/placeholder resources
+	// Devil's own skills already fall back to (Charclass "", see
+	// d2hero.NewDevilHeroSkill), so this is additive -- nothing that used
+	// to work for the seven real classes changes.
+	HeroDevil // Devil
 )
 
 // GetToken returns a 2 letter token
@@ -37,6 +46,8 @@ func (h Hero) GetToken() string {
 		return "AM"
 	case HeroDruid:
 		return "DZ"
+	case HeroDevil:
+		return "DE"
 	default:
 		log.Fatalf("Unknown hero token: %d", h)
 	}
@@ -61,6 +72,8 @@ func (h Hero) GetToken3() string {
 		return "AMA"
 	case HeroDruid:
 		return "DRU"
+	case HeroDevil:
+		return "DEV"
 	default:
 		log.Fatalf("Unknown hero token: %d", h)
 	}

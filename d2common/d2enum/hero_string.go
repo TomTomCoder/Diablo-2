@@ -16,15 +16,17 @@ func _() {
 	_ = x[HeroSorceress-5]
 	_ = x[HeroAmazon-6]
 	_ = x[HeroDruid-7]
+	_ = x[HeroDevil-8]
 }
 
-const _Hero_name = "BarbarianNecromancerPaladinAssassinSorceressAmazonDruid"
+const _Hero_name = "BarbarianNecromancerPaladinAssassinSorceressAmazonDruidDevil"
 
-var _Hero_index = [...]uint8{0, 0, 9, 20, 27, 35, 44, 50, 55}
+var _Hero_index = [...]uint8{0, 0, 9, 20, 27, 35, 44, 50, 55, 60}
 
 func (i Hero) String() string {
-	if i < 0 || i >= Hero(len(_Hero_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Hero_index)-1 {
 		return "Hero(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Hero_name[_Hero_index[i]:_Hero_index[i+1]]
+	return _Hero_name[_Hero_index[idx]:_Hero_index[idx+1]]
 }

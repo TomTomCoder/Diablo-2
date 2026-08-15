@@ -3,6 +3,8 @@ package d2hero
 import (
 	"testing"
 	"time"
+
+	"github.com/OpenDiablo2/OpenDiablo2/d2common/d2enum"
 )
 
 func TestHeroStatsStateApplyDamage(t *testing.T) {
@@ -366,5 +368,51 @@ func TestRespecAllAttributePointsShrinksMaxHealthAndMana(t *testing.T) {
 
 	if stats.MaxMana != 30 || stats.Mana != 30 {
 		t.Errorf("expected MaxMana=Mana=30, got MaxMana=%d Mana=%d", stats.MaxMana, stats.Mana)
+	}
+}
+
+// TestCreateHeroStatsStateForHeroDevilDoesNotPanic is a regression test for
+// the real crash this would otherwise be: Character.Stats (the real
+// charstats.txt table) has no HeroDevil entry, so the classStats this
+// function receives for it is nil -- and every field on it
+// (InitStr/InitDex/...) gets dereferenced unconditionally below. A bare
+// &HeroStateFactory{} (nil asset) is enough here specifically because the
+// fix keeps the HeroDevil path from ever touching f.asset.Records at all
+// (see CreateHeroStatsState's own comment) -- proof the fix doesn't
+// secretly still depend on a loaded AssetManager.
+func TestCreateHeroStatsStateForHeroDevilDoesNotPanic(t *testing.T) {
+	factory := &HeroStateFactory{}
+
+	stats := factory.CreateHeroStatsState(d2enum.HeroDevil, nil)
+
+	if stats == nil {
+		t.Fatal("expected a non-nil HeroStatsState for HeroDevil")
+	}
+
+	if stats.Strength <= 0 || stats.Dexterity <= 0 || stats.Vitality <= 0 || stats.Energy <= 0 {
+		t.Errorf("expected positive placeholder attributes, got %+v", stats)
+	}
+
+	if stats.MaxHealth <= 0 || stats.MaxMana <= 0 {
+		t.Errorf("expected positive MaxHealth/MaxMana derived from the placeholder stats, got MaxHealth=%d MaxMana=%d",
+			stats.MaxHealth, stats.MaxMana)
+	}
+
+	if stats.NextLevelExp != experienceForLevel(1) {
+		t.Errorf("expected NextLevelExp to use Devil's own experienceForLevel(1) (%d), got %d",
+			experienceForLevel(1), stats.NextLevelExp)
+	}
+}
+
+// TestCreateHeroStatsStateFallsBackOnNilClassStats guards the other half
+// of the same fix: any hero class (not just HeroDevil) with a nil
+// classStats now gets the placeholder instead of panicking.
+func TestCreateHeroStatsStateFallsBackOnNilClassStats(t *testing.T) {
+	factory := &HeroStateFactory{}
+
+	stats := factory.CreateHeroStatsState(d2enum.HeroSorceress, nil)
+
+	if stats == nil || stats.Strength <= 0 {
+		t.Errorf("expected a real fallback HeroStatsState, got %+v", stats)
 	}
 }
