@@ -9,20 +9,21 @@ import (
 
 // NPC status effect names carried by NPCStatusEffectPacket.Effect --
 // matching the d2mapentity.NPC method each names (ApplySlow/
-// ApplyImmobilize/ApplyAmplification/ApplyResistanceStrip).
+// ApplyImmobilize/ApplyAmplification/ApplyResistanceStrip/ApplyBurn).
 const (
 	NPCStatusSlowed             = "slowed"
 	NPCStatusImmobilized        = "immobilized"
 	NPCStatusAmplified          = "amplified"
 	NPCStatusResistanceStripped = "resistanceStripped"
+	NPCStatusBurning            = "burning"
 )
 
 // NPCStatusEffectPacket carries a timed status effect applied to an NPC
 // (Éclat de glace/Ralentissement/Distorsion temporelle's slow, Prison de
 // glace's immobilize, Amplification's damage amplification, Rupture
-// arcane's resistance strip). One generic packet covers all four rather
-// than one packet type per effect, since they're all the same shape: an
-// entity ID and an expiry.
+// arcane's resistance strip, Marque ardente's burn). One generic packet
+// covers all five rather than one packet type per effect, since they're
+// all the same shape: an entity ID and an expiry.
 type NPCStatusEffectPacket struct {
 	EntityID string    `json:"entityId"`
 	Effect   string    `json:"effect"`

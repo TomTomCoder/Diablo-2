@@ -88,6 +88,22 @@ type HeroStatsState struct {
 	// explicitly provisional: §6 names the effect but specifies neither.
 	OverloadActive bool `json:"overloadActive"`
 
+	// MarqueArdenteActive is Devil's "Marque ardente" (§6 "Mécaniques
+	// offensives clés": "Applique des dégâts par seconde après impact,
+	// ignore la régénération"). Same shape as OverloadActive -- not one
+	// of the 30 tree skills either, no SkillID to toggle via a cast, so
+	// toggled by its own dedicated keybinding/request
+	// (GameServer.resolveToggleMarqueArdente). While true, any hit that
+	// doesn't kill its target also marks it burning
+	// (d2mapentity.NPC.ApplyBurn) for GameServer's
+	// marqueArdenteDamagePerTick/marqueArdenteDuration -- both explicitly
+	// provisional placeholders, same as Overload's own, since §6 names
+	// the effect but specifies neither trigger nor magnitude. "Ignore la
+	// régénération" needs no special handling: no NPC HP regeneration
+	// mechanic exists anywhere in this engine, so there is nothing to
+	// ignore.
+	MarqueArdenteActive bool `json:"marqueArdenteActive"`
+
 	// MagicImmuneUntil is when the hero's magic immunity (Éveil du Nexus,
 	// Ésotérisme's ultimate: "immunité magique pendant 8 secondes") expires.
 	// Zero value means not immune. See ApplyMagicImmunity/IsMagicImmune.

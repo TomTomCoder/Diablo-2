@@ -491,6 +491,73 @@ func TestOverloadBonusDamage(t *testing.T) {
 	}
 }
 
+func TestShouldIgniteBurn(t *testing.T) {
+	if shouldIgniteBurn(1000, false) {
+		t.Error("expected no ignition without MarqueArdenteActive")
+	}
+
+	if !shouldIgniteBurn(1000, true) {
+		t.Error("expected a real hit (nonzero skillID) to ignite while active")
+	}
+
+	// The regression this pins down: a tick's own recursive call into
+	// applyResolvedDamage (skillID == burnTickSkillID) must never
+	// re-ignite the burn it's currently ticking down, or the burn would
+	// refresh itself forever instead of expiring.
+	if shouldIgniteBurn(burnTickSkillID, true) {
+		t.Error("expected a burn tick's own damage application not to re-ignite the burn")
+	}
+}
+
+// advanceBurningNPC tests use a bare, non-killable *d2mapentity.NPC (no
+// exported constructor exists for a real killable one outside its own
+// package -- same documented limitation as TestDropLootNoMapEnginesDoesNotPanic
+// above). That's enough to test the tick-scheduling logic in
+// advanceBurningNPC itself: the actual HP reduction inside
+// applyResolvedDamage->ApplyDamage is already covered by
+// TestNPCApplyDamageNotKillable/TestNPCApplyDamage in d2mapentity's own
+// tests.
+func TestAdvanceBurningNPCNotBurningIsNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+	npc := &d2mapentity.NPC{}
+
+	server.advanceBurningNPC(npc)
+
+	if !npc.NextBurnTickAt.IsZero() {
+		t.Error("expected a never-burning NPC's NextBurnTickAt to stay zero")
+	}
+}
+
+func TestAdvanceBurningNPCNotYetDueIsNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+	now := time.Now()
+	server.clock = func() time.Time { return now }
+
+	npc := &d2mapentity.NPC{}
+	npc.ApplyBurn("attacker1", now.Add(5*time.Second), 20, now.Add(time.Second))
+
+	server.advanceBurningNPC(npc)
+
+	if !npc.NextBurnTickAt.Equal(now.Add(time.Second)) {
+		t.Error("expected NextBurnTickAt to stay untouched before it's actually due")
+	}
+}
+
+func TestAdvanceBurningNPCAdvancesNextTickWhenDue(t *testing.T) {
+	server := serverWithConnection(nil)
+	now := time.Now()
+
+	npc := &d2mapentity.NPC{}
+	npc.ApplyBurn("attacker1", now.Add(5*time.Second), 20, now)
+
+	server.clock = func() time.Time { return now }
+	server.advanceBurningNPC(npc)
+
+	if !npc.NextBurnTickAt.Equal(now.Add(marqueArdenteTickInterval)) {
+		t.Errorf("expected NextBurnTickAt advanced to %v, got %v", now.Add(marqueArdenteTickInterval), npc.NextBurnTickAt)
+	}
+}
+
 func TestResolveTeleportationHitMovesThePlayer(t *testing.T) {
 	state := &d2hero.HeroState{X: 0, Y: 0}
 	server := serverWithConnection(state)
@@ -2360,6 +2427,70 @@ func TestResolveToggleOverloadBroadcastsToggle(t *testing.T) {
 
 	if status.Effect != d2netpacket.PlayerStatusOverload || !status.Active {
 		t.Errorf("expected effect %q active=true, got %q active=%v", d2netpacket.PlayerStatusOverload, status.Effect, status.Active)
+	}
+}
+
+func TestResolveToggleMarqueArdenteTogglesMarqueArdenteActive(t *testing.T) {
+	state := &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}
+	server := serverWithConnection(state)
+
+	packet, err := d2netpacket.CreateToggleMarqueArdenteRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateToggleMarqueArdenteRequestPacket failed: %v", err)
+	}
+
+	if state.Stats.MarqueArdenteActive {
+		t.Fatal("expected MarqueArdenteActive to start false")
+	}
+
+	server.resolveToggleMarqueArdente(packet)
+
+	if !state.Stats.MarqueArdenteActive {
+		t.Error("expected first toggle to turn MarqueArdenteActive on")
+	}
+
+	server.resolveToggleMarqueArdente(packet)
+
+	if state.Stats.MarqueArdenteActive {
+		t.Error("expected second toggle to turn MarqueArdenteActive back off")
+	}
+}
+
+func TestResolveToggleMarqueArdenteUnknownPlayerNoop(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	packet, err := d2netpacket.CreateToggleMarqueArdenteRequestPacket("nobody")
+	if err != nil {
+		t.Fatalf("test setup: CreateToggleMarqueArdenteRequestPacket failed: %v", err)
+	}
+
+	// must not panic when the caster isn't a connected/resolved player.
+	server.resolveToggleMarqueArdente(packet)
+}
+
+func TestResolveToggleMarqueArdenteBroadcastsToggle(t *testing.T) {
+	conn := &fakeClientConnection{state: &d2hero.HeroState{Stats: &d2hero.HeroStatsState{}}}
+	server := &GameServer{connections: map[string]ClientConnection{"p": conn}}
+
+	packet, err := d2netpacket.CreateToggleMarqueArdenteRequestPacket("p")
+	if err != nil {
+		t.Fatalf("test setup: CreateToggleMarqueArdenteRequestPacket failed: %v", err)
+	}
+
+	server.resolveToggleMarqueArdente(packet)
+
+	if len(conn.sent) != 1 {
+		t.Fatalf("expected 1 packet sent, got %d", len(conn.sent))
+	}
+
+	status, err := d2netpacket.UnmarshalPlayerStatusEffect(conn.sent[0].PacketData)
+	if err != nil {
+		t.Fatalf("failed to unmarshal PlayerStatusEffectPacket: %v", err)
+	}
+
+	if status.Effect != d2netpacket.PlayerStatusMarqueArdente || !status.Active {
+		t.Errorf("expected effect %q active=true, got %q active=%v",
+			d2netpacket.PlayerStatusMarqueArdente, status.Effect, status.Active)
 	}
 }
 

@@ -51,6 +51,31 @@ type NPC struct {
 	// cible") expires. Zero value means resistance isn't stripped. See
 	// ApplyResistanceStrip/IsResistanceStripped/MagicResistancePercent.
 	ResistanceStrippedUntil time.Time
+
+	// BurningUntil is when this NPC's damage-over-time effect (Marque
+	// ardente, "Applique des dégâts par seconde après impact, ignore la
+	// régénération") expires. Zero value means not burning. See
+	// ApplyBurn/IsBurning.
+	BurningUntil time.Time
+
+	// BurningSourceID is the entity ID of the player whose hit applied
+	// the current burn -- carried through GameServer's periodic tick
+	// calls so kill credit (gold/XP/mana-on-kill/loot) still goes to the
+	// right player even when the NPC dies from a tick rather than a
+	// direct hit.
+	BurningSourceID string
+
+	// BurningDamagePerTick is the fixed damage applied on each burn tick
+	// (see GameServer's marqueArdenteDamagePerTick) -- stored on the NPC
+	// itself since ticks are processed generically, with no per-cast
+	// context available at tick time.
+	BurningDamagePerTick int
+
+	// NextBurnTickAt is when this NPC's next burn tick is due. The AI
+	// tick loop that processes this (aiTickInterval, 200ms) runs far
+	// more often than the intended one-tick-per-second rate, so this --
+	// not the loop's own interval -- paces actual damage application.
+	NextBurnTickAt time.Time
 }
 
 const (
@@ -316,6 +341,38 @@ func (v *NPC) IsResistanceStripped(now time.Time) bool {
 // at now.
 func (v *NPC) IsImmobilized(now time.Time) bool {
 	return now.Before(v.ImmobilizedUntil)
+}
+
+// ApplyBurn marks this NPC as burning (see IsBurning) until the given
+// time, dealing damagePerTick on each tick starting at nextTickAt (the
+// caller's clock plus its own tick interval -- kept caller-computed, like
+// every other *Until field on this struct, rather than this method
+// knowing about GameServer's own constants) -- extending, never
+// shortening, an already-active window (same shape as ApplySlow). The
+// source/damage/next-tick are only overwritten when the burn is actually
+// extended, so a second, weaker hit while already burning can't downgrade
+// an existing stronger burn, and re-igniting an active burn restarts its
+// tick timer along with everything else.
+func (v *NPC) ApplyBurn(sourceID string, until time.Time, damagePerTick int, nextTickAt time.Time) {
+	if until.After(v.BurningUntil) {
+		v.BurningUntil = until
+		v.BurningSourceID = sourceID
+		v.BurningDamagePerTick = damagePerTick
+		v.NextBurnTickAt = nextTickAt
+	}
+}
+
+// IsBurning reports whether this NPC's damage-over-time effect is still
+// active at now.
+func (v *NPC) IsBurning(now time.Time) bool {
+	return now.Before(v.BurningUntil)
+}
+
+// DueForBurnTick reports whether this NPC's next scheduled burn tick has
+// arrived. Callers that apply a tick must also advance NextBurnTickAt
+// themselves (see GameServer.advanceBurningNPC) -- this method only reads.
+func (v *NPC) DueForBurnTick(now time.Time) bool {
+	return !now.Before(v.NextBurnTickAt)
 }
 
 // Knockback instantly displaces this NPC distanceSubtiles further away from

@@ -3,6 +3,7 @@ package d2client
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/OpenDiablo2/OpenDiablo2/d2core/d2hero"
 
@@ -446,6 +447,13 @@ func (g *GameClient) handleNPCStatusEffectPacket(packet d2netpacket.NetPacket) e
 		npc.ApplyAmplification(status.Until)
 	case d2netpacket.NPCStatusResistanceStripped:
 		npc.ApplyResistanceStrip(status.Until)
+	case d2netpacket.NPCStatusBurning:
+		// sourceID/damagePerTick/nextTickAt aren't carried by this
+		// generic packet -- the client never deals damage itself
+		// (server-authoritative, see applyResolvedDamage), so zero
+		// values are enough for this local copy's IsBurning to stay
+		// accurate.
+		npc.ApplyBurn("", status.Until, 0, time.Time{})
 	}
 
 	return nil
@@ -473,6 +481,8 @@ func (g *GameClient) handlePlayerStatusEffectPacket(packet d2netpacket.NetPacket
 		player.Stats.ArmureDeGlaceActive = status.Active
 	case d2netpacket.PlayerStatusOverload:
 		player.Stats.OverloadActive = status.Active
+	case d2netpacket.PlayerStatusMarqueArdente:
+		player.Stats.MarqueArdenteActive = status.Active
 	case d2netpacket.PlayerStatusMagicImmune:
 		player.Stats.ApplyMagicImmunity(status.Until)
 	}

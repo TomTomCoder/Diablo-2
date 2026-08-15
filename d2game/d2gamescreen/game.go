@@ -434,6 +434,21 @@ func (v *Game) OnToggleOverload() {
 	}
 }
 
+// OnToggleMarqueArdente sends a request to toggle Marque ardente on/off
+// (d2hero.HeroStatsState.MarqueArdenteActive), triggered by the
+// ToggleMarqueArdente keybinding -- OnToggleOverload's own mirror.
+func (v *Game) OnToggleMarqueArdente() {
+	tp, err := d2netpacket.CreateToggleMarqueArdenteRequestPacket(v.gameClient.PlayerID)
+	if err != nil {
+		v.Errorf("ToggleMarqueArdenteRequestPacket: %v", err)
+		return
+	}
+
+	if err := v.gameClient.SendPacketToServer(tp); err != nil {
+		v.Errorf("ToggleMarqueArdenteRequestPacket: player %s: %v", v.gameClient.PlayerID, err)
+	}
+}
+
 // OnMoveToStash sends a request to move an inventory item to the stash
 // (d2hero.HeroState.MoveToStash), triggered by clicking an Inventory slot
 // in devilInventoryPanel.

@@ -419,6 +419,19 @@ func (g *GameServer) advanceMonsterAI() {
 			continue
 		}
 
+		// Marque ardente's periodic tick: processed here, unconditional
+		// on aggro/proximity (unlike the rest of this loop below), so a
+		// burning NPC the player has already walked away from still
+		// takes its ticks. applyResolvedDamage can kill it and remove it
+		// from the map -- Entities() above already returned a snapshot
+		// (see engine_test.go's own race regression test), so removing
+		// mid-iteration here is safe.
+		g.advanceBurningNPC(npc)
+
+		if npc.HP <= 0 {
+			continue
+		}
+
 		npcPos := npc.GetPosition()
 
 		playerID, playerPos, found := g.nearestPlayer(npcPos)
@@ -453,6 +466,23 @@ func (g *GameServer) advanceMonsterAI() {
 
 		g.tryMonsterAttack(npc.ID(), playerID)
 	}
+}
+
+// advanceBurningNPC applies Marque ardente's pending tick to npc, if one
+// is due, by calling applyResolvedDamage -- reusing its own
+// death/reward/broadcast plumbing exactly (gold, XP, mana-on-kill, loot,
+// the NPCHit packet) so a kill from a DoT tick is handled identically to
+// a kill from a direct hit, credited to whoever's original hit applied
+// the burn (npc.BurningSourceID). A no-op if npc isn't currently burning
+// or its next tick isn't due yet.
+func (g *GameServer) advanceBurningNPC(npc *d2mapentity.NPC) {
+	now := g.clock()
+	if !npc.IsBurning(now) || !npc.DueForBurnTick(now) {
+		return
+	}
+
+	npc.NextBurnTickAt = now.Add(marqueArdenteTickInterval)
+	g.applyResolvedDamage(npc, npc.BurningSourceID, burnTickSkillID, npc.BurningDamagePerTick)
 }
 
 // nearestPlayer returns the connected player closest to from, reading live
@@ -1474,6 +1504,30 @@ const (
 	overloadDamagePercent   = 10
 )
 
+// marqueArdenteDamagePerTick/marqueArdenteDuration/marqueArdenteTickInterval
+// are Marque ardente's three magnitudes (§6: "Applique des dégâts par
+// seconde après impact, ignore la régénération") -- see
+// MarqueArdenteActive's own doc comment. Same situation as Overload's own
+// constants: the design names the effect but gives no numbers. 20 flat
+// damage per tick, a 5-second burn, ticking once per second are
+// placeholders pending real balance numbers, chosen to be a real but
+// secondary source of damage next to a direct hit rather than derived
+// from any cited source. "Ignore la régénération" needs no constant of
+// its own: no NPC HP regeneration mechanic exists anywhere in this
+// engine, so there's nothing for a burn tick to out-pace.
+const (
+	marqueArdenteDamagePerTick = 20
+	marqueArdenteDuration      = 5 * time.Second
+	marqueArdenteTickInterval  = 1 * time.Second
+)
+
+// burnTickSkillID is the sentinel skillID advanceBurningNPC passes to
+// applyResolvedDamage for its own periodic tick calls -- real skills are
+// always a positive d2hero.SkillXxx constant (SkillTraitDeFeu = 1000, the
+// lowest), so 0 can never collide with one. See applyResolvedDamage's own
+// use of this guard for why it exists.
+const burnTickSkillID = 0
+
 // amplifiedDamage scales damage by amplificationDamagePercent if amplified,
 // otherwise returns it unchanged. Factored out of applyResolvedDamage so the
 // scaling itself is testable without a live d2mapentity.NPC.
@@ -1495,6 +1549,19 @@ func overloadBonusDamage(currentHP int, overloadActive bool) int {
 	}
 
 	return currentHP * overloadDamagePercent / 100
+}
+
+// shouldIgniteBurn reports whether a hit should ignite/refresh Marque
+// ardente's burn on its target -- true only for a real hit (skillID !=
+// burnTickSkillID) while the attacker has MarqueArdenteActive. Factored
+// out of applyResolvedDamage for the same reason as overloadBonusDamage,
+// and specifically to pin down a real bug caught before shipping: without
+// the burnTickSkillID exclusion, advanceBurningNPC's own tick calls
+// (which reuse applyResolvedDamage for its death/reward/broadcast
+// plumbing) would re-ignite the very burn they're ticking down, making it
+// refresh itself forever instead of expiring.
+func shouldIgniteBurn(skillID int, marqueArdenteActive bool) bool {
+	return skillID != burnTickSkillID && marqueArdenteActive
 }
 
 // applyResolvedDamage applies an already-computed damage amount to npc:
@@ -1537,10 +1604,27 @@ func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID st
 		g.awardExperience(sourceEntityID)
 		g.restoreManaOnKill(sourceEntityID)
 		g.dropLoot(npc)
-	} else if skillID == d2hero.SkillEclatDeGlace && !npc.IsColdImmune(difficulty) {
-		until := g.clock().Add(eclatDeGlaceSlowDuration)
-		npc.ApplySlow(until)
-		g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)
+	} else {
+		if skillID == d2hero.SkillEclatDeGlace && !npc.IsColdImmune(difficulty) {
+			until := g.clock().Add(eclatDeGlaceSlowDuration)
+			npc.ApplySlow(until)
+			g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusSlowed, until)
+		}
+
+		// Marque ardente: "Applique des dégâts par seconde après impact"
+		// -- any non-lethal hit while active marks the target burning,
+		// same "generic toggle checked in applyResolvedDamage" shape as
+		// Overload's own bonus above. See MarqueArdenteActive's doc
+		// comment.
+		//
+		// See shouldIgniteBurn's own doc comment for why skillID is
+		// checked here -- a real bug caught before shipping.
+		if attacker != nil && attacker.Stats != nil && shouldIgniteBurn(skillID, attacker.Stats.MarqueArdenteActive) {
+			now := g.clock()
+			until := now.Add(marqueArdenteDuration)
+			npc.ApplyBurn(sourceEntityID, until, marqueArdenteDamagePerTick, now.Add(marqueArdenteTickInterval))
+			g.broadcastNPCStatusEffect(npc, d2netpacket.NPCStatusBurning, until)
+		}
 	}
 
 	hitPacket, err := d2netpacket.CreateNPCHitPacket(npc.ID(), npc.HP, died)
@@ -1776,6 +1860,29 @@ func (g *GameServer) resolveToggleOverload(packet d2netpacket.NetPacket) {
 
 	state.Stats.OverloadActive = !state.Stats.OverloadActive
 	g.broadcastPlayerStatusEffect(requestPacket.SourceEntityID, d2netpacket.PlayerStatusOverload, state.Stats.OverloadActive, time.Time{})
+}
+
+// resolveToggleMarqueArdente unmarshals a ToggleMarqueArdenteRequestPacket
+// and toggles sourceEntityID's own HeroStatsState.MarqueArdenteActive --
+// same shape as resolveToggleOverload, see its own doc comment and
+// MarqueArdenteActive's. The burn it enables is applied in
+// applyResolvedDamage; the tick itself is processed in advanceMonsterAI.
+// A no-op if sourceEntityID isn't a resolved connected player with stats.
+func (g *GameServer) resolveToggleMarqueArdente(packet d2netpacket.NetPacket) {
+	requestPacket, err := d2netpacket.UnmarshalToggleMarqueArdenteRequest(packet.PacketData)
+	if err != nil {
+		g.Errorf("resolveToggleMarqueArdente: %v", err)
+		return
+	}
+
+	state := g.playerStateOf(requestPacket.SourceEntityID)
+	if state == nil || state.Stats == nil {
+		return
+	}
+
+	state.Stats.MarqueArdenteActive = !state.Stats.MarqueArdenteActive
+	g.broadcastPlayerStatusEffect(
+		requestPacket.SourceEntityID, d2netpacket.PlayerStatusMarqueArdente, state.Stats.MarqueArdenteActive, time.Time{})
 }
 
 // resolveArmureDeGlaceHit toggles sourceEntityID's own
@@ -2553,6 +2660,8 @@ func (g *GameServer) OnPacketReceived(client ClientConnection, packet d2netpacke
 		g.resolveMoveFromBelt(packet)
 	case d2netpackettype.ToggleOverloadRequest:
 		g.resolveToggleOverload(packet)
+	case d2netpackettype.ToggleMarqueArdenteRequest:
+		g.resolveToggleMarqueArdente(packet)
 	case d2netpackettype.RespecSkillsRequest:
 		g.resolveRespecSkills(packet)
 	case d2netpackettype.RespecCompletRequest:

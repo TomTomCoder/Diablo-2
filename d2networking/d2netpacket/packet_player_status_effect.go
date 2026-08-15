@@ -14,6 +14,7 @@ const (
 	PlayerStatusArmureDeGlace = "armureDeGlace" // ArmureDeGlaceActive
 	PlayerStatusMagicImmune   = "magicImmune"   // MagicImmuneUntil (via Until, Active unused)
 	PlayerStatusOverload      = "overload"      // OverloadActive
+	PlayerStatusMarqueArdente = "marqueArdente" // MarqueArdenteActive
 )
 
 // PlayerStatusEffectPacket carries a change to one of the caster's own

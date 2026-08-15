@@ -424,6 +424,65 @@ func TestNPCApplyResistanceStrip(t *testing.T) {
 	}
 }
 
+func TestNPCApplyBurn(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	if npc.IsBurning(now) {
+		t.Fatal("a fresh NPC should not start burning")
+	}
+
+	npc.ApplyBurn("attacker1", now.Add(5*time.Second), 20, now.Add(time.Second))
+
+	if !npc.IsBurning(now) {
+		t.Error("expected the NPC to be burning immediately after ApplyBurn")
+	}
+
+	if npc.BurningSourceID != "attacker1" || npc.BurningDamagePerTick != 20 {
+		t.Errorf("expected source/damage stored, got source=%q damage=%d", npc.BurningSourceID, npc.BurningDamagePerTick)
+	}
+
+	if npc.IsBurning(now.Add(6 * time.Second)) {
+		t.Error("expected the burn to have expired after its duration elapsed")
+	}
+}
+
+// TestNPCApplyBurnNeverShortensAnAlreadyLongerWindow mirrors
+// TestNPCApplySlowNeverShortensAnAlreadyLongerWindow's own regression:
+// a second, weaker/shorter hit while already burning must not cut short
+// an existing longer burn, nor downgrade its source/damage/next-tick.
+func TestNPCApplyBurnNeverShortensAnAlreadyLongerWindow(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	npc.ApplyBurn("strong", now.Add(5*time.Second), 20, now.Add(time.Second))
+	npc.ApplyBurn("weak", now.Add(3*time.Second), 5, now.Add(2*time.Second))
+
+	if !npc.IsBurning(now.Add(4 * time.Second)) {
+		t.Error("expected the longer 5s window to survive a shorter, later ApplyBurn call")
+	}
+
+	if npc.BurningSourceID != "strong" || npc.BurningDamagePerTick != 20 {
+		t.Errorf("expected the stronger burn's source/damage to survive, got source=%q damage=%d",
+			npc.BurningSourceID, npc.BurningDamagePerTick)
+	}
+}
+
+func TestNPCDueForBurnTick(t *testing.T) {
+	npc := killableNPC(10)
+	now := time.Now()
+
+	npc.ApplyBurn("attacker1", now.Add(5*time.Second), 20, now.Add(time.Second))
+
+	if npc.DueForBurnTick(now) {
+		t.Error("expected the first tick not to be due immediately after ApplyBurn")
+	}
+
+	if !npc.DueForBurnTick(now.Add(time.Second)) {
+		t.Error("expected the first tick to be due once NextBurnTickAt arrives")
+	}
+}
+
 func TestNPCKnockbackPushesAwayAlongSourceLine(t *testing.T) {
 	npc := killableNPC(10)
 	npc.Position = d2vector.NewPosition(5, 5)

@@ -417,6 +417,8 @@ func (g *GameControls) OnKeyDown(event d2interface.KeyEvent) bool {
 		g.inputListener.OnCraft(d2hero.RecipeUpgradeBatonApprenti)
 	case d2enum.ToggleOverload:
 		g.inputListener.OnToggleOverload()
+	case d2enum.ToggleMarqueArdente:
+		g.inputListener.OnToggleMarqueArdente()
 	case d2enum.ToggleDevilInventory:
 		g.toggleDevilInventoryPanel()
 	case d2enum.UseRespecEssence:

@@ -11,6 +11,7 @@ type inputCallbackListener interface {
 	OnLearnSkill(skillID int)
 	OnCraft(recipeID string)
 	OnToggleOverload()
+	OnToggleMarqueArdente()
 	OnMoveToStash(inventoryIndex int)
 	OnMoveToInventory(stashIndex int)
 	OnMoveFromBelt(beltIndex int)

@@ -138,4 +138,10 @@ const (
 	// underlying MoveToBelt mechanism/packet/resolver already existed
 	// (built alongside MoveFromBelt) but had no UI trigger until now.
 	ArmMoveToBelt
+
+	// ToggleMarqueArdente triggers Marque ardente on/off
+	// (d2hero.HeroStatsState.MarqueArdenteActive) -- same reasoning as
+	// ToggleOverload: §6's other generic mechanic, not one of the 30
+	// tree skills, so no existing clickable element to redirect.
+	ToggleMarqueArdente
 )
