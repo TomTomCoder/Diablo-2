@@ -74,3 +74,44 @@ func RollTreasureClass(tc *TreasureClass) ([]string, error) {
 
 	return drops, nil
 }
+
+// tcBasicMonsterNoDropWeight/tcBasicMonsterPotionWeight/
+// tcBasicMonsterEquipmentWeight are TCBasicMonster's own entry weights --
+// see its doc comment for why they're explicitly provisional.
+const (
+	tcBasicMonsterNoDropWeight    = 100
+	tcBasicMonsterPotionWeight    = 30
+	tcBasicMonsterEquipmentWeight = 5
+)
+
+// TCBasicMonster is Devil's only Treasure Class so far -- every monster
+// kill rolls this same one (see GameServer's own death-handling call
+// site), since MonsterArchetypes (per its own comment) has no per-monster-
+// level data yet to pick a TC *by*, the other half of real Diablo 2's own
+// TC selection this package's doc comment already flags as unmodeled.
+//
+// ponytail: explicitly provisional. Devil's whole item catalog is 7 codes
+// (its 5 starting items, one belt slot, one Craft-upgraded weapon, see
+// devil_items.go) -- there's no separately-designed "loot" pool to draw
+// from, so this reuses that same catalog rather than inventing new items.
+// Weighted heavily toward NoDrop (the entries below aren't equal odds:
+// 100 NoDrop vs. 30 for the potion vs. 5 each for the rarer pieces),
+// chosen to feel like real Diablo 2's own drop rates (mostly nothing,
+// consumables common, equipment rare) rather than derived from any cited
+// source. Replace once the studio provides a real loot catalog and
+// per-monster-level TC data.
+//
+// nolint:gochecknoglobals // a read-only registry entry, not mutable
+// shared state -- same practice as DevilSkills/DevilCraftingRecipes.
+var TCBasicMonster = &TreasureClass{
+	ID: "dvl_tc_basic_monster",
+	Entries: []TreasureClassEntry{
+		{ItemCode: "", Weight: tcBasicMonsterNoDropWeight},
+		{ItemCode: ItemPotionDeMana, Weight: tcBasicMonsterPotionWeight},
+		{ItemCode: ItemPendentifArcane, Weight: tcBasicMonsterEquipmentWeight},
+		{ItemCode: ItemAnneauDuDebut, Weight: tcBasicMonsterEquipmentWeight},
+		{ItemCode: ItemRobeDuNovice, Weight: tcBasicMonsterEquipmentWeight},
+		{ItemCode: ItemCeintureDeCuirRunique, Weight: tcBasicMonsterEquipmentWeight},
+	},
+	Picks: 1,
+}

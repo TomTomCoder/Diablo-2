@@ -718,6 +718,43 @@ func (g *GameServer) restoreManaOnKill(playerID string) {
 	g.sendPacketToClients(restoredPacket)
 }
 
+// dropLoot rolls d2hero.TCBasicMonster against npc's death and, for each
+// non-empty item code it lands on, broadcasts a SpawnItemPacket at npc's
+// position -- the same client-facing mechanism debugSpawnItemAtLocation
+// (d2gamescreen/game.go) already uses, just server-triggered by a real
+// kill instead of a debug command. See TCBasicMonster's own doc comment
+// for why it's the one Treasure Class every kill rolls, regardless of
+// monster type/level (no per-monster-level data exists yet to pick a
+// different one by). A no-op (not an error) if the roll comes up empty
+// entirely, or if there's no map engine to place the item on.
+func (g *GameServer) dropLoot(npc *d2mapentity.NPC) {
+	if len(g.mapEngines) == 0 {
+		return
+	}
+
+	drops, err := d2hero.RollTreasureClass(d2hero.TCBasicMonster)
+	if err != nil {
+		g.Errorf("RollTreasureClass: %v", err)
+		return
+	}
+
+	if len(drops) == 0 {
+		return
+	}
+
+	pos := npc.GetPosition()
+	tile := pos.Tile()
+	x, y := int(tile.X()), int(tile.Y())
+
+	spawnPacket, err := d2netpacket.CreateSpawnItemPacket(x, y, drops...)
+	if err != nil {
+		g.Errorf("CreateSpawnItemPacket: %v", err)
+		return
+	}
+
+	g.sendPacketToClients(spawnPacket)
+}
+
 // resolveUsePotion unmarshals a UsePotionRequestPacket and, if
 // HeroState.UsePotion succeeds (valid slot, not empty, hero has stats),
 // broadcasts the caster's new Mana total via PotionUsedPacket. Silently
@@ -1450,6 +1487,7 @@ func (g *GameServer) applyResolvedDamage(npc *d2mapentity.NPC, sourceEntityID st
 		g.awardGold(sourceEntityID)
 		g.awardExperience(sourceEntityID)
 		g.restoreManaOnKill(sourceEntityID)
+		g.dropLoot(npc)
 	} else if skillID == d2hero.SkillEclatDeGlace && !npc.IsColdImmune(difficulty) {
 		until := g.clock().Add(eclatDeGlaceSlowDuration)
 		npc.ApplySlow(until)

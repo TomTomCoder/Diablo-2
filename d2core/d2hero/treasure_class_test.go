@@ -85,3 +85,53 @@ func TestRollTreasureClassZeroPicksYieldsNoDrops(t *testing.T) {
 		t.Errorf("expected no drops for Picks: 0, got %v", drops)
 	}
 }
+
+// TestTCBasicMonsterRollsWithoutError is a structural regression test:
+// nothing here depends on the actual random outcome, just that
+// TCBasicMonster is well-formed enough for RollTreasureClass to never
+// fail against it (positive weights, at least one entry) and that every
+// non-empty drop it can ever produce is one of Devil's own known item
+// codes, not something malformed.
+func TestTCBasicMonsterRollsWithoutError(t *testing.T) {
+	known := map[string]bool{
+		ItemPotionDeMana:          true,
+		ItemPendentifArcane:       true,
+		ItemAnneauDuDebut:         true,
+		ItemRobeDuNovice:          true,
+		ItemCeintureDeCuirRunique: true,
+	}
+
+	for i := 0; i < 100; i++ {
+		drops, err := RollTreasureClass(TCBasicMonster)
+		if err != nil {
+			t.Fatalf("RollTreasureClass(TCBasicMonster) failed: %v", err)
+		}
+
+		for _, code := range drops {
+			if !known[code] {
+				t.Errorf("unexpected item code %q in TCBasicMonster's drops", code)
+			}
+		}
+	}
+}
+
+// TestTCBasicMonsterCanDropNothing guards the "mostly nothing" weighting
+// TCBasicMonster's own doc comment describes -- NoDrop's weight (100) is
+// by far the largest of the pool (145 total), so across enough rolls at
+// least one should come back empty. Not a strict probability assertion,
+// just a sanity check that NoDrop entries aren't accidentally excluded
+// from ever winning.
+func TestTCBasicMonsterCanDropNothing(t *testing.T) {
+	for i := 0; i < 200; i++ {
+		drops, err := RollTreasureClass(TCBasicMonster)
+		if err != nil {
+			t.Fatalf("RollTreasureClass(TCBasicMonster) failed: %v", err)
+		}
+
+		if len(drops) == 0 {
+			return
+		}
+	}
+
+	t.Error("expected at least one empty (NoDrop) result across 200 rolls")
+}

@@ -391,6 +391,18 @@ func TestResolveChampStatiqueHitNoMapEnginesDoesNotPanic(t *testing.T) {
 	server.resolveChampStatiqueHit("p", d2hero.SkillChampStatique)
 }
 
+// TestDropLootNoMapEnginesDoesNotPanic mirrors
+// TestResolveChampStatiqueHitNoMapEnginesDoesNotPanic: dropLoot's own
+// len(g.mapEngines) == 0 guard returns before ever touching npc, so a nil
+// *d2mapentity.NPC is safe here -- constructing a real one needs a full
+// MPQ-loaded AssetManager, the same limitation documented throughout this
+// package's other tests.
+func TestDropLootNoMapEnginesDoesNotPanic(t *testing.T) {
+	server := serverWithConnection(nil)
+
+	server.dropLoot(nil)
+}
+
 // TestBroadcastNPCMovedSendsCurrentPosition is a regression test: Knockback
 // (Télékinésie) and Pull (Vortex) used to mutate an NPC's position with no
 // way for clients to find out, so the entity would silently stay put on
